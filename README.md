@@ -6,7 +6,8 @@ duy nhất).
 
 ## Tính năng đã có
 
-- Đăng nhập bằng email (không cần mật khẩu), phân quyền Giáo viên / Học sinh.
+- Đăng nhập bằng email + mật khẩu tự đặt (không cần dịch vụ gửi email nào),
+  phân quyền Giáo viên / Học sinh.
 - Giáo viên: **tạo đề từ file Word** (AI đọc file `.docx`, LaTeX hoá công
   thức, tách câu hỏi theo 3 phần, giáo viên xem trước & xác nhận đáp án
   trước khi xuất bản), ngân hàng câu hỏi thủ công (gán chủ đề/dạng bài/mức

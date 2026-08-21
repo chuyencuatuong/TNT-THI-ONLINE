@@ -6,13 +6,15 @@ hình. Khoảng 10 phút.
 
 ---
 
-## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 2 việc để cập nhật
+## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 3 việc để cập nhật
 
 Bản cập nhật lần này thêm: tạo đề từ file Word (AI tự đọc + LaTeX hoá công
 thức), giao diện làm bài có đếm giờ + danh sách câu hỏi bên cạnh (giống
 Azota), dashboard phân tích (biểu đồ thời gian từng câu, chẩn đoán mất
-gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài, và **tải ảnh minh hoạ**
-(bảng biến thiên, đồ thị...) cho từng câu hỏi.
+gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài, **tải ảnh minh hoạ**
+(bảng biến thiên, đồ thị...) cho từng câu hỏi, và **đổi cách đăng nhập từ
+"gửi link qua email" sang email + mật khẩu** (bỏ hẳn việc phải gửi email —
+xem lý do ở mục "Vì sao đổi cách đăng nhập" bên dưới).
 
 1. **Tải lại code**: lặp lại đúng **Việc 1** bên dưới (kéo-thả toàn bộ file
    trong bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2
@@ -28,9 +30,36 @@ gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài, và **tải �
 
    Nếu bỏ qua các bước này, tính năng chấm giờ, chẩn đoán học lực, và tải
    ảnh minh hoạ sẽ báo lỗi vì database chưa có các bảng/cột/kho lưu trữ mới.
+3. **Tắt yêu cầu xác nhận email (bắt buộc, chỉ 1 lần)**: vào Supabase
+   Dashboard > **Authentication** > **Sign In / Providers** (hoặc mục
+   **Emails**, tuỳ giao diện) > tìm mục **Email** provider > tắt công tắc
+   **"Confirm email"** > **Save**. Bỏ qua bước này thì đăng ký tài khoản mới
+   sẽ báo lỗi vì hệ thống vẫn cố gửi email xác nhận.
+
+   Nếu trước đó bạn có bật "Custom SMTP" (Resend) theo hướng dẫn cũ, giờ có
+   thể tắt luôn cho gọn (không bắt buộc, không dùng nữa) — vào cùng trang
+   đó, tắt **"Enable Custom SMTP"**.
 
 Sau khi GitHub Actions build xong (xem tab Actions, đợi dấu tích xanh), vào
-lại website là dùng được ngay.
+lại website là dùng được ngay — nhưng lưu ý **tài khoản cũ (nếu có) sẽ cần
+đăng ký lại bằng mật khẩu** vì cách đăng nhập cũ (gửi link qua email) không
+còn dùng được nữa (xem mục kế tiếp).
+
+### Vì sao đổi cách đăng nhập
+
+Cách cũ ("Gửi link đăng nhập" qua email) phụ thuộc vào dịch vụ gửi email
+(Resend) — dịch vụ này miễn phí nhưng ở chế độ test chỉ gửi được email tới
+đúng địa chỉ bạn dùng đăng ký tài khoản Resend, không gửi được cho học sinh.
+Để gửi được cho học sinh cần xác minh 1 tên miền riêng, tốn thêm chi phí và
+công sức thiết lập. Vì bạn muốn giữ chi phí 0 đồng, cách gọn nhất là bỏ hẳn
+việc gửi email: học sinh/giáo viên tự đặt **email + mật khẩu** khi đăng ký
+lần đầu, những lần sau đăng nhập lại bằng đúng email + mật khẩu đó — không
+cần dịch vụ gửi email nào cả, không giới hạn số lượng, không tốn phí.
+
+Đánh đổi duy nhất: hệ thống không tự gửi email "quên mật khẩu" được nữa (vì
+đúng bản chất là không gửi email nào cả). Nếu học sinh quên mật khẩu, bạn
+(giáo viên) dùng công cụ riêng tôi gửi kèm — xem mục "Học sinh quên mật
+khẩu" bên dưới — để đặt lại giúp, không cần chờ email.
 
 ---
 
@@ -96,6 +125,12 @@ không cần bấm thêm gì ở phần Settings > Pages.
   nhập từng câu bằng tay (viết công thức Toán bằng cách đặt trong dấu
   `$...$`, ví dụ gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp),
   rồi vào "Đề thi" để gom câu hỏi thành 1 đề.
+- **Đăng nhập lần đầu (cả giáo viên và học sinh)**: mở link website, nhập
+  email + đặt 1 mật khẩu (ít nhất 6 ký tự), bấm "Đăng ký tài khoản mới".
+  Không cần dùng email thật có thể nhận thư — chỉ cần một địa chỉ dạng email
+  hợp lệ để hệ thống phân biệt từng người, và **nhớ đúng mật khẩu đã đặt**
+  vì không có cách tự lấy lại qua email. Lần đầu đăng nhập xong, hệ thống sẽ
+  hỏi họ tên + vai trò (Giáo viên/Học sinh).
 - **Học sinh**: mở link website, đăng nhập bằng email tương tự, chọn vai trò
   "Học sinh", sẽ thấy danh sách đề để làm và lịch sử điểm các lần trước. Màn
   hình làm bài có đồng hồ đếm ngược (nếu đề có giới hạn thời gian) và danh
@@ -106,6 +141,27 @@ không cần bấm thêm gì ở phần Settings > Pages.
 - **Phụ huynh**: không cần tài khoản — giáo viên bấm "Tạo báo cáo" trong
   trang chi tiết học sinh, hệ thống tự sinh 1 link riêng để gửi qua Zalo/tin
   nhắn cho phụ huynh xem trực tiếp.
+
+### Học sinh quên mật khẩu
+
+Vì hệ thống không gửi email nào cả (xem lý do ở trên), không có nút "Quên
+mật khẩu" tự động. Cách xử lý: mở file **`reset-mat-khau-hoc-sinh.html`**
+tôi gửi kèm riêng (không nằm trong bản zip code, không đưa lên GitHub) —
+đây là 1 trang công cụ chỉ chạy trên máy bạn, dùng để đặt mật khẩu mới cho
+học sinh trực tiếp trong database, không qua email:
+
+1. Mở file đó bằng trình duyệt (double-click là mở được, không cần cài gì).
+2. Lấy **Service Role Key**: vào Supabase Dashboard > Project Settings >
+   API > mục "Project API keys" > dòng **service_role** > bấm "Reveal" >
+   copy. Dán vào ô "Service Role Key" trong trang công cụ, cùng với Project
+   URL (giống giá trị `VITE_SUPABASE_URL` đã dùng ở Việc 2).
+3. Nhập email học sinh + mật khẩu mới, bấm "Đặt lại mật khẩu".
+4. Đọc mật khẩu mới cho học sinh để họ đăng nhập lại.
+
+**Lưu ý quan trọng**: Service Role Key là chìa khoá quản trị cao nhất của
+toàn bộ database — tuyệt đối không chia sẻ file này hay key này cho ai,
+không đưa lên GitHub hay bất kỳ nơi công khai nào. Chỉ dùng trên máy riêng
+của bạn.
 
 ### Lưu ý về phần "chẩn đoán mất gốc / chưa vững"
 

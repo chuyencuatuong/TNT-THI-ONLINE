@@ -13,7 +13,12 @@ interface AuthState {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>;
+  /** Đăng nhập bằng email + mật khẩu đã có sẵn tài khoản. */
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Tạo tài khoản mới bằng email + mật khẩu (không gửi email xác nhận). */
+  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Đổi mật khẩu khi đã đăng nhập (không cần email). */
+  changePassword: (newPassword: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   /** Gọi sau khi người dùng mới đăng nhập lần đầu, chưa có hồ sơ. */
   createProfile: (
@@ -62,13 +67,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  async function signInWithEmail(email: string) {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
-      },
-    });
+  async function signIn(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  }
+
+  async function signUp(email: string, password: string) {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error: error?.message ?? null };
+  }
+
+  async function changePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { error: error?.message ?? null };
   }
 
@@ -89,7 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loading, signInWithEmail, signOut, createProfile }}
+      value={{
+        session,
+        profile,
+        loading,
+        signIn,
+        signUp,
+        changePassword,
+        signOut,
+        createProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>
