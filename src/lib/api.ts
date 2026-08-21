@@ -74,6 +74,24 @@ export async function createQuestionType(input: {
 }
 
 // ---------------------------------------------------------------------------
+// Ảnh minh hoạ câu hỏi (bảng biến thiên, đồ thị...)
+// ---------------------------------------------------------------------------
+
+const QUESTION_IMAGES_BUCKET = "question-images";
+
+/** Tải 1 ảnh lên, trả về URL công khai để lưu vào questions.image_url. */
+export async function uploadQuestionImage(file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "png";
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(QUESTION_IMAGES_BUCKET)
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from(QUESTION_IMAGES_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ---------------------------------------------------------------------------
 // Ngân hàng câu hỏi
 // ---------------------------------------------------------------------------
 

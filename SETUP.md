@@ -10,17 +10,24 @@ hình. Khoảng 10 phút.
 
 Bản cập nhật lần này thêm: tạo đề từ file Word (AI tự đọc + LaTeX hoá công
 thức), giao diện làm bài có đếm giờ + danh sách câu hỏi bên cạnh (giống
-Azota), và dashboard phân tích (biểu đồ thời gian từng câu, chẩn đoán mất
-gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài.
+Azota), dashboard phân tích (biểu đồ thời gian từng câu, chẩn đoán mất
+gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài, và **tải ảnh minh hoạ**
+(bảng biến thiên, đồ thị...) cho từng câu hỏi.
 
 1. **Tải lại code**: lặp lại đúng **Việc 1** bên dưới (kéo-thả toàn bộ file
    trong bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2
    (3 giá trị cấu hình vẫn giữ nguyên).
-2. **Chạy thêm 1 đoạn SQL (bắt buộc, chỉ 1 lần)**: vào Supabase Dashboard >
-   **SQL Editor** > **New query**, mở file `supabase/migration_002_import_and_tracking.sql`
-   trong bản zip mới, copy toàn bộ nội dung, dán vào, bấm **Run**. Nếu bỏ
-   qua bước này, tính năng chấm giờ và chẩn đoán học lực sẽ báo lỗi vì
-   database chưa có các bảng/cột mới.
+2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần mỗi file)**: vào Supabase Dashboard >
+   **SQL Editor** > **New query**. Nếu đây là lần đầu cập nhật, mở lần lượt
+   2 file sau trong bản zip mới, copy toàn bộ nội dung từng file, dán vào 1
+   query mới, bấm **Run** (làm với file này xong mới sang file kia, mỗi file
+   1 query riêng):
+   - `supabase/migration_002_import_and_tracking.sql` (nếu đã chạy ở lần cập
+     nhật trước thì bỏ qua, không cần chạy lại)
+   - `supabase/migration_003_question_images_storage.sql` (mới, cần chạy)
+
+   Nếu bỏ qua các bước này, tính năng chấm giờ, chẩn đoán học lực, và tải
+   ảnh minh hoạ sẽ báo lỗi vì database chưa có các bảng/cột/kho lưu trữ mới.
 
 Sau khi GitHub Actions build xong (xem tab Actions, đợi dấu tích xanh), vào
 lại website là dùng được ngay.
@@ -37,7 +44,7 @@ lên cần bạn làm bằng tay, nhưng vẫn chỉ là kéo-thả, không cầ
 ## Việc 1 — Tải code lên GitHub (kéo-thả, ~5 phút)
 
 1. Giải nén file zip tôi gửi ra 1 thư mục trên máy.
-2. Vào trang repo trống bạn đã tạo: `github.com/<tên-tài-khoản-của-bạn>/tnt-thi-online`
+2. Vào trang repo bạn đã tạo: `github.com/<tên-tài-khoản-của-bạn>/TNT-THI-ONLINE`
 3. Vì repo đang trống, GitHub sẽ hiện dòng chữ **"uploading an existing file"**
    (link màu xanh) — bấm vào đó.
 4. Mở thư mục vừa giải nén, chọn **toàn bộ file và thư mục bên trong** (không
@@ -63,7 +70,7 @@ Sau khi lưu xong secret thứ 3, vào tab **Actions** ở repo, bạn sẽ th�
 workflow đang chạy (biểu tượng vàng đang xoay). Đợi khoảng 1-2 phút tới khi
 nó chuyển thành dấu tích xanh — lúc đó website đã lên rồi, mở tại:
 
-`https://<tên-tài-khoản-của-bạn>.github.io/tnt-thi-online/`
+`https://<tên-tài-khoản-của-bạn>.github.io/TNT-THI-ONLINE/`
 
 Việc bật GitHub Pages đã được cấu hình tự động trong quy trình build, bạn
 không cần bấm thêm gì ở phần Settings > Pages.
@@ -82,7 +89,9 @@ không cần bấm thêm gì ở phần Settings > Pages.
   (Equation/MathType), một số công thức có thể bị thiếu khi trích xuất tự
   động (giới hạn kỹ thuật) — màn hình xem trước sẽ cho sửa tay bằng LaTeX;
   nếu muốn chính xác hơn ngay từ đầu, có thể gửi file đó trực tiếp trong
-  cuộc trò chuyện này để xử lý kỹ hơn rồi dán lại.
+  cuộc trò chuyện này để xử lý kỹ hơn rồi dán lại. Câu nào có kèm bảng biến
+  thiên/đồ thị, dùng ô "Hình minh hoạ" ở mỗi câu trong màn hình xem trước để
+  tải ảnh chụp từ file gốc lên (tối đa 5MB/ảnh).
 - **Giáo viên — cách thủ công (không bắt buộc)**: vào "Ngân hàng câu hỏi" để
   nhập từng câu bằng tay (viết công thức Toán bằng cách đặt trong dấu
   `$...$`, ví dụ gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp),

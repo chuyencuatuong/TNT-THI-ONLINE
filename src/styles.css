@@ -594,6 +594,26 @@ a {
   border-radius: 8px;
   padding: 10px;
 }
+.image-upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.image-upload-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.image-upload-preview img {
+  max-width: 280px;
+  max-height: 200px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  object-fit: contain;
+  background: white;
+}
 .report-link-box {
   background: #eaf0fb;
   padding: 12px;

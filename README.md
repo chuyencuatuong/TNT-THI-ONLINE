@@ -23,7 +23,9 @@ duy nhất).
   xác theo dạng bài, và chẩn đoán mức độ nắm vững (nắm vững / chưa chắc chắn
   / có lỗ hổng / có dấu hiệu mất gốc) dựa trên quy tắc heuristic — xem lưu ý
   trong `SETUP.md`.
-- Công thức Toán viết bằng LaTeX, hiển thị đẹp bằng KaTeX.
+- Công thức Toán viết bằng LaTeX, hiển thị đẹp bằng KaTeX. Ảnh minh hoạ
+  (bảng biến thiên, đồ thị...) tải lên qua Supabase Storage, gắn được cho
+  từng câu hỏi (form nhập tay hoặc màn hình xem trước khi tạo đề từ Word).
 - Tự động build & deploy lên GitHub Pages mỗi khi có cập nhật.
 
 ## Cấu trúc dự án

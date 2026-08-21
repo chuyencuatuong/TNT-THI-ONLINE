@@ -3,6 +3,7 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { suggestQuestionType } from "../lib/ai";
 import { MathText } from "./MathText";
+import { ImageUploadField } from "./ImageUploadField";
 import type { Difficulty, QuestionType, Topic } from "../lib/types";
 import { DIFFICULTY_LABELS } from "../lib/types";
 
@@ -31,6 +32,7 @@ export function QuestionEditorForm({
   const [content, setContent] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("thong_hieu");
   const [questionTypeId, setQuestionTypeId] = useState<string>("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
@@ -108,6 +110,7 @@ export function QuestionEditorForm({
     setItems({ a: "", b: "", c: "", d: "" });
     setShortAnswer("");
     setAiSuggestion(null);
+    setImageUrl(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -135,7 +138,7 @@ export function QuestionEditorForm({
         question_type_id: questionTypeId || null,
         difficulty,
         content_latex: content,
-        image_url: null,
+        image_url: imageUrl,
         options,
         correct_answer: correctAnswer,
         default_points: defaultPoints,
@@ -174,6 +177,11 @@ export function QuestionEditorForm({
             <MathText text={content} />
           </div>
         )}
+      </div>
+
+      <div className="form-row">
+        <label>Hình minh hoạ (bảng biến thiên, đồ thị... — không bắt buộc)</label>
+        <ImageUploadField value={imageUrl} onChange={setImageUrl} />
       </div>
 
       {part === 1 && (

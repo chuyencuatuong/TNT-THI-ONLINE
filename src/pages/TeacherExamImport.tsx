@@ -5,6 +5,7 @@ import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
 import { parseExamFromDocument, type ParsedExam } from "../lib/ai";
 import { MathText } from "../components/MathText";
+import { ImageUploadField } from "../components/ImageUploadField";
 
 let localIdCounter = 0;
 function nextLocalId() {
@@ -17,25 +18,28 @@ interface EditableP1 {
   content_latex: string;
   choices: { A: string; B: string; C: string; D: string };
   correct_choice: "A" | "B" | "C" | "D" | null;
+  image_url: string | null;
 }
 interface EditableP2 {
   id: string;
   content_latex: string;
   items: { a: string; b: string; c: string; d: string };
   correct: { a: boolean; b: boolean; c: boolean; d: boolean } | null;
+  image_url: string | null;
 }
 interface EditableP3 {
   id: string;
   content_latex: string;
   correct_value: string | null;
   points: number;
+  image_url: string | null;
 }
 
 function withIds(parsed: ParsedExam) {
   return {
-    part1: parsed.part1.map((q) => ({ ...q, id: nextLocalId() })) as EditableP1[],
-    part2: parsed.part2.map((q) => ({ ...q, id: nextLocalId() })) as EditableP2[],
-    part3: parsed.part3.map((q) => ({ ...q, id: nextLocalId() })) as EditableP3[],
+    part1: parsed.part1.map((q) => ({ ...q, id: nextLocalId(), image_url: null })) as EditableP1[],
+    part2: parsed.part2.map((q) => ({ ...q, id: nextLocalId(), image_url: null })) as EditableP2[],
+    part3: parsed.part3.map((q) => ({ ...q, id: nextLocalId(), image_url: null })) as EditableP3[],
   };
 }
 
@@ -138,7 +142,7 @@ export function TeacherExamImport() {
           question_type_id: null,
           difficulty: null,
           content_latex: q.content_latex,
-          image_url: null,
+          image_url: q.image_url,
           options: { choices: q.choices },
           correct_answer: { choice: q.correct_choice },
           default_points: null,
@@ -155,7 +159,7 @@ export function TeacherExamImport() {
           question_type_id: null,
           difficulty: null,
           content_latex: q.content_latex,
-          image_url: null,
+          image_url: q.image_url,
           options: { items: q.items },
           correct_answer: q.correct,
           default_points: null,
@@ -172,7 +176,7 @@ export function TeacherExamImport() {
           question_type_id: null,
           difficulty: null,
           content_latex: q.content_latex,
-          image_url: null,
+          image_url: q.image_url,
           options: {},
           correct_answer: { value: q.correct_value },
           default_points: q.points,
@@ -307,6 +311,15 @@ export function TeacherExamImport() {
                   <MathText text={q.content_latex} />
                 </div>
               </div>
+              <div className="form-row">
+                <label>Hình minh hoạ (không bắt buộc)</label>
+                <ImageUploadField
+                  value={q.image_url}
+                  onChange={(url) =>
+                    setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
+                  }
+                />
+              </div>
               {(["A", "B", "C", "D"] as const).map((c) => (
                 <div key={c} className="option-row">
                   <input
@@ -363,6 +376,15 @@ export function TeacherExamImport() {
                 <div className="latex-preview">
                   <MathText text={q.content_latex} />
                 </div>
+              </div>
+              <div className="form-row">
+                <label>Hình minh hoạ (không bắt buộc)</label>
+                <ImageUploadField
+                  value={q.image_url}
+                  onChange={(url) =>
+                    setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
+                  }
+                />
               </div>
               {(["a", "b", "c", "d"] as const).map((k) => (
                 <div key={k} className="option-row">
@@ -442,6 +464,15 @@ export function TeacherExamImport() {
                 <div className="latex-preview">
                   <MathText text={q.content_latex} />
                 </div>
+              </div>
+              <div className="form-row">
+                <label>Hình minh hoạ (không bắt buộc)</label>
+                <ImageUploadField
+                  value={q.image_url}
+                  onChange={(url) =>
+                    setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
+                  }
+                />
               </div>
               <div className="option-row">
                 <input
