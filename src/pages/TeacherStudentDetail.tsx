@@ -42,10 +42,8 @@ export function TeacherStudentDetail() {
           accuracyPercent: s.maxScore > 0 ? (s.correctScore / s.maxScore) * 100 : 0,
         })),
       );
-      const { data } = await import("../lib/supabaseClient").then((m) =>
-        m.supabase.from("profiles").select("*").eq("id", studentId).single(),
-      );
-      setProfile(data as Profile);
+      const studentProfile = await api.getProfile(studentId);
+      setProfile(studentProfile);
       setLoading(false);
     })();
   }, [studentId]);

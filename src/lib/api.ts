@@ -464,6 +464,16 @@ export async function listStudentAttempts(
   });
 }
 
+export async function getProfile(id: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Profile | null;
+}
+
 export async function listStudents(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from("profiles")
