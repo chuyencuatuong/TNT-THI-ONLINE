@@ -481,7 +481,7 @@ export async function getStudentTopicStats(studentId: string): Promise<
   const { data, error } = await supabase
     .from("question_responses")
     .select(
-      "score, question:questions(part, default_points, question_type:question_types(id, name)), attempt:exam_attempts!inner(student_id)",
+      "score, question:questions(part, default_points, question_type:question_types!questions_question_type_id_fkey(id, name)), attempt:exam_attempts!inner(student_id)",
     )
     .eq("attempt.student_id", studentId);
   if (error) throw error;
@@ -556,7 +556,7 @@ export async function getAttemptDiagnostics(
     supabase
       .from("question_responses")
       .select(
-        "question_id, score, time_spent_seconds, change_count, question:questions(question_type_id, question_type:question_types(name))",
+        "question_id, score, time_spent_seconds, change_count, question:questions(question_type_id, question_type:question_types!questions_question_type_id_fkey(name))",
       )
       .eq("attempt_id", attemptId),
   ]);
