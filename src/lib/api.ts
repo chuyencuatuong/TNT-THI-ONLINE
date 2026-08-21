@@ -400,7 +400,13 @@ export async function submitAttempt(
 
   const { data: scoreRow, error: scoreErr } = await supabase
     .from("attempt_scores")
-    .upsert({ attempt_id: attemptId, ...totals })
+    .upsert({
+      attempt_id: attemptId,
+      part1_score: totals.part1Score,
+      part2_score: totals.part2Score,
+      part3_score: totals.part3Score,
+      total_score: totals.totalScore,
+    })
     .select()
     .single();
   if (scoreErr) throw scoreErr;
