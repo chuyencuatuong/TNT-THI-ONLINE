@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 // Sẽ cập nhật lại giá trị này ở bước SETUP khi biết tên repo thật.
 export default defineConfig({
   plugins: [react()],
-  base: "/tnt-thi-online/",
+  base: "/TNT-THI-ONLINE/",
   test: {
     globals: true,
     environment: "node",
