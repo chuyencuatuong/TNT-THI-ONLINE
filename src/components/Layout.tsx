@@ -15,8 +15,9 @@ export function Layout() {
             {profile.role === "teacher" ? (
               <>
                 <Link to="/giao-vien">Tổng quan</Link>
-                <Link to="/giao-vien/ngan-hang-cau-hoi">Ngân hàng câu hỏi</Link>
+                <Link to="/giao-vien/tao-de-tu-word">+ Tạo đề từ Word</Link>
                 <Link to="/giao-vien/de-thi">Đề thi</Link>
+                <Link to="/giao-vien/ngan-hang-cau-hoi">Ngân hàng câu hỏi</Link>
               </>
             ) : (
               <Link to="/hoc-sinh">Trang chủ</Link>

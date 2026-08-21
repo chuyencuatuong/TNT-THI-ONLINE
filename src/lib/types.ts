@@ -68,6 +68,7 @@ export interface QuestionRow {
   default_points: number | null;
   ai_suggested_type_id: string | null;
   ai_suggestion_confirmed: boolean;
+  source: "manual" | "word_import";
   created_by: string;
   created_at: string;
 }
@@ -76,7 +77,16 @@ export interface ExamRow {
   id: string;
   title: string;
   description: string | null;
+  duration_minutes: number | null;
   created_by: string;
+  created_at: string;
+}
+
+export interface QuestionViewEventRow {
+  id: number;
+  attempt_id: string;
+  question_id: string;
+  event_type: "enter" | "leave";
   created_at: string;
 }
 

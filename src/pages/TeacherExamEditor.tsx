@@ -13,6 +13,7 @@ export function TeacherExamEditor() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState<string>("");
   const [allQuestions, setAllQuestions] = useState<QuestionRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -26,8 +27,18 @@ export function TeacherExamEditor() {
       const questions = await api.listQuestions();
       setAllQuestions(questions);
       if (!isNew && examId) {
-        const existing = await api.getExamQuestions(examId);
+        const [existing, examRow] = await Promise.all([
+          api.getExamQuestions(examId),
+          api.getExam(examId),
+        ]);
         setSelected(new Set(existing.map((e) => e.question_id)));
+        if (examRow) {
+          setTitle(examRow.title);
+          setDescription(examRow.description ?? "");
+          setDurationMinutes(
+            examRow.duration_minutes ? String(examRow.duration_minutes) : "",
+          );
+        }
       }
       setLoading(false);
     })();
@@ -50,15 +61,23 @@ export function TeacherExamEditor() {
     }
     setSaving(true);
     try {
+      const duration = durationMinutes.trim() ? Number(durationMinutes) : null;
       let examIdToUse = currentExamId;
       if (!examIdToUse) {
         const created = await api.createExam({
           title: title.trim(),
           description: description.trim() || null,
+          duration_minutes: duration,
           created_by: profile.id,
         });
         examIdToUse = created.id;
         setCurrentExamId(created.id);
+      } else {
+        await api.updateExam(examIdToUse, {
+          title: title.trim(),
+          description: description.trim() || null,
+          duration_minutes: duration,
+        });
       }
 
       const selectedQuestions = allQuestions.filter((q) => selected.has(q.id));
@@ -98,6 +117,17 @@ export function TeacherExamEditor() {
       <div className="form-row">
         <label>Mô tả (không bắt buộc)</label>
         <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+      <div className="form-row">
+        <label>Thời gian làm bài (phút, để trống = không giới hạn)</label>
+        <input
+          type="number"
+          min={1}
+          style={{ maxWidth: 140 }}
+          value={durationMinutes}
+          onChange={(e) => setDurationMinutes(e.target.value)}
+          placeholder="vd: 90"
+        />
       </div>
 
       <p className="exam-summary">

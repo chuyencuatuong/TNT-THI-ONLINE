@@ -51,6 +51,7 @@ create table if not exists questions (
   default_points numeric(4,2), -- dùng cho Phần 3 (Phần 1/2 tính theo barem cố định)
   ai_suggested_type_id uuid references question_types(id), -- gợi ý của AI, chờ GV duyệt
   ai_suggestion_confirmed boolean not null default false,
+  source text not null default 'manual' check (source in ('manual', 'word_import')), -- câu hỏi nhập tay hay từ file Word do AI trích xuất
   created_by uuid not null references profiles(id),
   created_at timestamptz not null default now()
 );
@@ -61,6 +62,7 @@ create table if not exists exams (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   description text,
+  duration_minutes int, -- null = không giới hạn thời gian
   created_by uuid not null references profiles(id),
   created_at timestamptz not null default now()
 );
@@ -92,6 +94,19 @@ create table if not exists answer_events (
   question_id uuid not null references questions(id) on delete cascade,
   event_type text not null check (event_type in ('select', 'change', 'clear')),
   answer_value jsonb,
+  created_at timestamptz not null default now()
+);
+
+-- Log thời điểm học sinh bắt đầu/rời khỏi việc xem 1 câu hỏi (câu hỏi hiện trong
+-- vùng nhìn thấy của màn hình) -> dùng để tính CHÍNH XÁC thời gian "tập trung" vào
+-- từng câu (cộng dồn nhiều lượt quay lại xem), khác với answer_events chỉ ghi lúc
+-- CHỌN đáp án (không biết học sinh đọc câu đó bao lâu trước khi chọn, hay có quay
+-- lại xem thêm lần nào không sau khi đã chọn).
+create table if not exists question_view_events (
+  id bigint generated always as identity primary key,
+  attempt_id uuid not null references exam_attempts(id) on delete cascade,
+  question_id uuid not null references questions(id) on delete cascade,
+  event_type text not null check (event_type in ('enter', 'leave')),
   created_at timestamptz not null default now()
 );
 
@@ -146,6 +161,7 @@ alter table exams enable row level security;
 alter table exam_questions enable row level security;
 alter table exam_attempts enable row level security;
 alter table answer_events enable row level security;
+alter table question_view_events enable row level security;
 alter table question_responses enable row level security;
 alter table attempt_scores enable row level security;
 alter table reports enable row level security;
@@ -208,6 +224,22 @@ create policy "answer_events_insert" on answer_events
     exists (
       select 1 from exam_attempts a
       where a.id = answer_events.attempt_id and a.student_id = auth.uid()
+    )
+  );
+
+-- question_view_events: cùng quy tắc với answer_events
+create policy "view_events_select" on question_view_events
+  for select using (
+    is_teacher() or exists (
+      select 1 from exam_attempts a
+      where a.id = question_view_events.attempt_id and a.student_id = auth.uid()
+    )
+  );
+create policy "view_events_insert" on question_view_events
+  for insert with check (
+    exists (
+      select 1 from exam_attempts a
+      where a.id = question_view_events.attempt_id and a.student_id = auth.uid()
     )
   );
 

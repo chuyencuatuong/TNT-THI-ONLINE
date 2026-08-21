@@ -18,9 +18,14 @@ export function TeacherExamList() {
     <div className="teacher-page">
       <div className="page-header-row">
         <h2>Đề thi</h2>
-        <Link className="btn-primary" to="/giao-vien/de-thi/moi">
-          + Tạo đề mới
-        </Link>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Link className="btn-primary" to="/giao-vien/tao-de-tu-word">
+            + Tạo đề từ file Word
+          </Link>
+          <Link className="btn-secondary" to="/giao-vien/de-thi/moi">
+            + Tạo đề thủ công
+          </Link>
+        </div>
       </div>
       {loading ? (
         <div className="page-loading">Đang tải...</div>

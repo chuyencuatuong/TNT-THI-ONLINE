@@ -4,6 +4,29 @@ Bạn không cần biết code hay dòng lệnh nào. Chỉ cần **2 việc**: 
 GitHub bằng cách kéo-thả file (không cần git), và dán 3 giá trị vào ô cấu
 hình. Khoảng 10 phút.
 
+---
+
+## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 2 việc để cập nhật
+
+Bản cập nhật lần này thêm: tạo đề từ file Word (AI tự đọc + LaTeX hoá công
+thức), giao diện làm bài có đếm giờ + danh sách câu hỏi bên cạnh (giống
+Azota), và dashboard phân tích (biểu đồ thời gian từng câu, chẩn đoán mất
+gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài.
+
+1. **Tải lại code**: lặp lại đúng **Việc 1** bên dưới (kéo-thả toàn bộ file
+   trong bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2
+   (3 giá trị cấu hình vẫn giữ nguyên).
+2. **Chạy thêm 1 đoạn SQL (bắt buộc, chỉ 1 lần)**: vào Supabase Dashboard >
+   **SQL Editor** > **New query**, mở file `supabase/migration_002_import_and_tracking.sql`
+   trong bản zip mới, copy toàn bộ nội dung, dán vào, bấm **Run**. Nếu bỏ
+   qua bước này, tính năng chấm giờ và chẩn đoán học lực sẽ báo lỗi vì
+   database chưa có các bảng/cột mới.
+
+Sau khi GitHub Actions build xong (xem tab Actions, đợi dấu tích xanh), vào
+lại website là dùng được ngay.
+
+---
+
 _Lưu ý: ban đầu tôi định tự động đẩy code lên GitHub thay bạn, nhưng môi
 trường tôi đang chạy có thêm 1 lớp chặn bảo mật với riêng thao tác "ghi" lên
 GitHub (dù token đúng vẫn bị chặn) — không phải lỗi ở bạn. Nên bước tải code
@@ -49,16 +72,39 @@ không cần bấm thêm gì ở phần Settings > Pages.
 
 ## Sau khi có website — dùng như thế nào
 
-- **Giáo viên**: mở link website, nhập email, bấm link trong email được gửi
-  tới để đăng nhập, lần đầu chọn vai trò "Giáo viên". Vào "Ngân hàng câu hỏi"
-  để thêm câu hỏi (viết công thức Toán bằng cách đặt trong dấu `$...$`, ví dụ
-  gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp). Vào "Đề thi" để
-  gom câu hỏi thành 1 đề.
+- **Giáo viên — cách nhanh nhất để tạo đề**: mở link website, đăng nhập,
+  lần đầu chọn vai trò "Giáo viên". Vào **"+ Tạo đề từ Word"**, tải lên file
+  đề thi định dạng `.docx`. AI sẽ đọc nội dung, chuyển công thức sang LaTeX
+  và tách câu hỏi theo Phần 1/2/3. Màn hình tiếp theo cho xem trước từng câu
+  — **bạn cần xác nhận đáp án đúng cho từng câu** trước khi bấm "Xuất bản đề
+  thi" (hệ thống không tự công bố đề khi chưa có đáp án được xác nhận, để
+  tránh chấm sai). Nếu file dùng công cụ gõ công thức có sẵn của Word
+  (Equation/MathType), một số công thức có thể bị thiếu khi trích xuất tự
+  động (giới hạn kỹ thuật) — màn hình xem trước sẽ cho sửa tay bằng LaTeX;
+  nếu muốn chính xác hơn ngay từ đầu, có thể gửi file đó trực tiếp trong
+  cuộc trò chuyện này để xử lý kỹ hơn rồi dán lại.
+- **Giáo viên — cách thủ công (không bắt buộc)**: vào "Ngân hàng câu hỏi" để
+  nhập từng câu bằng tay (viết công thức Toán bằng cách đặt trong dấu
+  `$...$`, ví dụ gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp),
+  rồi vào "Đề thi" để gom câu hỏi thành 1 đề.
 - **Học sinh**: mở link website, đăng nhập bằng email tương tự, chọn vai trò
-  "Học sinh", sẽ thấy danh sách đề để làm và lịch sử điểm các lần trước.
+  "Học sinh", sẽ thấy danh sách đề để làm và lịch sử điểm các lần trước. Màn
+  hình làm bài có đồng hồ đếm ngược (nếu đề có giới hạn thời gian) và danh
+  sách câu hỏi bên phải để nhảy nhanh tới từng câu. Làm xong, dashboard hiện
+  ra ngay: điểm số, thời gian từng câu, và chẩn đoán mức độ nắm vững theo
+  từng dạng bài (chỉ áp dụng khi câu hỏi đã được gán "dạng bài" — xem ngân
+  hàng câu hỏi hoặc gán khi tạo đề từ Word).
 - **Phụ huynh**: không cần tài khoản — giáo viên bấm "Tạo báo cáo" trong
   trang chi tiết học sinh, hệ thống tự sinh 1 link riêng để gửi qua Zalo/tin
   nhắn cho phụ huynh xem trực tiếp.
+
+### Lưu ý về phần "chẩn đoán mất gốc / chưa vững"
+
+Đây là gợi ý dựa trên 1 quy tắc đơn giản do tôi tự đặt ra (độ chính xác +
+thời gian làm bài + số lần đổi đáp án), **không phải** một công cụ chẩn đoán
+giáo dục đã được kiểm chứng khoa học. Nên dùng để gợi ý hướng ôn tập ban
+đầu, đối chiếu thêm với quan sát thực tế trên lớp, không nên coi là kết luận
+cuối cùng về học sinh.
 
 Nếu tôi cập nhật thêm code sau này, tôi sẽ gửi lại 1 file zip mới — bạn chỉ
 cần lặp lại **Việc 1** (tải lên GitHub) với các file mới, không cần làm lại

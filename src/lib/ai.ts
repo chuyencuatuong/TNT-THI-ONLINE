@@ -8,6 +8,7 @@
  */
 
 import type { QuestionType } from "./types";
+import type { ExtractedImage } from "./wordImport";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
   | string
@@ -15,7 +16,14 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
 const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-async function callGemini(prompt: string): Promise<string | null> {
+type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+
+async function callGeminiParts(
+  parts: GeminiPart[],
+  maxOutputTokens = 500,
+): Promise<string | null> {
   if (!GEMINI_API_KEY) {
     console.warn("Thiếu VITE_GEMINI_API_KEY — bỏ qua bước gọi AI.");
     return null;
@@ -25,8 +33,8 @@ async function callGemini(prompt: string): Promise<string | null> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 500 },
+        contents: [{ parts }],
+        generationConfig: { temperature: 0.2, maxOutputTokens },
       }),
     });
     if (!res.ok) {
@@ -42,6 +50,18 @@ async function callGemini(prompt: string): Promise<string | null> {
     console.error("Gọi Gemini thất bại:", err);
     return null;
   }
+}
+
+async function callGemini(prompt: string): Promise<string | null> {
+  return callGeminiParts([{ text: prompt }], 500);
+}
+
+/** Bóc khối JSON ra khỏi câu trả lời của AI, kể cả khi AI bọc trong ```json ... ``` */
+function extractJsonBlock(raw: string): unknown {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced ? fenced[1] : raw;
+  const jsonMatch = candidate.match(/[[{][\s\S]*[\]}]/);
+  return JSON.parse(jsonMatch ? jsonMatch[0] : candidate);
 }
 
 export interface TypeSuggestion {
@@ -154,4 +174,87 @@ Không dùng markdown, không dùng emoji.`;
     text ??
     "Chưa thể tạo nhận xét tự động lúc này. Vui lòng xem số liệu chi tiết bên dưới."
   );
+}
+
+// ---------------------------------------------------------------------------
+// Tạo đề từ file Word: AI đọc văn bản (đã trích bằng mammoth.js ở wordImport.ts)
+// + các hình ảnh nhúng (nếu có), trả về cấu trúc câu hỏi đã LaTeX hoá.
+// Giáo viên LUÔN phải xem lại và xác nhận đáp án trước khi xuất bản — AI ở đây
+// chỉ hỗ trợ soạn nháp, không tự động công bố đề.
+// ---------------------------------------------------------------------------
+
+export interface ParsedPart1Question {
+  content_latex: string;
+  choices: { A: string; B: string; C: string; D: string };
+  correct_choice: "A" | "B" | "C" | "D" | null;
+}
+export interface ParsedPart2Question {
+  content_latex: string;
+  items: { a: string; b: string; c: string; d: string };
+  correct: { a: boolean; b: boolean; c: boolean; d: boolean } | null;
+}
+export interface ParsedPart3Question {
+  content_latex: string;
+  correct_value: string | null;
+  points: number;
+}
+export interface ParsedExam {
+  part1: ParsedPart1Question[];
+  part2: ParsedPart2Question[];
+  part3: ParsedPart3Question[];
+  warnings: string[];
+}
+
+const EXAM_PARSE_PROMPT = `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là văn bản trích từ 1 file Word chứa đề thi, cùng với các hình ảnh nhúng trong file (nếu có) được gửi kèm — mỗi hình có placeholder dạng [HINH_n] xuất hiện trong văn bản, hình gửi kèm theo ĐÚNG thứ tự đó.
+
+Đề thi có 3 phần theo cấu trúc chuẩn:
+- Phần 1: trắc nghiệm 4 phương án (A, B, C, D), chỉ 1 phương án đúng.
+- Phần 2: mỗi câu có 4 ý nhỏ (a, b, c, d), mỗi ý là 1 mệnh đề Đúng/Sai độc lập.
+- Phần 3: trả lời ngắn (điền số hoặc chuỗi ngắn), không có phương án cho sẵn.
+
+YÊU CẦU:
+1. Xác định đúng từng câu thuộc phần nào, theo đúng thứ tự xuất hiện trong văn bản.
+2. Chuyển TOÀN BỘ công thức Toán sang LaTeX, đặt trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay các cú pháp khác.
+3. Với mỗi placeholder [HINH_n]: nếu hình đó là 1 công thức Toán (chụp/dán ảnh), hãy đọc và chuyển thành LaTeX chèn thẳng vào đúng vị trí (không giữ lại placeholder). Nếu hình là đồ thị/hình vẽ minh hoạ (không phải công thức đơn thuần), GIỮ NGUYÊN placeholder đó trong content_latex kèm chú thích "(xem hình)" ngay sau — KHÔNG được tự vẽ lại hay đoán nội dung hình.
+4. CHỈ điền đáp án đúng (correct_choice / correct / correct_value) khi có bằng chứng rõ ràng trong văn bản — ví dụ phương án được đánh dấu **in đậm** (là quy ước in đậm = đáp án đúng), hoặc có ghi chú "Đáp án:" ngay sau câu. Nếu KHÔNG chắc chắn, để giá trị đó là null — TUYỆT ĐỐI không tự đoán đáp án khi không có căn cứ, vì đoán sai sẽ làm chấm điểm sai cho học sinh.
+5. Với Phần 3, "points" là thang điểm của câu đó nếu đề có ghi rõ, nếu không có thì để mặc định 0.5.
+6. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) bất kỳ điều gì không chắc chắn: câu thiếu công thức nghi do định dạng gốc không đọc được, câu không xác định được phần nào, hình ảnh không rõ nội dung, v.v.
+
+Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
+{
+  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null}],
+  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null}],
+  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5}],
+  "warnings": ["..."]
+}
+
+Văn bản đề thi (in đậm được đánh dấu bằng **...**):
+"""
+`;
+
+export async function parseExamFromDocument(
+  plainText: string,
+  images: ExtractedImage[],
+): Promise<ParsedExam | null> {
+  const parts: GeminiPart[] = [{ text: EXAM_PARSE_PROMPT + plainText + '\n"""' }];
+  for (const img of images) {
+    parts.push({ text: `\nHình ảnh cho placeholder ${img.placeholder}:` });
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
+  }
+
+  const raw = await callGeminiParts(parts, 8192);
+  if (!raw) return null;
+
+  try {
+    const parsed = extractJsonBlock(raw) as Partial<ParsedExam>;
+    return {
+      part1: Array.isArray(parsed.part1) ? parsed.part1 : [],
+      part2: Array.isArray(parsed.part2) ? parsed.part2 : [],
+      part3: Array.isArray(parsed.part3) ? parsed.part3 : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+    };
+  } catch (err) {
+    console.error("Không đọc được JSON từ AI khi phân tích đề:", err, raw);
+    return null;
+  }
 }

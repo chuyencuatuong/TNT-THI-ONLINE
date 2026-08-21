@@ -90,6 +90,9 @@ export function TeacherQuestionBank() {
                   <span className="tag tag--muted">{DIFFICULTY_LABELS[q.difficulty]}</span>
                 )}
                 <span className="tag tag--muted">{typeNameOf(q.question_type_id)}</span>
+                {q.source === "word_import" && (
+                  <span className="tag tag--muted">Từ file Word</span>
+                )}
               </div>
               <MathText text={q.content_latex} />
               <button className="btn-link btn-danger" onClick={() => handleDelete(q.id)}>

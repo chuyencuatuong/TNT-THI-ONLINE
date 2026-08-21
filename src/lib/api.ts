@@ -5,6 +5,7 @@ import {
   scorePart2Question,
   scorePart3Question,
 } from "./scoring";
+import { computeActiveSeconds, diagnoseAllTopics, type TopicOutcomeGroup } from "./diagnosis";
 import type {
   AttemptScoreRow,
   Difficulty,
@@ -17,6 +18,7 @@ import type {
   Profile,
   QuestionRow,
   QuestionType,
+  QuestionViewEventRow,
   Topic,
 } from "./types";
 
@@ -101,10 +103,11 @@ export async function createQuestion(input: {
   default_points: number | null;
   ai_suggested_type_id: string | null;
   created_by: string;
+  source?: "manual" | "word_import";
 }): Promise<QuestionRow> {
   const { data, error } = await supabase
     .from("questions")
-    .insert(input)
+    .insert({ source: "manual", ...input })
     .select()
     .single();
   if (error) throw error;
@@ -143,6 +146,7 @@ export async function listExams(): Promise<ExamRow[]> {
 export async function createExam(input: {
   title: string;
   description: string | null;
+  duration_minutes?: number | null;
   created_by: string;
 }): Promise<ExamRow> {
   const { data, error } = await supabase
@@ -152,6 +156,24 @@ export async function createExam(input: {
     .single();
   if (error) throw error;
   return data as ExamRow;
+}
+
+export async function updateExam(
+  id: string,
+  patch: Partial<Pick<ExamRow, "title" | "description" | "duration_minutes">>,
+): Promise<void> {
+  const { error } = await supabase.from("exams").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getExam(id: string): Promise<ExamRow | null> {
+  const { data, error } = await supabase
+    .from("exams")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data as ExamRow | null;
 }
 
 export async function setExamQuestions(
@@ -178,6 +200,7 @@ export async function getExamQuestions(
     .from("exam_questions")
     .select("*, question:questions(*)")
     .eq("exam_id", examId)
+    .order("part")
     .order("order_index");
   if (error) throw error;
   return data as unknown as (ExamQuestionRow & { question: QuestionRow })[];
@@ -222,6 +245,21 @@ export async function logAnswerEvent(input: {
 }
 
 /**
+ * Ghi lại thời điểm học sinh bắt đầu/rời khỏi việc xem 1 câu hỏi (câu hỏi hiện
+ * trong vùng nhìn thấy). Dùng để tính thời gian "tập trung" thực tế vào từng
+ * câu, cộng dồn qua nhiều lượt quay lại xem — xem thêm computeActiveSeconds
+ * trong diagnosis.ts.
+ */
+export async function logQuestionViewEvent(input: {
+  attempt_id: string;
+  question_id: string;
+  event_type: "enter" | "leave";
+}): Promise<void> {
+  const { error } = await supabase.from("question_view_events").insert(input);
+  if (error) throw error;
+}
+
+/**
  * Chấm điểm toàn bộ 1 lượt làm bài dựa trên answer_events đã ghi nhận,
  * ghi vào question_responses + attempt_scores, rồi đánh dấu đã nộp bài.
  */
@@ -230,12 +268,21 @@ export async function submitAttempt(
   examId: string,
 ): Promise<AttemptScoreRow> {
   const examQuestions = await getExamQuestions(examId);
-  const { data: events, error: evErr } = await supabase
-    .from("answer_events")
-    .select("*")
-    .eq("attempt_id", attemptId)
-    .order("created_at");
+  const [{ data: events, error: evErr }, { data: viewEvents, error: veErr }] =
+    await Promise.all([
+      supabase
+        .from("answer_events")
+        .select("*")
+        .eq("attempt_id", attemptId)
+        .order("created_at"),
+      supabase
+        .from("question_view_events")
+        .select("*")
+        .eq("attempt_id", attemptId)
+        .order("created_at"),
+    ]);
   if (evErr) throw evErr;
+  if (veErr) throw veErr;
 
   let part1Score = 0;
   let part2Score = 0;
@@ -255,16 +302,26 @@ export async function submitAttempt(
     const lastAt = qEvents.length
       ? qEvents[qEvents.length - 1].created_at
       : null;
+
+    // Ưu tiên tính thời gian "tập trung" thực tế từ question_view_events (cộng dồn
+    // mọi lượt quay lại xem câu này). Nếu vì lý do nào đó không có view events
+    // (ví dụ lượt làm bài cũ trước khi có tính năng này) thì mới dùng cách cũ:
+    // khoảng cách từ lần chọn đáp án đầu tới lần cuối.
+    const qViewEvents = (viewEvents ?? []).filter(
+      (e) => e.question_id === q.id,
+    );
     const timeSpentSeconds =
-      firstAt && lastAt
-        ? Math.max(
-            0,
-            Math.round(
-              (new Date(lastAt).getTime() - new Date(firstAt).getTime()) /
-                1000,
-            ),
-          )
-        : 0;
+      qViewEvents.length > 0
+        ? computeActiveSeconds(qViewEvents)
+        : firstAt && lastAt
+          ? Math.max(
+              0,
+              Math.round(
+                (new Date(lastAt).getTime() - new Date(firstAt).getTime()) /
+                  1000,
+              ),
+            )
+          : 0;
 
     let score = 0;
     let subCorrectCount: number | null = null;
@@ -336,6 +393,18 @@ export async function submitAttempt(
     .eq("id", attemptId);
 
   return scoreRow as AttemptScoreRow;
+}
+
+export async function getAttempt(
+  attemptId: string,
+): Promise<(ExamAttemptRow & { exam: ExamRow }) | null> {
+  const { data, error } = await supabase
+    .from("exam_attempts")
+    .select("*, exam:exams(*)")
+    .eq("id", attemptId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as (ExamAttemptRow & { exam: ExamRow }) | null;
 }
 
 export async function getAttemptScore(
@@ -427,6 +496,105 @@ export async function getStudentTopicStats(studentId: string): Promise<
     question_type_id,
     ...v,
   }));
+}
+
+export interface AttemptQuestionDetail {
+  question_id: string;
+  part: 1 | 2 | 3;
+  order_index: number;
+  content_latex: string;
+  question_type_id: string | null;
+  type_name: string | null;
+  score: number;
+  maxScore: number;
+  scoreRatio: number;
+  timeSpentSeconds: number;
+  changeCount: number;
+}
+
+export interface AttemptDiagnostics {
+  perQuestion: AttemptQuestionDetail[];
+  byTopic: ReturnType<typeof diagnoseAllTopics>;
+}
+
+/**
+ * Dữ liệu chi tiết cho dashboard hiển thị ngay sau khi học sinh nộp bài:
+ * điểm/thời gian/số lần đổi đáp án từng câu, và chẩn đoán theo dạng bài
+ * (chỉ dựa trên lượt làm bài NÀY — xem getStudentTopicStats nếu cần gộp
+ * nhiều lượt làm bài để chẩn đoán chính xác hơn).
+ */
+export async function getAttemptDiagnostics(
+  attemptId: string,
+  examId: string,
+): Promise<AttemptDiagnostics> {
+  const [examQuestions, { data: responses, error }] = await Promise.all([
+    getExamQuestions(examId),
+    supabase
+      .from("question_responses")
+      .select(
+        "question_id, score, time_spent_seconds, change_count, question:questions(question_type_id, question_type:question_types(name))",
+      )
+      .eq("attempt_id", attemptId),
+  ]);
+  if (error) throw error;
+
+  type ResponseRow = {
+    question_id: string;
+    score: number;
+    time_spent_seconds: number;
+    change_count: number;
+    question: {
+      question_type_id: string | null;
+      question_type: { name: string } | null;
+    } | null;
+  };
+  const responseMap = new Map<string, ResponseRow>(
+    (responses as unknown as ResponseRow[]).map((r) => [r.question_id, r]),
+  );
+
+  const perQuestion: AttemptQuestionDetail[] = examQuestions.map((eq) => {
+    const q = eq.question;
+    const resp = responseMap.get(q.id);
+    const maxScore =
+      q.part === 1 ? 0.25 : q.part === 2 ? 1 : q.default_points ?? 0.5;
+    const score = resp?.score ?? 0;
+    return {
+      question_id: q.id,
+      part: q.part,
+      order_index: eq.order_index,
+      content_latex: q.content_latex,
+      question_type_id: resp?.question?.question_type_id ?? q.question_type_id,
+      type_name: resp?.question?.question_type?.name ?? null,
+      score,
+      maxScore,
+      scoreRatio: maxScore > 0 ? Math.min(1, score / maxScore) : 0,
+      timeSpentSeconds: resp?.time_spent_seconds ?? 0,
+      changeCount: resp?.change_count ?? 0,
+    };
+  });
+
+  const groupMap = new Map<string, TopicOutcomeGroup>();
+  for (const pq of perQuestion) {
+    if (!pq.question_type_id) continue;
+    const key = pq.question_type_id;
+    const existing = groupMap.get(key) ?? {
+      question_type_id: key,
+      type_name: pq.type_name ?? "(chưa gán dạng bài)",
+      outcomes: [],
+    };
+    existing.outcomes.push({
+      part: pq.part,
+      scoreRatio: pq.scoreRatio,
+      timeSpentSeconds: pq.timeSpentSeconds,
+      changeCount: pq.changeCount,
+    });
+    groupMap.set(key, existing);
+  }
+
+  return {
+    perQuestion,
+    byTopic: diagnoseAllTopics(Array.from(groupMap.values())),
+  };
 }
 
 // ---------------------------------------------------------------------------

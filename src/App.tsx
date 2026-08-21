@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { Layout } from "./components/Layout";
@@ -11,6 +12,12 @@ import { TeacherQuestionBank } from "./pages/TeacherQuestionBank";
 import { TeacherExamList } from "./pages/TeacherExamList";
 import { TeacherExamEditor } from "./pages/TeacherExamEditor";
 import { TeacherStudentDetail } from "./pages/TeacherStudentDetail";
+
+// Tách riêng (lazy load) vì trang này kéo theo thư viện đọc file .docx khá nặng
+// (mammoth.js) — chỉ giáo viên mới cần, không nên bắt học sinh tải về mỗi lần vào web.
+const TeacherExamImport = lazy(() =>
+  import("./pages/TeacherExamImport").then((m) => ({ default: m.TeacherExamImport })),
+);
 
 function RequireRole({
   role,
@@ -99,6 +106,16 @@ export default function App() {
           element={
             <RequireRole role="teacher">
               <TeacherExamList />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/tao-de-tu-word"
+          element={
+            <RequireRole role="teacher">
+              <Suspense fallback={<div className="page-loading">Đang tải...</div>}>
+                <TeacherExamImport />
+              </Suspense>
             </RequireRole>
           }
         />

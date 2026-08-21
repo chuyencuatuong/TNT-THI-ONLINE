@@ -2,12 +2,12 @@ import { MathText } from "./MathText";
 import type { Part3Answer, QuestionRow } from "../lib/types";
 
 export function Part3Question({
-  index,
+  number,
   question,
   value,
   onChange,
 }: {
-  index: number;
+  number: number;
   question: QuestionRow;
   value: Part3Answer | null;
   onChange: (value: Part3Answer) => void;
@@ -15,7 +15,7 @@ export function Part3Question({
   return (
     <div className="question-card">
       <div className="question-header">
-        Câu {index + 1}. <MathText text={question.content_latex} />
+        Câu {number}. <MathText text={question.content_latex} />
       </div>
       {question.image_url && (
         <img className="question-image" src={question.image_url} alt="" />

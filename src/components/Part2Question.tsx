@@ -4,12 +4,12 @@ import type { Part2Answer, Part2Options, QuestionRow } from "../lib/types";
 const SUB_KEYS: ("a" | "b" | "c" | "d")[] = ["a", "b", "c", "d"];
 
 export function Part2Question({
-  index,
+  number,
   question,
   value,
   onChange,
 }: {
-  index: number;
+  number: number;
   question: QuestionRow;
   value: Partial<Part2Answer> | null;
   onChange: (value: Partial<Part2Answer>) => void;
@@ -23,7 +23,7 @@ export function Part2Question({
   return (
     <div className="question-card">
       <div className="question-header">
-        Câu {index + 1}. <MathText text={question.content_latex} />
+        Câu {number}. <MathText text={question.content_latex} />
       </div>
       {question.image_url && (
         <img className="question-image" src={question.image_url} alt="" />
