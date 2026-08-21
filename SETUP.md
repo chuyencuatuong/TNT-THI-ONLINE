@@ -12,24 +12,34 @@ Bản cập nhật lần này thêm: tạo đề từ file Word (AI tự đọc 
 thức), giao diện làm bài có đếm giờ + danh sách câu hỏi bên cạnh (giống
 Azota), dashboard phân tích (biểu đồ thời gian từng câu, chẩn đoán mất
 gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài, **tải ảnh minh hoạ**
-(bảng biến thiên, đồ thị...) cho từng câu hỏi, và **đổi cách đăng nhập từ
-"gửi link qua email" sang email + mật khẩu** (bỏ hẳn việc phải gửi email —
-xem lý do ở mục "Vì sao đổi cách đăng nhập" bên dưới).
+(bảng biến thiên, đồ thị...) cho từng câu hỏi — giờ **dán được luôn bằng
+Ctrl+V**, **đổi cách đăng nhập từ "gửi link qua email" sang email + mật
+khẩu**, **màn hình tạo đề gọn lại** (ưu tiên cách dán JSON chính xác hơn cho
+công thức MathType), **tăng giám sát khi làm bài** (ghi nhận rời tab/thoát
+toàn màn hình, chặn sao chép/dán đề), và **gieo sẵn 6 chương Toán 12** vào
+khung kiến thức.
+
+**Cập nhật thêm (giao diện):** đổi toàn bộ màu sắc, header và trang đăng
+nhập sang đúng logo + màu thương hiệu Toán học TNT (đỏ đô + vàng gold), có
+favicon riêng. Không cần chạy thêm SQL nào cho phần này — chỉ cần lặp lại
+**Việc 1** (tải code mới lên GitHub) là thấy ngay.
 
 1. **Tải lại code**: lặp lại đúng **Việc 1** bên dưới (kéo-thả toàn bộ file
    trong bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2
    (3 giá trị cấu hình vẫn giữ nguyên).
 2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần mỗi file)**: vào Supabase Dashboard >
-   **SQL Editor** > **New query**. Nếu đây là lần đầu cập nhật, mở lần lượt
-   2 file sau trong bản zip mới, copy toàn bộ nội dung từng file, dán vào 1
-   query mới, bấm **Run** (làm với file này xong mới sang file kia, mỗi file
-   1 query riêng):
-   - `supabase/migration_002_import_and_tracking.sql` (nếu đã chạy ở lần cập
-     nhật trước thì bỏ qua, không cần chạy lại)
-   - `supabase/migration_003_question_images_storage.sql` (mới, cần chạy)
+   **SQL Editor** > **New query**. Mở lần lượt các file sau trong bản zip
+   mới (file nào đã chạy ở lần cập nhật trước thì bỏ qua), copy toàn bộ nội
+   dung từng file, dán vào 1 query mới, bấm **Run** (làm xong file này mới
+   sang file kia, mỗi file 1 query riêng):
+   - `supabase/migration_002_import_and_tracking.sql`
+   - `supabase/migration_003_question_images_storage.sql`
+   - `supabase/migration_004_giam_sat_thi.sql` (mới, cần chạy)
+   - `supabase/migration_005_chuong_toan12.sql` (mới, cần chạy)
 
-   Nếu bỏ qua các bước này, tính năng chấm giờ, chẩn đoán học lực, và tải
-   ảnh minh hoạ sẽ báo lỗi vì database chưa có các bảng/cột/kho lưu trữ mới.
+   Nếu bỏ qua các bước này, tính năng chấm giờ, chẩn đoán học lực, tải ảnh
+   minh hoạ, và giám sát làm bài sẽ báo lỗi vì database chưa có các
+   bảng/cột/kho lưu trữ mới.
 3. **Tắt yêu cầu xác nhận email (bắt buộc, chỉ 1 lần)**: vào Supabase
    Dashboard > **Authentication** > **Sign In / Providers** (hoặc mục
    **Emails**, tuỳ giao diện) > tìm mục **Email** provider > tắt công tắc
@@ -109,18 +119,20 @@ không cần bấm thêm gì ở phần Settings > Pages.
 ## Sau khi có website — dùng như thế nào
 
 - **Giáo viên — cách nhanh nhất để tạo đề**: mở link website, đăng nhập,
-  lần đầu chọn vai trò "Giáo viên". Vào **"+ Tạo đề từ Word"**, tải lên file
-  đề thi định dạng `.docx`. AI sẽ đọc nội dung, chuyển công thức sang LaTeX
-  và tách câu hỏi theo Phần 1/2/3. Màn hình tiếp theo cho xem trước từng câu
-  — **bạn cần xác nhận đáp án đúng cho từng câu** trước khi bấm "Xuất bản đề
-  thi" (hệ thống không tự công bố đề khi chưa có đáp án được xác nhận, để
-  tránh chấm sai). Nếu file dùng công cụ gõ công thức có sẵn của Word
-  (Equation/MathType), một số công thức có thể bị thiếu khi trích xuất tự
-  động (giới hạn kỹ thuật) — màn hình xem trước sẽ cho sửa tay bằng LaTeX;
-  nếu muốn chính xác hơn ngay từ đầu, có thể gửi file đó trực tiếp trong
-  cuộc trò chuyện này để xử lý kỹ hơn rồi dán lại. Câu nào có kèm bảng biến
-  thiên/đồ thị, dùng ô "Hình minh hoạ" ở mỗi câu trong màn hình xem trước để
-  tải ảnh chụp từ file gốc lên (tối đa 5MB/ảnh).
+  lần đầu chọn vai trò "Giáo viên". Vào **"+ Tạo đề thi mới"**. Vì công thức
+  của bạn gõ bằng MathType (dạng ảnh nhúng trong file Word, thư viện đọc file
+  tự động trên web không đọc được), màn hình này **ưu tiên cách dán JSON**:
+  gửi file `.docx` (kèm `.pdf` nếu có) trực tiếp trong cuộc trò chuyện này,
+  Claude sẽ đọc kỹ và trả lại 1 đoạn JSON để dán vào ô trên cùng — chính xác
+  hơn hẳn cách để web tự đọc. Cách để AI trên web tự đọc file Word vẫn còn,
+  nằm gọn trong mục "Hoặc để AI trên web tự đọc file Word" (bấm để mở ra),
+  chỉ nên dùng khi đề không có công thức MathType. Dù theo cách nào, màn
+  hình xem trước sau đó đều cho sửa tay bằng LaTeX và **bạn cần xác nhận đáp
+  án đúng cho từng câu** trước khi bấm "Xuất bản đề thi" (hệ thống không tự
+  công bố đề khi chưa có đáp án được xác nhận, để tránh chấm sai). Câu nào
+  có kèm bảng biến thiên/đồ thị, dùng ô "Hình minh hoạ" ở mỗi câu để tải ảnh
+  lên — giờ có thể **copy ảnh trong Word (Ctrl+C) rồi bấm vào ô đó dán luôn
+  (Ctrl+V)**, không cần lưu file ảnh ra máy trước.
 - **Giáo viên — cách thủ công (không bắt buộc)**: vào "Ngân hàng câu hỏi" để
   nhập từng câu bằng tay (viết công thức Toán bằng cách đặt trong dấu
   `$...$`, ví dụ gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp),
@@ -162,6 +174,34 @@ học sinh trực tiếp trong database, không qua email:
 toàn bộ database — tuyệt đối không chia sẻ file này hay key này cho ai,
 không đưa lên GitHub hay bất kỳ nơi công khai nào. Chỉ dùng trên máy riêng
 của bạn.
+
+### Giám sát khi học sinh làm bài (giới hạn cần biết)
+
+Màn hình làm bài giờ có thêm: ghi nhận nếu học sinh rời tab/cửa sổ đang làm
+bài hoặc thoát toàn màn hình giữa chừng, và **chặn hẳn** việc sao chép nội
+dung đề hoặc dán nội dung vào ô trả lời. Vào trang chi tiết học sinh (bấm
+vào tên học sinh), mục "Lịch sử làm bài & mức độ nghi ngờ" hiện nhãn Bình
+thường / Nghi ngờ nhẹ / Nghi ngờ cao cho từng lượt làm bài, dựa trên số lần
+có các dấu hiệu trên.
+
+**Giới hạn thật của một website thường (không phải phần mềm thi cử chuyên
+dụng)**: không thể ngăn học sinh dùng điện thoại/máy khác để tra cứu, hay mở
+hẳn 1 trình duyệt/thiết bị thứ hai — những việc này không để lại dấu vết
+trên trang. Nhãn "mức độ nghi ngờ" chỉ là gợi ý để bạn hỏi lại học sinh, hoàn
+toàn không phải bằng chứng gian lận chắc chắn. Nếu cần giám sát chặt hơn nữa
+(ví dụ khoá thiết bị thật sự), sẽ cần phần mềm/thiết bị chuyên dụng riêng,
+ngoài phạm vi 1 website.
+
+### Khung 6 chương Toán 12
+
+Đã gieo sẵn 6 chương lớn của Toán 12 vào khung kiến thức (chạy
+`migration_005_chuong_toan12.sql` là có ngay, không cần tạo tay): Ứng dụng
+đạo hàm để khảo sát và vẽ đồ thị hàm số, Véc tơ và hệ trục tọa độ trong
+không gian, Các số đặc trưng đo mức độ phân tán của mẫu số liệu ghép nhóm,
+Nguyên hàm và tích phân, Phương pháp tọa độ trong không gian, Xác suất có
+điều kiện. Dạng bài chi tiết trong từng chương và mức độ khó (nhận biết /
+thông hiểu / vận dụng / vận dụng cao) để làm sau — hiện tại gán câu hỏi vào
+đúng chương là đủ.
 
 ### Lưu ý về phần "chẩn đoán mất gốc / chưa vững"
 

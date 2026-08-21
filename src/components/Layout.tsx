@@ -1,5 +1,6 @@
 import { Link, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import logoIcon from "../assets/logo-icon.png";
 
 export function Layout() {
   const { profile, signOut } = useAuth();
@@ -8,7 +9,8 @@ export function Layout() {
     <div className="app-shell">
       <header className="app-header">
         <Link to="/" className="app-logo">
-          TNT Toán học
+          <img src={logoIcon} alt="TNT" />
+          Toán học TNT
         </Link>
         {profile && (
           <nav className="app-nav">

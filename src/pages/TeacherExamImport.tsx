@@ -206,44 +206,54 @@ export function TeacherExamImport() {
   if (stage === "upload") {
     return (
       <div className="teacher-page">
-        <h2>Tạo đề từ file Word</h2>
+        <h2>Tạo đề thi mới</h2>
         <p className="empty-hint">
-          Tải lên file đề thi định dạng .docx. AI sẽ đọc nội dung, chuyển công thức sang LaTeX và
-          tách câu hỏi theo Phần 1/2/3. Bạn luôn xem lại và xác nhận đáp án ở bước sau trước khi
-          xuất bản — AI chỉ soạn nháp, không tự công bố đề.
-        </p>
-        <p className="ai-hint">
-          Lưu ý: nếu đề dùng công cụ gõ công thức có sẵn của Word (Equation/MathType), bước tự
-          động này có thể bỏ sót công thức (giới hạn kỹ thuật của thư viện đọc file, không phải lỗi
-          của bạn) — bạn sẽ thấy rõ ở bước xem trước và gõ tay lại bằng LaTeX cho câu đó. Công thức
-          dạng ảnh chụp/dán thì đọc tốt hơn nhiều.
+          Cách nhanh và chính xác nhất: gửi file đề (.docx, kèm .pdf nếu có) ngay trong khung trò
+          chuyện với Claude — Claude đọc kỹ, chuyển từng công thức sang LaTeX (kể cả công thức gõ
+          bằng MathType/Equation Editor mà công cụ tự động bên dưới hay bỏ sót), rồi trả lại 1
+          đoạn JSON để bạn dán vào ô dưới đây.
         </p>
         {error && <p className="form-error">{error}</p>}
-        <div className="form-row">
-          <label>Chọn file .docx</label>
-          <input
-            type="file"
-            accept=".docx"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFileSelected(f);
-            }}
-          />
-          {fileName && <span className="empty-hint">Đã chọn: {fileName}</span>}
-        </div>
 
-        <div className="form-row" style={{ marginTop: 24 }}>
-          <label>Hoặc dán JSON đã xử lý sẵn (khi được xử lý qua trò chuyện với Claude, độ chính xác cao hơn — đặc biệt với công thức gõ bằng Equation Editor)</label>
+        <div className="form-row">
+          <label>Dán JSON đã xử lý sẵn</label>
           <textarea
             rows={5}
             value={pasteJson}
             onChange={(e) => setPasteJson(e.target.value)}
             placeholder='{"part1": [...], "part2": [...], "part3": [...], "warnings": []}'
           />
-          <button className="btn-secondary" onClick={handlePasteJsonSubmit} disabled={!pasteJson.trim()}>
+          <button className="btn-primary" onClick={handlePasteJsonSubmit} disabled={!pasteJson.trim()}>
             Dùng JSON này
           </button>
         </div>
+
+        <details style={{ marginTop: 28 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+            Hoặc để AI trên web tự đọc file Word (kém chính xác hơn với công thức MathType)
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            <p className="ai-hint">
+              Nếu đề dùng công cụ gõ công thức có sẵn của Word (Equation/MathType), cách này có
+              thể bỏ sót công thức (giới hạn kỹ thuật của thư viện đọc file, không phải lỗi của
+              bạn) — bạn sẽ thấy rõ ở bước xem trước và cần gõ tay lại bằng LaTeX cho câu đó. Công
+              thức dạng ảnh chụp/dán thì đọc tốt hơn nhiều. Nếu đề có dùng MathType, nên dùng cách
+              dán JSON ở trên thay vì cách này.
+            </p>
+            <div className="form-row">
+              <label>Chọn file .docx</label>
+              <input
+                type="file"
+                accept=".docx"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileSelected(f);
+                }}
+              />
+              {fileName && <span className="empty-hint">Đã chọn: {fileName}</span>}
+            </div>
+          </div>
+        </details>
       </div>
     );
   }

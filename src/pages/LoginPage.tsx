@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
+import logoFull from "../assets/logo-full.png";
 
 function translateError(raw: string): string {
   const msg = raw.toLowerCase();
@@ -58,6 +59,7 @@ export function LoginPage() {
   if (session && !profile) {
     return (
       <div className="auth-page">
+        <img src={logoFull} alt="Toán học TNT" className="auth-logo" />
         <h2>Hoàn tất hồ sơ</h2>
         <p>Đây là lần đăng nhập đầu tiên, vui lòng cho biết bạn là ai.</p>
         <form onSubmit={handleCreateProfile} className="auth-form">
@@ -97,7 +99,8 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <h1>TNT - Luyện tập & Kiểm tra Toán</h1>
+      <img src={logoFull} alt="Toán học TNT" className="auth-logo" />
+      <p className="auth-tagline">Luyện tập &amp; kiểm tra Toán trực tuyến</p>
       <form onSubmit={handleSubmit} className="auth-form">
         <input
           type="email"

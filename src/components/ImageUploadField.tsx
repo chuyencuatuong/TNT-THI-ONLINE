@@ -35,6 +35,21 @@ export function ImageUploadField({
     }
   }
 
+  function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleFile(file);
+        }
+        return;
+      }
+    }
+  }
+
   return (
     <div className="image-upload-field">
       {value && (
@@ -45,6 +60,14 @@ export function ImageUploadField({
           </button>
         </div>
       )}
+      <div
+        className="image-upload-pastezone"
+        tabIndex={0}
+        role="button"
+        onPaste={handlePaste}
+      >
+        Bấm vào đây rồi dán ảnh (Ctrl+V) — hoặc chọn file bên dưới
+      </div>
       <input
         type="file"
         accept="image/*"

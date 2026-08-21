@@ -66,7 +66,7 @@ export function PublicReportPage() {
               <XAxis type="number" domain={[0, 100]} unit="%" />
               <YAxis type="category" dataKey="type_name" width={160} />
               <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-              <Bar dataKey="accuracyPercent" fill="#3b6fd6" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -218,6 +218,50 @@ export function ExamTakingPage() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  // Giám sát trong lúc làm bài: ghi lại các dấu hiệu khả nghi (rời tab, thoát
+  // toàn màn hình) cho giáo viên xem sau, đồng thời CHẶN hẳn việc sao chép đề
+  // hoặc dán nội dung vào bài làm. Đây chỉ là công cụ giảm bớt gian lận dễ
+  // dàng, không thể ngăn học sinh dùng thiết bị khác để tra cứu.
+  useEffect(() => {
+    if (!attemptId) return;
+
+    function log(type: api.ProctoringEventType) {
+      api
+        .logProctoringEvent({ attempt_id: attemptIdRef.current!, event_type: type })
+        .catch((err) => console.error("Không ghi được proctoring_event:", err));
+    }
+
+    const onVisibilityChange = () => log(document.hidden ? "tab_hidden" : "tab_visible");
+    const onBlur = () => log("window_blur");
+    const onFocus = () => log("window_focus");
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) log("fullscreen_exit");
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      log("copy_attempt");
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      log("paste_attempt");
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("paste", onPaste);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("paste", onPaste);
+    };
+  }, [attemptId]);
+
   function scrollToQuestion(questionId: string) {
     questionRefs.current[questionId]?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -259,6 +303,11 @@ export function ExamTakingPage() {
           {submitting ? "Đang nộp..." : "Nộp bài"}
         </button>
       </div>
+
+      <p className="exam-proctor-notice">
+        Hệ thống ghi nhận nếu bạn rời khỏi tab/cửa sổ làm bài hoặc thoát toàn màn hình, và không
+        cho phép sao chép/dán nội dung trong lúc thi. Nên bấm "Toàn màn hình" trước khi bắt đầu.
+      </p>
 
       <div className="exam-body">
         <div className="exam-questions">

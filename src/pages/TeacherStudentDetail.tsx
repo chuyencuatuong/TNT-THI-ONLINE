@@ -24,6 +24,7 @@ export function TeacherStudentDetail() {
   const [topicStats, setTopicStats] = useState<
     { type_name: string; accuracyPercent: number }[]
   >([]);
+  const [proctoringCounts, setProctoringCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [reportLink, setReportLink] = useState<string | null>(null);
@@ -35,7 +36,8 @@ export function TeacherStudentDetail() {
         api.listStudentAttempts(studentId),
         api.getStudentTopicStats(studentId),
       ]);
-      setAttempts(attemptsData.filter((a) => a.score));
+      const scoredAttempts = attemptsData.filter((a) => a.score);
+      setAttempts(scoredAttempts);
       setTopicStats(
         stats.map((s) => ({
           type_name: s.type_name,
@@ -44,6 +46,10 @@ export function TeacherStudentDetail() {
       );
       const studentProfile = await api.getProfile(studentId);
       setProfile(studentProfile);
+      api
+        .getProctoringCounts(scoredAttempts.map((a) => a.id))
+        .then(setProctoringCounts)
+        .catch((err) => console.error("Không lấy được dữ liệu giám sát:", err));
       setLoading(false);
     })();
   }, [studentId]);
@@ -90,6 +96,12 @@ export function TeacherStudentDetail() {
     }
   }
 
+  function suspicionLabel(count: number): { text: string; className: string } {
+    if (count === 0) return { text: "Bình thường", className: "badge-ok" };
+    if (count <= 3) return { text: `Nghi ngờ nhẹ (${count})`, className: "badge-warn" };
+    return { text: `Nghi ngờ cao (${count})`, className: "badge-danger" };
+  }
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   const trendData = attempts
@@ -112,9 +124,36 @@ export function TeacherStudentDetail() {
               <XAxis dataKey="name" />
               <YAxis domain={[0, 10]} />
               <Tooltip />
-              <Line type="monotone" dataKey="score" stroke="#3b6fd6" strokeWidth={2} />
+              <Line type="monotone" dataKey="score" stroke="#9c1420" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
+        )}
+      </section>
+
+      <section>
+        <h3>Lịch sử làm bài & mức độ nghi ngờ</h3>
+        <p className="empty-hint">
+          Dựa trên số lần rời tab, thoát toàn màn hình, hoặc cố sao chép/dán trong lúc làm bài —
+          chỉ để gợi ý hỏi lại học sinh, không phải bằng chứng gian lận chắc chắn.
+        </p>
+        {attempts.length === 0 ? (
+          <p className="empty-hint">Chưa có lượt làm bài nào.</p>
+        ) : (
+          <div className="card-list">
+            {attempts.map((a) => {
+              const badge = suspicionLabel(proctoringCounts[a.id] ?? 0);
+              return (
+                <div key={a.id} className="card">
+                  <div className="card-title">{a.exam.title}</div>
+                  <p className="card-desc">
+                    {new Date(a.started_at).toLocaleDateString("vi-VN")} — Điểm:{" "}
+                    {a.score!.total_score}
+                  </p>
+                  <span className={`badge ${badge.className}`}>{badge.text}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
@@ -129,7 +168,7 @@ export function TeacherStudentDetail() {
               <XAxis type="number" domain={[0, 100]} unit="%" />
               <YAxis type="category" dataKey="type_name" width={160} />
               <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-              <Bar dataKey="accuracyPercent" fill="#3b6fd6" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

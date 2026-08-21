@@ -120,7 +120,7 @@ export function ResultPage() {
               <XAxis type="number" domain={[0, 100]} unit="%" />
               <YAxis type="category" dataKey="name" width={160} fontSize={12} />
               <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-              <Bar dataKey="accuracyPercent" fill="#3b6fd6" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </section>

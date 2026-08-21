@@ -20,10 +20,10 @@ export function TeacherExamList() {
         <h2>Đề thi</h2>
         <div style={{ display: "flex", gap: 10 }}>
           <Link className="btn-primary" to="/giao-vien/tao-de-tu-word">
-            + Tạo đề từ file Word
+            + Tạo đề thi mới
           </Link>
           <Link className="btn-secondary" to="/giao-vien/de-thi/moi">
-            + Tạo đề thủ công
+            + Tạo đề thủ công (từng câu)
           </Link>
         </div>
       </div>

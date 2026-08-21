@@ -17,6 +17,10 @@ duy nhất).
 - Học sinh: làm bài đúng 3 phần theo barem hiện hành, giao diện có đồng hồ
   đếm ngược + danh sách câu hỏi để nhảy nhanh (giống các nền tảng thi trắc
   nghiệm phổ biến), xem lịch sử điểm qua các lần làm.
+- Giám sát làm bài: ghi nhận rời tab/thoát toàn màn hình, chặn sao chép/dán
+  nội dung trong lúc thi; giáo viên xem "mức độ nghi ngờ" từng lượt làm bài
+  ở trang chi tiết học sinh (chỉ là gợi ý, không phải bằng chứng chắc chắn —
+  xem giới hạn trong `SETUP.md`).
 - Chấm điểm tự động, ghi log từng lần chọn/đổi đáp án + từng lượt xem từng
   câu hỏi (cộng dồn nhiều lượt quay lại xem) để tính chính xác thời gian tập
   trung vào từng câu.
@@ -26,7 +30,10 @@ duy nhất).
   trong `SETUP.md`.
 - Công thức Toán viết bằng LaTeX, hiển thị đẹp bằng KaTeX. Ảnh minh hoạ
   (bảng biến thiên, đồ thị...) tải lên qua Supabase Storage, gắn được cho
-  từng câu hỏi (form nhập tay hoặc màn hình xem trước khi tạo đề từ Word).
+  từng câu hỏi (form nhập tay hoặc màn hình xem trước khi tạo đề từ Word) —
+  chọn file hoặc dán trực tiếp bằng Ctrl+V.
+- Khung kiến thức gieo sẵn 6 chương Toán 12 (dạng bài chi tiết & mức độ khó
+  làm sau).
 - Tự động build & deploy lên GitHub Pages mỗi khi có cập nhật.
 
 ## Cấu trúc dự án
@@ -39,7 +46,7 @@ duy nhất).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
-- `supabase/migration_002_import_and_tracking.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
+- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
 - `.github/workflows/deploy.yml` — tự động build & deploy lên GitHub Pages.
 
 ## Chạy thử ở máy (không bắt buộc)

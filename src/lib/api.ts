@@ -277,6 +277,58 @@ export async function logQuestionViewEvent(input: {
   if (error) throw error;
 }
 
+export type ProctoringEventType =
+  | "tab_hidden"
+  | "tab_visible"
+  | "window_blur"
+  | "window_focus"
+  | "fullscreen_exit"
+  | "copy_attempt"
+  | "paste_attempt";
+
+/**
+ * Ghi lại 1 dấu hiệu giám sát trong lúc học sinh làm bài (chuyển tab, thoát
+ * toàn màn hình, cố sao chép/dán...). Chỉ để gợi ý mức độ nghi ngờ cho giáo
+ * viên, không phải bằng chứng gian lận chắc chắn.
+ */
+export async function logProctoringEvent(input: {
+  attempt_id: string;
+  event_type: ProctoringEventType;
+}): Promise<void> {
+  const { error } = await supabase.from("proctoring_events").insert(input);
+  if (error) throw error;
+}
+
+const SUSPICIOUS_EVENT_TYPES: ProctoringEventType[] = [
+  "tab_hidden",
+  "fullscreen_exit",
+  "copy_attempt",
+  "paste_attempt",
+];
+
+/**
+ * Đếm số lần có dấu hiệu khả nghi (rời tab, thoát toàn màn hình, cố
+ * copy/paste) cho từng lượt làm bài — dùng để hiển thị "mức độ nghi ngờ"
+ * cho giáo viên. Không đếm window_blur/focus riêng vì dễ bị nhiễu (ví dụ bấm
+ * vào thanh địa chỉ trình duyệt cũng tính là blur).
+ */
+export async function getProctoringCounts(
+  attemptIds: string[],
+): Promise<Record<string, number>> {
+  if (attemptIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("proctoring_events")
+    .select("attempt_id, event_type")
+    .in("attempt_id", attemptIds)
+    .in("event_type", SUSPICIOUS_EVENT_TYPES);
+  if (error) throw error;
+  const counts: Record<string, number> = {};
+  for (const row of data as { attempt_id: string; event_type: string }[]) {
+    counts[row.attempt_id] = (counts[row.attempt_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 /**
  * Chấm điểm toàn bộ 1 lượt làm bài dựa trên answer_events đã ghi nhận,
  * ghi vào question_responses + attempt_scores, rồi đánh dấu đã nộp bài.
