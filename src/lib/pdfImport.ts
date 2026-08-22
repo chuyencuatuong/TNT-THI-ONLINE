@@ -35,6 +35,14 @@ export interface RenderPdfOptions {
   quality?: number;
   /** Giới hạn số trang tối đa (an toàn — tránh 1 file quá dài làm tốn quá nhiều token AI ngoài ý muốn). */
   maxPages?: number;
+  /**
+   * Giới hạn chiều rộng ảnh xuất ra (px) — bất kể `scale` là bao nhiêu, ảnh
+   * không vượt quá ngưỡng này. Đề dài (10+ trang) mà ảnh quá nặng làm request
+   * gửi lên AI rất to, dễ khiến trình duyệt "đứng hình" rất lâu ở bước phân
+   * tích mà không rõ đang chờ gì hay đã treo hẳn. Chữ/công thức vẫn đọc rõ ở
+   * mức 1400-1600px chiều rộng cho khổ A4.
+   */
+  maxWidthPx?: number;
 }
 
 /** Render toàn bộ trang của 1 file PDF thành danh sách ảnh, theo đúng thứ tự trang. */
@@ -42,7 +50,13 @@ export async function renderPdfToImages(
   file: File,
   opts: RenderPdfOptions = {},
 ): Promise<PdfPageImage[]> {
-  const { scale = 2, mimeType = "image/jpeg", quality = 0.9, maxPages = 60 } = opts;
+  const {
+    scale = 1.6,
+    mimeType = "image/jpeg",
+    quality = 0.82,
+    maxPages = 60,
+    maxWidthPx = 1500,
+  } = opts;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -51,7 +65,9 @@ export async function renderPdfToImages(
 
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
     const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale });
+    const naturalWidth = page.getViewport({ scale: 1 }).width;
+    const effectiveScale = Math.min(scale, maxWidthPx / naturalWidth);
+    const viewport = page.getViewport({ scale: effectiveScale });
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(viewport.width);
     canvas.height = Math.ceil(viewport.height);

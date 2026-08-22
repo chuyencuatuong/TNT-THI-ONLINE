@@ -26,14 +26,60 @@ type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } };
 
-async function callGeminiParts(
-  parts: GeminiPart[],
-  maxOutputTokens = 500,
-): Promise<string | null> {
-  if (!GEMINI_API_KEY) {
-    console.warn("Thiếu VITE_GEMINI_API_KEY — bỏ qua bước gọi AI.");
-    return null;
+/**
+ * Thời gian chờ tối đa (ms) cho 1 lần gọi Gemini trước khi tự huỷ. Không có
+ * giới hạn này, nếu mạng/API bị treo, giao diện sẽ đứng ở "đang phân tích"
+ * vô thời hạn mà không có cách nào báo lỗi cho giáo viên biết để thử lại.
+ */
+const GEMINI_TIMEOUT_MS = 90_000;
+
+/**
+ * Google thỉnh thoảng trả lỗi 503 "quá tải" hoặc 429 "vượt giới hạn tốc độ"
+ * — đây là lỗi TẠM THỜI theo đúng thông báo của Google, tự thử lại sau vài
+ * giây thường sẽ qua. Không thử lại quá nhiều lần để tránh treo lâu vô ích.
+ */
+const GEMINI_MAX_ATTEMPTS = 3;
+const GEMINI_RETRY_DELAYS_MS = [3000, 8000];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function describeGeminiHttpError(status: number): string {
+  if (status === 503) {
+    return "Google đang quá tải (lỗi 503 UNAVAILABLE) — đã tự thử lại vài lần nhưng vẫn lỗi. Đây là lỗi tạm thời từ phía Google, đợi vài phút rồi thử lại.";
   }
+  if (status === 429) {
+    return "Đã gọi AI quá nhiều lần trong thời gian ngắn (lỗi 429 — vượt giới hạn tốc độ của gói miễn phí). Đợi 1-2 phút rồi thử lại.";
+  }
+  if (status === 404) {
+    return "Không tìm thấy model AI (lỗi 404) — có thể tên model đang cấu hình không đúng hoặc chưa khả dụng cho API key này. Kiểm tra lại VITE_GEMINI_MODEL hoặc để trống dùng mặc định.";
+  }
+  if (status === 401 || status === 403) {
+    return "API key không hợp lệ hoặc không có quyền gọi model này (lỗi 401/403) — kiểm tra lại VITE_GEMINI_API_KEY.";
+  }
+  if (status === 400) {
+    return "Yêu cầu gửi lên AI không hợp lệ (lỗi 400) — có thể do dữ liệu ảnh bị lỗi khi render trang PDF.";
+  }
+  return `Lỗi từ Gemini API (mã ${status}).`;
+}
+
+interface GeminiCallResult {
+  text: string | null;
+  /** Lý do cụ thể khi text là null — để hiện cho giáo viên biết chính xác chuyện gì xảy ra thay vì chỉ nói chung chung "có lỗi". */
+  errorMessage: string | null;
+}
+
+async function callGeminiPartsDetailed(
+  parts: GeminiPart[],
+  maxOutputTokens: number,
+  attempt = 1,
+): Promise<GeminiCallResult> {
+  if (!GEMINI_API_KEY) {
+    return { text: null, errorMessage: "Thiếu VITE_GEMINI_API_KEY — chưa cấu hình API key cho AI." };
+  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
   try {
     const res = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_API_KEY}`, {
       method: "POST",
@@ -42,20 +88,49 @@ async function callGeminiParts(
         contents: [{ parts }],
         generationConfig: { temperature: 0.2, maxOutputTokens },
       }),
+      signal: controller.signal,
     });
     if (!res.ok) {
-      console.error("Gemini API lỗi:", res.status, await res.text());
-      return null;
+      const bodyText = await res.text();
+      console.error("Gemini API lỗi:", res.status, bodyText);
+      const retriable = (res.status === 503 || res.status === 429 || res.status >= 500) && attempt < GEMINI_MAX_ATTEMPTS;
+      if (retriable) {
+        await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] ?? 8000);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1);
+      }
+      return { text: null, errorMessage: describeGeminiHttpError(res.status) };
     }
     const json = await res.json();
     const text = json?.candidates?.[0]?.content?.parts?.[0]?.text as
       | string
       | undefined;
-    return text?.trim() ?? null;
+    if (!text?.trim()) {
+      return { text: null, errorMessage: "AI trả lời rỗng, không có nội dung để đọc." };
+    }
+    return { text: text.trim(), errorMessage: null };
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      if (attempt < GEMINI_MAX_ATTEMPTS) {
+        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1);
+      }
+      return {
+        text: null,
+        errorMessage: `Gọi AI quá ${GEMINI_TIMEOUT_MS / 1000}s không có phản hồi (đã thử lại ${GEMINI_MAX_ATTEMPTS} lần) — có thể do mạng chậm hoặc ảnh gửi lên quá nặng.`,
+      };
+    }
     console.error("Gọi Gemini thất bại:", err);
-    return null;
+    return { text: null, errorMessage: "Lỗi kết nối mạng khi gọi AI — kiểm tra lại internet rồi thử lại." };
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+async function callGeminiParts(
+  parts: GeminiPart[],
+  maxOutputTokens = 500,
+): Promise<string | null> {
+  const { text } = await callGeminiPartsDetailed(parts, maxOutputTokens);
+  return text;
 }
 
 async function callGemini(prompt: string): Promise<string | null> {
@@ -289,7 +364,7 @@ const EXAM_PARSE_FROM_IMAGES_PROMPT = `Bạn là trợ lý số hoá đề thi T
 - Phần 3: trả lời ngắn (điền số hoặc chuỗi ngắn), không có phương án cho sẵn.
 
 YÊU CẦU:
-1. Đọc trực tiếp từ ảnh, kể cả công thức Toán gõ bằng MathType/Equation Editor — khi xuất ra PDF các công thức này hiển thị đúng như bản gốc dù công cụ đọc văn bản thường không đọc được. Chuyển TOÀN BỘ công thức sang LaTeX, đặt trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay cú pháp khác.
+1. Đọc trực tiếp từ ảnh, kể cả công thức Toán gõ bằng MathType/Equation Editor — khi xuất ra PDF các công thức này hiển thị đúng như bản gốc dù công cụ đọc văn bản thường không đọc được. Chuyển TOÀN BỘ công thức sang LaTeX, đặt trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay cú pháp khác. QUAN TRỌNG: cặp dấu $...$ CHỈ bọc phần biểu thức Toán thuần tuý (số, biến, ký hiệu toán học) — chữ tiếng Việt (kể cả có dấu) và văn bản thường (đề bài, mô tả) phải nằm NGOÀI dấu $, không được bọc chung. Nếu bắt buộc phải có chữ tiếng Việt ngay bên trong 1 công thức (ví dụ đơn vị "cm", "giây", hoặc chú thích ngắn), phải bọc riêng phần chữ đó bằng \\text{...} bên trong dấu $. Ví dụ ĐÚNG: "Chiều dài là $x$ cm."; ví dụ SAI: "$Chiều dài là x$ cm.".
 2. Bỏ qua các phần lặp lại ở đầu/cuối mỗi trang không phải nội dung đề (tên trường, logo, số trang, watermark) và các dòng ghi nguồn/tác giả kiểu "FB tác giả: ...", "Nguồn: ...", "Sưu tầm: ..." — đây là nhiễu, không đưa vào content_latex hay coi là tín hiệu đáp án.
 3. Xác định đáp án đúng dựa trên BẤT KỲ tín hiệu nào sau đây xuất hiện trong ảnh (không chỉ 1 quy ước cố định, vì mỗi đề có thể trình bày khác nhau):
    - Phần 1: phương án được TÔ MÀU NỀN (thường là xanh lá) và/hoặc GẠCH CHÂN, hoặc in đậm, hoặc có dấu "*" cạnh phương án, hoặc có ghi chú "Đáp án: X" ngay sau câu.
@@ -314,11 +389,34 @@ export interface PageImageInput {
   dataBase64: string;
 }
 
-/** Gửi 1 đợt ảnh trang (đã trong giới hạn cho phép) cho Gemini phân tích. */
+/** Tiền tố đánh dấu 1 dòng warning là lỗi thật của cả đợt (không phải ghi chú nội dung bình thường của AI) — dùng để đếm/lọc bằng máy mà vẫn đọc được bằng mắt. */
+const CHUNK_ERROR_PREFIX = "[LỖI ĐỢT]";
+
+function emptyParsedExamWithError(pageNumbers: number[] | undefined, reason: string): ParsedExam {
+  const rangeLabel = pageNumbers?.length
+    ? pageNumbers.length === 1
+      ? `Trang ${pageNumbers[0]}`
+      : `Trang ${pageNumbers[0]}-${pageNumbers[pageNumbers.length - 1]}`
+    : "1 đợt";
+  return {
+    part1: [],
+    part2: [],
+    part3: [],
+    warnings: [`${CHUNK_ERROR_PREFIX} ${rangeLabel}: ${reason}`],
+  };
+}
+
+/**
+ * Gửi 1 đợt ảnh trang (đã trong giới hạn cho phép) cho Gemini phân tích.
+ * LUÔN trả về 1 ParsedExam (không trả null nữa) — nếu đợt này lỗi, trả về đề
+ * rỗng kèm 1 dòng "warnings" ghi rõ lý do (thay vì mất trắng thông tin lỗi),
+ * để giáo viên biết chính xác chuyện gì xảy ra thay vì chỉ thấy "có lỗi"
+ * chung chung, và để các đợt khác vẫn gộp kết quả bình thường.
+ */
 export async function parseExamFromImages(
   pageImages: PageImageInput[],
   pageNumbers?: number[],
-): Promise<ParsedExam | null> {
+): Promise<ParsedExam> {
   const parts: GeminiPart[] = [{ text: EXAM_PARSE_FROM_IMAGES_PROMPT }];
   pageImages.forEach((img, i) => {
     const label = pageNumbers?.[i] ?? i + 1;
@@ -326,8 +424,10 @@ export async function parseExamFromImages(
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
   });
 
-  const raw = await callGeminiParts(parts, 8192);
-  if (!raw) return null;
+  const { text: raw, errorMessage } = await callGeminiPartsDetailed(parts, 8192);
+  if (!raw) {
+    return emptyParsedExamWithError(pageNumbers, errorMessage ?? "AI không trả lời.");
+  }
 
   try {
     const parsed = extractJsonBlock(raw) as Partial<ParsedExam>;
@@ -339,7 +439,7 @@ export async function parseExamFromImages(
     };
   } catch (err) {
     console.error("Không đọc được JSON từ AI khi phân tích ảnh trang PDF:", err, raw);
-    return null;
+    return emptyParsedExamWithError(pageNumbers, "AI trả lời nhưng không đúng định dạng JSON mong đợi.");
   }
 }
 
@@ -357,22 +457,28 @@ export function mergeParsedExams(results: ParsedExam[]): ParsedExam {
 }
 
 export interface ParseFromPdfResult {
+  /** null CHỈ khi không có đợt nào thành công (0 câu hỏi nào đọc được) — xem "chunkErrors" để biết lý do cụ thể từng đợt. */
   parsed: ParsedExam | null;
-  /** Số đợt (chunk) gọi AI bị lỗi/không đọc được — 0 nghĩa là mọi đợt đều thành công. */
+  /** Số đợt (chunk) gọi AI bị lỗi — 0 nghĩa là mọi đợt đều thành công. */
   failedChunks: number;
   totalChunks: number;
+  /** Lý do cụ thể của từng đợt bị lỗi (đã bóc khỏi CHUNK_ERROR_PREFIX), để hiện thẳng cho giáo viên thay vì chỉ nói chung chung "có lỗi". */
+  chunkErrors: string[];
 }
 
 /**
- * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI nếu
- * đề quá dài (tránh 1 lần gọi quá nặng). Ghép kết quả các đợt lại theo thứ tự
- * trang. Nếu đề dài phải chia đợt, 1 câu hỏi lỡ nằm vắt ngang ranh giới 2 trang
- * ở đúng điểm chia có thể bị đọc thiếu — trường hợp này hiếm (chunk mặc định
- * đủ lớn cho hầu hết đề thi) nhưng giáo viên vẫn cần xem lại ở bước xác nhận.
+ * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI
+ * (mặc định 6 trang/đợt — nhỏ hơn hẳn 1 lần gọi cho cả đề dài, để mỗi đợt trả
+ * lời nhanh hơn, đỡ có cảm giác "đứng hình" lâu, và nếu 1 đợt bị lỗi/timeout
+ * thì các đợt còn lại vẫn tiếp tục chạy thay vì mất trắng toàn bộ). Ghép kết
+ * quả các đợt lại theo thứ tự trang. Nếu đề dài phải chia đợt, 1 câu hỏi lỡ
+ * nằm vắt ngang ranh giới 2 trang ở đúng điểm chia có thể bị đọc thiếu —
+ * trường hợp này hiếm nhưng giáo viên vẫn cần xem lại ở bước xác nhận.
  */
 export async function parseExamFromPdfPages(
   pageImages: PageImageInput[],
-  chunkSize = 12,
+  chunkSize = 6,
+  onProgress?: (done: number, total: number) => void,
 ): Promise<ParseFromPdfResult> {
   const pageNumberChunks = chunkArray(
     pageImages.map((_, i) => i + 1),
@@ -381,22 +487,35 @@ export async function parseExamFromPdfPages(
   const imageChunks = chunkArray(pageImages, chunkSize);
 
   const results: ParsedExam[] = [];
-  let failedChunks = 0;
   for (let i = 0; i < imageChunks.length; i++) {
     const r = await parseExamFromImages(imageChunks[i], pageNumberChunks[i]);
-    if (r) results.push(r);
-    else failedChunks++;
+    results.push(r);
+    onProgress?.(i + 1, imageChunks.length);
   }
 
-  if (results.length === 0) {
-    return { parsed: null, failedChunks, totalChunks: imageChunks.length };
-  }
+  const chunkErrors = results
+    .flatMap((r) => r.warnings)
+    .filter((w) => w.startsWith(CHUNK_ERROR_PREFIX))
+    .map((w) => w.slice(CHUNK_ERROR_PREFIX.length).trim());
+  const failedChunks = chunkErrors.length;
+
   const merged = mergeParsedExams(results);
+  // Bóc các dòng "[LỖI ĐỢT] ..." ra khỏi warnings hiện cho giáo viên — thông
+  // tin lỗi đã có sẵn (đọc được) trong chunkErrors, không cần lộ tiền tố kỹ
+  // thuật này ra màn hình xem trước.
+  merged.warnings = merged.warnings.filter((w) => !w.startsWith(CHUNK_ERROR_PREFIX));
+  const totalQuestions = merged.part1.length + merged.part2.length + merged.part3.length;
+
+  if (totalQuestions === 0 && failedChunks > 0) {
+    // Không đợt nào đọc được câu hỏi nào — coi là thất bại toàn bộ, để giáo
+    // viên biết ngay thay vì thấy màn hình xem trước trống trơn khó hiểu.
+    return { parsed: null, failedChunks, totalChunks: imageChunks.length, chunkErrors };
+  }
   if (failedChunks > 0) {
     merged.warnings = [
-      `${failedChunks}/${imageChunks.length} đợt gọi AI bị lỗi (mất kết nối hoặc AI không trả JSON hợp lệ) — 1 số trang có thể chưa được phân tích, kiểm tra lại số câu trước khi xuất bản.`,
+      `${failedChunks}/${imageChunks.length} đợt gọi AI bị lỗi — 1 số trang có thể chưa được phân tích, kiểm tra lại số câu trước khi xuất bản: ${chunkErrors.join(" | ")}`,
       ...merged.warnings,
     ];
   }
-  return { parsed: merged, failedChunks, totalChunks: imageChunks.length };
+  return { parsed: merged, failedChunks, totalChunks: imageChunks.length, chunkErrors };
 }

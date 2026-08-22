@@ -111,19 +111,27 @@ export function TeacherExamImport() {
         setStage("upload");
         return;
       }
-      setAnalyzingProgress(
-        `Đang gửi ${pageImages.length} trang cho AI phân tích (có thể mất 30-90 giây tuỳ độ dài đề)...`,
+      setAnalyzingProgress(`Đang gửi ${pageImages.length} trang cho AI phân tích...`);
+      const { parsed, failedChunks, totalChunks, chunkErrors } = await parseExamFromPdfPages(
+        pageImages,
+        undefined,
+        (done, total) =>
+          setAnalyzingProgress(
+            `Đang phân tích đợt ${done}/${total} (mỗi đợt khoảng 20-40 giây)...`,
+          ),
       );
-      const { parsed, failedChunks, totalChunks } = await parseExamFromPdfPages(pageImages);
       if (!parsed) {
+        // Hiện đúng lý do thật (vd. "Google đang quá tải", "hết thời gian chờ"...)
+        // thay vì 1 câu chung chung, để biết nên thử lại ngay hay chờ vài phút.
+        const reason = chunkErrors[0] ?? "không rõ lý do";
         setError(
-          "AI chưa phân tích được đề này (có thể do thiếu API key hoặc lỗi kết nối). Bạn có thể dán JSON đã xử lý sẵn ở ô bên dưới, hoặc thử lại.",
+          `AI chưa phân tích được đề này: ${reason} Bạn có thể bấm thử lại (nhiều khả năng qua ngay nếu là lỗi tạm thời từ Google), hoặc dán JSON đã xử lý sẵn ở ô bên dưới.`,
         );
         setStage("upload");
         return;
       }
       if (failedChunks > 0) {
-        console.warn(`parseExamFromPdfPages: ${failedChunks}/${totalChunks} đợt lỗi.`);
+        console.warn(`parseExamFromPdfPages: ${failedChunks}/${totalChunks} đợt lỗi.`, chunkErrors);
       }
       loadParsed(parsed, file.name.replace(/\.pdf$/i, ""));
     } catch (err) {
