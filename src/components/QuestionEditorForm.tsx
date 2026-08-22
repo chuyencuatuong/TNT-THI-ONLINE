@@ -30,6 +30,7 @@ export function QuestionEditorForm({
   const { profile } = useAuth();
   const [part, setPart] = useState<1 | 2 | 3>(1);
   const [content, setContent] = useState("");
+  const [solution, setSolution] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("thong_hieu");
   const [questionTypeId, setQuestionTypeId] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -106,6 +107,7 @@ export function QuestionEditorForm({
 
   function resetForm() {
     setContent("");
+    setSolution("");
     setChoices({ A: "", B: "", C: "", D: "" });
     setItems({ a: "", b: "", c: "", d: "" });
     setShortAnswer("");
@@ -141,6 +143,7 @@ export function QuestionEditorForm({
         image_url: imageUrl,
         options,
         correct_answer: correctAnswer,
+        solution_latex: solution.trim() || null,
         default_points: defaultPoints,
         ai_suggested_type_id: null,
         created_by: profile.id,
@@ -182,6 +185,21 @@ export function QuestionEditorForm({
       <div className="form-row">
         <label>Hình minh hoạ (bảng biến thiên, đồ thị... — không bắt buộc)</label>
         <ImageUploadField value={imageUrl} onChange={setImageUrl} />
+      </div>
+
+      <div className="form-row">
+        <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+        <textarea
+          value={solution}
+          onChange={(e) => setSolution(e.target.value)}
+          rows={3}
+          placeholder="Các bước giải, dùng $...$ cho công thức."
+        />
+        {solution && (
+          <div className="latex-preview">
+            <MathText text={solution} />
+          </div>
+        )}
       </div>
 
       {part === 1 && (

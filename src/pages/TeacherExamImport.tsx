@@ -19,6 +19,8 @@ interface EditableP1 {
   choices: { A: string; B: string; C: string; D: string };
   correct_choice: "A" | "B" | "C" | "D" | null;
   image_url: string | null;
+  /** Lời giải chi tiết — không bắt buộc, chỉ hiện cho học sinh SAU khi nộp bài. */
+  solution_latex: string | null;
 }
 interface EditableP2 {
   id: string;
@@ -26,6 +28,7 @@ interface EditableP2 {
   items: { a: string; b: string; c: string; d: string };
   correct: { a: boolean; b: boolean; c: boolean; d: boolean } | null;
   image_url: string | null;
+  solution_latex: string | null;
 }
 interface EditableP3 {
   id: string;
@@ -33,13 +36,29 @@ interface EditableP3 {
   correct_value: string | null;
   points: number;
   image_url: string | null;
+  solution_latex: string | null;
 }
 
 function withIds(parsed: ParsedExam) {
   return {
-    part1: parsed.part1.map((q) => ({ ...q, id: nextLocalId(), image_url: null })) as EditableP1[],
-    part2: parsed.part2.map((q) => ({ ...q, id: nextLocalId(), image_url: null })) as EditableP2[],
-    part3: parsed.part3.map((q) => ({ ...q, id: nextLocalId(), image_url: null })) as EditableP3[],
+    part1: parsed.part1.map((q) => ({
+      ...q,
+      id: nextLocalId(),
+      image_url: null,
+      solution_latex: q.solution_latex ?? null,
+    })) as EditableP1[],
+    part2: parsed.part2.map((q) => ({
+      ...q,
+      id: nextLocalId(),
+      image_url: null,
+      solution_latex: q.solution_latex ?? null,
+    })) as EditableP2[],
+    part3: parsed.part3.map((q) => ({
+      ...q,
+      id: nextLocalId(),
+      image_url: null,
+      solution_latex: q.solution_latex ?? null,
+    })) as EditableP3[],
   };
 }
 
@@ -145,6 +164,7 @@ export function TeacherExamImport() {
           image_url: q.image_url,
           options: { choices: q.choices },
           correct_answer: { choice: q.correct_choice },
+          solution_latex: q.solution_latex,
           default_points: null,
           ai_suggested_type_id: null,
           created_by: profile.id,
@@ -162,6 +182,7 @@ export function TeacherExamImport() {
           image_url: q.image_url,
           options: { items: q.items },
           correct_answer: q.correct,
+          solution_latex: q.solution_latex,
           default_points: null,
           ai_suggested_type_id: null,
           created_by: profile.id,
@@ -179,6 +200,7 @@ export function TeacherExamImport() {
           image_url: q.image_url,
           options: {},
           correct_answer: { value: q.correct_value },
+          solution_latex: q.solution_latex,
           default_points: q.points,
           ai_suggested_type_id: null,
           created_by: profile.id,
@@ -210,8 +232,10 @@ export function TeacherExamImport() {
         <p className="empty-hint">
           Cách nhanh và chính xác nhất: gửi file đề (.docx, kèm .pdf nếu có) ngay trong khung trò
           chuyện với Claude — Claude đọc kỹ, chuyển từng công thức sang LaTeX (kể cả công thức gõ
-          bằng MathType/Equation Editor mà công cụ tự động bên dưới hay bỏ sót), rồi trả lại 1
-          đoạn JSON để bạn dán vào ô dưới đây.
+          bằng MathType/Equation Editor mà công cụ tự động bên dưới hay bỏ sót), lấy luôn lời giải
+          nếu đề có ghi sẵn dưới mỗi câu, rồi trả lại 1 đoạn JSON để bạn dán vào ô dưới đây. Nếu
+          đề của bạn có lời giải chi tiết ngay dưới mỗi câu, cứ nói với Claude — lời giải sẽ được
+          đưa vào field "solution_latex" và chỉ hiện ra cho học sinh sau khi các em nộp bài.
         </p>
         {error && <p className="form-error">{error}</p>}
 
@@ -221,7 +245,7 @@ export function TeacherExamImport() {
             rows={5}
             value={pasteJson}
             onChange={(e) => setPasteJson(e.target.value)}
-            placeholder='{"part1": [...], "part2": [...], "part3": [...], "warnings": []}'
+            placeholder='{"part1": [{"content_latex": "...", "choices": {...}, "correct_choice": "A", "solution_latex": "..."}], "part2": [...], "part3": [...], "warnings": []}'
           />
           <button className="btn-primary" onClick={handlePasteJsonSubmit} disabled={!pasteJson.trim()}>
             Dùng JSON này
@@ -330,6 +354,19 @@ export function TeacherExamImport() {
                   }
                 />
               </div>
+              <div className="form-row">
+                <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+                <textarea
+                  rows={2}
+                  value={q.solution_latex ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPart1((prev) =>
+                      prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
+                    );
+                  }}
+                />
+              </div>
               {(["A", "B", "C", "D"] as const).map((c) => (
                 <div key={c} className="option-row">
                   <input
@@ -394,6 +431,19 @@ export function TeacherExamImport() {
                   onChange={(url) =>
                     setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
                   }
+                />
+              </div>
+              <div className="form-row">
+                <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+                <textarea
+                  rows={2}
+                  value={q.solution_latex ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPart2((prev) =>
+                      prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
+                    );
+                  }}
                 />
               </div>
               {(["a", "b", "c", "d"] as const).map((k) => (
@@ -482,6 +532,19 @@ export function TeacherExamImport() {
                   onChange={(url) =>
                     setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
                   }
+                />
+              </div>
+              <div className="form-row">
+                <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+                <textarea
+                  rows={2}
+                  value={q.solution_latex ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPart3((prev) =>
+                      prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
+                    );
+                  }}
                 />
               </div>
               <div className="option-row">

@@ -13,6 +13,12 @@ interface AuthState {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  /**
+   * true trong lúc đang tải lại hồ sơ (profile) ngay sau 1 sự kiện đăng nhập/đăng
+   * ký (onAuthStateChange) — dùng để tránh hiển thị nhầm màn hình "chưa có hồ sơ"
+   * cho người dùng ĐÃ có hồ sơ nhưng dữ liệu chưa kịp tải xong (xem LoginPage.tsx).
+   */
+  profileLoading: boolean;
   /** Đăng nhập bằng email + mật khẩu đã có sẵn tài khoản. */
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   /** Tạo tài khoản mới bằng email + mật khẩu (không gửi email xác nhận). */
@@ -33,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
@@ -53,11 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Sau lần tải đầu tiên ở trên, mỗi lần có sự kiện đăng nhập/đăng ký/đăng
+    // xuất mới (signIn/signUp gọi từ LoginPage) đều đi qua đây. Bọc bước tải
+    // hồ sơ bằng profileLoading để LoginPage biết mà hiện "Đang tải..." thay vì
+    // hiểu nhầm "profile vẫn null" là người dùng CHƯA có hồ sơ (trong khi thực
+    // ra chỉ đang chờ dữ liệu về) — đây chính là nguyên nhân màn hình bị "kẹt"
+    // sau khi đăng ký/đăng nhập mà người dùng phản ánh.
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         setSession(newSession);
         if (newSession) {
-          loadProfile(newSession.user.id);
+          setProfileLoading(true);
+          loadProfile(newSession.user.id).finally(() => setProfileLoading(false));
         } else {
           setProfile(null);
         }
@@ -103,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
+        profileLoading,
         signIn,
         signUp,
         changePassword,

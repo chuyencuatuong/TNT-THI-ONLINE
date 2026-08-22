@@ -11,9 +11,16 @@ import {
   YAxis,
 } from "recharts";
 import * as api from "../lib/api";
-import type { AttemptDiagnostics } from "../lib/api";
+import type { AttemptDiagnostics, AttemptReviewItem } from "../lib/api";
 import { MASTERY_LABELS, type MasteryLabel } from "../lib/diagnosis";
+import { QuestionReview } from "../components/QuestionReview";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
+
+const PART_LABELS: Record<1 | 2 | 3, string> = {
+  1: "Phần 1. Trắc nghiệm 4 phương án",
+  2: "Phần 2. Đúng - Sai",
+  3: "Phần 3. Trả lời ngắn",
+};
 
 const MASTERY_COLOR: Record<MasteryLabel, string> = {
   vung: "#2e7d32",
@@ -40,6 +47,7 @@ export function ResultPage() {
   const [attempt, setAttempt] = useState<(ExamAttemptRow & { exam: ExamRow }) | null>(null);
   const [score, setScore] = useState<AttemptScoreRow | null>(null);
   const [diagnostics, setDiagnostics] = useState<AttemptDiagnostics | null>(null);
+  const [review, setReview] = useState<AttemptReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,12 +55,14 @@ export function ResultPage() {
     (async () => {
       const a = await api.getAttempt(attemptId);
       setAttempt(a);
-      const [s, d] = await Promise.all([
+      const [s, d, r] = await Promise.all([
         api.getAttemptScore(attemptId),
         a ? api.getAttemptDiagnostics(attemptId, a.exam_id) : Promise.resolve(null),
+        a ? api.getAttemptReview(attemptId, a.exam_id) : Promise.resolve([]),
       ]);
       setScore(s);
       setDiagnostics(d);
+      setReview(r);
       setLoading(false);
     })();
   }, [attemptId]);
@@ -155,6 +165,35 @@ export function ResultPage() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {review.length > 0 && (
+        <section className="result-section result-section--review">
+          <h3>Xem lại bài làm</h3>
+          <p className="empty-hint">
+            Đối chiếu đáp án đã chọn với đáp án đúng, và xem lời giải chi tiết (nếu có) cho từng
+            câu.
+          </p>
+          {([1, 2, 3] as const).map((part) => {
+            const itemsInPart = review.filter((r) => r.part === part);
+            if (itemsInPart.length === 0) return null;
+            return (
+              <div key={part}>
+                <h4 className="part-title">{PART_LABELS[part]}</h4>
+                {itemsInPart.map((r, i) => (
+                  <QuestionReview
+                    key={r.question_id}
+                    number={i + 1}
+                    question={r.question}
+                    finalAnswer={r.finalAnswer}
+                    score={r.score}
+                    maxScore={r.maxScore}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </section>
       )}
 

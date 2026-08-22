@@ -6,41 +6,53 @@ hình. Khoảng 10 phút.
 
 ---
 
-## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 3 việc để cập nhật
+## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 2 việc để cập nhật
 
-Bản cập nhật lần này thêm: tạo đề từ file Word (AI tự đọc + LaTeX hoá công
-thức), giao diện làm bài có đếm giờ + danh sách câu hỏi bên cạnh (giống
-Azota), dashboard phân tích (biểu đồ thời gian từng câu, chẩn đoán mất
-gốc/chưa vững) hiện ra ngay sau khi học sinh nộp bài, **tải ảnh minh hoạ**
-(bảng biến thiên, đồ thị...) cho từng câu hỏi — giờ **dán được luôn bằng
-Ctrl+V**, **đổi cách đăng nhập từ "gửi link qua email" sang email + mật
-khẩu**, **màn hình tạo đề gọn lại** (ưu tiên cách dán JSON chính xác hơn cho
-công thức MathType), **tăng giám sát khi làm bài** (ghi nhận rời tab/thoát
-toàn màn hình, chặn sao chép/dán đề), và **gieo sẵn 6 chương Toán 12** vào
-khung kiến thức.
+**Bản cập nhật lần này (22/08/2026)** thêm:
 
-**Cập nhật thêm (giao diện):** đổi toàn bộ màu sắc, header và trang đăng
-nhập sang đúng logo + màu thương hiệu Toán học TNT (đỏ đô + vàng gold), có
-favicon riêng. Không cần chạy thêm SQL nào cho phần này — chỉ cần lặp lại
-**Việc 1** (tải code mới lên GitHub) là thấy ngay.
+- **Sửa lỗi màn hình bị "kẹt" sau khi đăng ký/đăng nhập** — trước đây sau khi
+  đăng ký xong (hoặc đăng nhập), trang đứng im ở form cũ khiến người dùng
+  tưởng bị lag; giờ tự động chuyển thẳng vào trang chủ tương ứng (học sinh
+  hoặc giáo viên) ngay khi xong.
+- **Trang chủ học sinh có dashboard tiến độ**: lời chào kèm tên, số bài đã
+  làm, điểm trung bình, điểm gần nhất, mức cải thiện so với lần trước, tổng
+  thời gian làm bài, và biểu đồ xu hướng điểm số.
+- **Trang chi tiết học sinh (GV) hiện kết quả theo TỪNG đề thi**: mỗi đề liệt
+  kê đủ các lần làm, kèm chênh lệch điểm và thời gian hoàn thành so với lần
+  đầu và lần ngay trước đó (lần n-1) — để thấy rõ học sinh có tiến bộ qua các
+  lần làm lại hay không (gộp chung với cột mức độ giám sát đã có trước đó).
+- **Xem lại bài làm sau khi nộp bài**: trang kết quả của học sinh giờ hiện
+  từng câu đã làm — chỗ nào đúng, chỗ nào sai/thiếu, đáp án đúng là gì — và
+  **lời giải chi tiết** (nếu giáo viên có nhập) ngay bên dưới mỗi câu.
+- **Lời giải chi tiết khi tạo đề**: cả màn hình "Tạo đề thi mới" (JSON dán
+  vào, field mới `solution_latex`) lẫn "Ngân hàng câu hỏi" (nhập tay từng
+  câu) giờ có thêm ô nhập lời giải — không bắt buộc, và **chỉ hiện ra cho
+  học sinh sau khi các em đã nộp bài**, không hiện lúc đang làm bài.
 
 1. **Tải lại code**: lặp lại đúng **Việc 1** bên dưới (kéo-thả toàn bộ file
    trong bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2
    (3 giá trị cấu hình vẫn giữ nguyên).
-2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần mỗi file)**: vào Supabase Dashboard >
-   **SQL Editor** > **New query**. Mở lần lượt các file sau trong bản zip
-   mới (file nào đã chạy ở lần cập nhật trước thì bỏ qua), copy toàn bộ nội
-   dung từng file, dán vào 1 query mới, bấm **Run** (làm xong file này mới
-   sang file kia, mỗi file 1 query riêng):
+2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần)**: vào Supabase Dashboard >
+   **SQL Editor** > **New query**, mở file `supabase/migration_006_loi_giai.sql`
+   trong bản zip mới, copy toàn bộ nội dung, dán vào query mới, bấm **Run**.
+   Đây là file DUY NHẤT mới ở bản cập nhật này (chỉ thêm 1 cột lưu lời giải
+   vào bảng câu hỏi có sẵn) — các file `migration_002` đến `migration_005` đã
+   chạy ở các lần cập nhật trước thì bỏ qua, không cần chạy lại.
+
+   Nếu bỏ qua bước này, màn hình nhập lời giải vẫn hiện được nhưng lưu sẽ báo
+   lỗi vì database chưa có cột mới.
+
+<details>
+<summary>Các lần cập nhật trước — nếu bạn cài lần đầu từ bản zip cũ hơn thì cần chạy đủ các bước dưới đây</summary>
+
+3. **Chạy các file SQL của những lần cập nhật trước (bỏ qua file nào đã chạy
+   rồi)**: cùng chỗ SQL Editor > New query như bước 2, mở lần lượt từng file
+   sau, copy dán, bấm Run (mỗi file 1 query riêng):
    - `supabase/migration_002_import_and_tracking.sql`
    - `supabase/migration_003_question_images_storage.sql`
-   - `supabase/migration_004_giam_sat_thi.sql` (mới, cần chạy)
-   - `supabase/migration_005_chuong_toan12.sql` (mới, cần chạy)
-
-   Nếu bỏ qua các bước này, tính năng chấm giờ, chẩn đoán học lực, tải ảnh
-   minh hoạ, và giám sát làm bài sẽ báo lỗi vì database chưa có các
-   bảng/cột/kho lưu trữ mới.
-3. **Tắt yêu cầu xác nhận email (bắt buộc, chỉ 1 lần)**: vào Supabase
+   - `supabase/migration_004_giam_sat_thi.sql`
+   - `supabase/migration_005_chuong_toan12.sql`
+4. **Tắt yêu cầu xác nhận email (bắt buộc, chỉ 1 lần)**: vào Supabase
    Dashboard > **Authentication** > **Sign In / Providers** (hoặc mục
    **Emails**, tuỳ giao diện) > tìm mục **Email** provider > tắt công tắc
    **"Confirm email"** > **Save**. Bỏ qua bước này thì đăng ký tài khoản mới
@@ -50,10 +62,13 @@ favicon riêng. Không cần chạy thêm SQL nào cho phần này — chỉ c�
    thể tắt luôn cho gọn (không bắt buộc, không dùng nữa) — vào cùng trang
    đó, tắt **"Enable Custom SMTP"**.
 
+</details>
+
 Sau khi GitHub Actions build xong (xem tab Actions, đợi dấu tích xanh), vào
-lại website là dùng được ngay — nhưng lưu ý **tài khoản cũ (nếu có) sẽ cần
-đăng ký lại bằng mật khẩu** vì cách đăng nhập cũ (gửi link qua email) không
-còn dùng được nữa (xem mục kế tiếp).
+lại website là dùng được ngay — nếu là lần cập nhật đầu tiên từ cách đăng
+nhập cũ, lưu ý **tài khoản cũ (nếu có) sẽ cần đăng ký lại bằng mật khẩu** vì
+cách đăng nhập cũ (gửi link qua email) không còn dùng được nữa (xem mục kế
+tiếp).
 
 ### Vì sao đổi cách đăng nhập
 

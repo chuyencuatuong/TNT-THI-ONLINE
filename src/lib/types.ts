@@ -65,6 +65,8 @@ export interface QuestionRow {
   image_url: string | null;
   options: Part1Options | Part2Options | Record<string, never>;
   correct_answer: Part1Answer | Part2Answer | Part3Answer;
+  /** Lời giải chi tiết (LaTeX) — chỉ hiển thị cho học sinh SAU khi nộp bài, xem QuestionReview.tsx. */
+  solution_latex: string | null;
   default_points: number | null;
   ai_suggested_type_id: string | null;
   ai_suggestion_confirmed: boolean;

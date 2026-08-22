@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   BarChart,
@@ -13,7 +13,38 @@ import {
 } from "recharts";
 import * as api from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
+import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile } from "../lib/types";
+
+type ScoredAttempt = ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null };
+
+interface ExamGroup {
+  examId: string;
+  examTitle: string;
+  /** Sắp theo attempt_number tăng dần (lần 1, 2, 3...) để tính chênh lệch. */
+  items: ScoredAttempt[];
+}
+
+/** Nhóm các lượt làm bài theo đề thi — mỗi nhóm sắp theo thứ tự lần làm (1, 2, 3...). */
+function groupByExam(attempts: ScoredAttempt[]): ExamGroup[] {
+  const map = new Map<string, ExamGroup>();
+  for (const a of attempts) {
+    const g = map.get(a.exam_id) ?? { examId: a.exam_id, examTitle: a.exam.title, items: [] };
+    g.items.push(a);
+    map.set(a.exam_id, g);
+  }
+  const groups = Array.from(map.values());
+  for (const g of groups) {
+    g.items.sort((x, y) => x.attempt_number - y.attempt_number);
+  }
+  // Đề có lượt làm gần đây nhất lên đầu, cho dễ theo dõi hoạt động mới nhất.
+  groups.sort((a, b) => {
+    const aLatest = a.items[a.items.length - 1].started_at;
+    const bLatest = b.items[b.items.length - 1].started_at;
+    return new Date(bLatest).getTime() - new Date(aLatest).getTime();
+  });
+  return groups;
+}
 
 export function TeacherStudentDetail() {
   const { studentId } = useParams<{ studentId: string }>();
@@ -102,6 +133,8 @@ export function TeacherStudentDetail() {
     return { text: `Nghi ngờ cao (${count})`, className: "badge-danger" };
   }
 
+  const examGroups = useMemo(() => groupByExam(attempts), [attempts]);
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   const trendData = attempts
@@ -131,28 +164,100 @@ export function TeacherStudentDetail() {
       </section>
 
       <section>
-        <h3>Lịch sử làm bài & mức độ nghi ngờ</h3>
+        <h3>Kết quả theo từng đề thi</h3>
         <p className="empty-hint">
-          Dựa trên số lần rời tab, thoát toàn màn hình, hoặc cố sao chép/dán trong lúc làm bài —
-          chỉ để gợi ý hỏi lại học sinh, không phải bằng chứng gian lận chắc chắn.
+          Mỗi đề liệt kê đủ các lần làm, kèm chênh lệch điểm và thời gian hoàn thành so với lần
+          đầu và lần ngay trước đó (lần n-1) — để thấy rõ học sinh có tiến bộ qua các lần làm lại
+          hay không. Cột "Giám sát" dựa trên số lần rời tab, thoát toàn màn hình, hoặc cố sao
+          chép/dán trong lúc làm bài — chỉ để gợi ý hỏi lại học sinh, không phải bằng chứng gian
+          lận chắc chắn.
         </p>
-        {attempts.length === 0 ? (
+        {examGroups.length === 0 ? (
           <p className="empty-hint">Chưa có lượt làm bài nào.</p>
         ) : (
-          <div className="card-list">
-            {attempts.map((a) => {
-              const badge = suspicionLabel(proctoringCounts[a.id] ?? 0);
-              return (
-                <div key={a.id} className="card">
-                  <div className="card-title">{a.exam.title}</div>
-                  <p className="card-desc">
-                    {new Date(a.started_at).toLocaleDateString("vi-VN")} — Điểm:{" "}
-                    {a.score!.total_score}
-                  </p>
-                  <span className={`badge ${badge.className}`}>{badge.text}</span>
+          <div className="exam-group-list">
+            {examGroups.map((g) => (
+              <div key={g.examId} className="exam-group-card">
+                <div className="exam-group-header">
+                  <span className="exam-group-title">{g.examTitle}</span>
+                  <span className="tag tag--muted">Đã làm {g.items.length} lần</span>
                 </div>
-              );
-            })}
+                <div className="table-scroll">
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th>Lần</th>
+                        <th>Ngày làm</th>
+                        <th>Điểm</th>
+                        <th>So với lần đầu</th>
+                        <th>So với lần trước</th>
+                        <th>Thời gian làm bài</th>
+                        <th>TG so với lần đầu</th>
+                        <th>TG so với lần trước</th>
+                        <th>Giám sát</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.items.map((a, idx) => {
+                        const first = g.items[0];
+                        const prev = idx > 0 ? g.items[idx - 1] : null;
+                        const score = a.score!.total_score;
+                        const scoreVsFirst = idx === 0 ? null : score - first.score!.total_score;
+                        const scoreVsPrev =
+                          idx === 0 || !prev ? null : score - prev.score!.total_score;
+                        const mins = completionMinutes(a);
+                        const firstMins = completionMinutes(first);
+                        const prevMins = prev ? completionMinutes(prev) : null;
+                        const timeVsFirst =
+                          idx === 0 || mins === null || firstMins === null
+                            ? null
+                            : mins - firstMins;
+                        const timeVsPrev =
+                          idx === 0 || mins === null || prevMins === null
+                            ? null
+                            : mins - prevMins;
+                        const suspicion = suspicionLabel(proctoringCounts[a.id] ?? 0);
+                        return (
+                          <tr key={a.id}>
+                            <td>Lần {a.attempt_number}</td>
+                            <td>{new Date(a.started_at).toLocaleDateString("vi-VN")}</td>
+                            <td>
+                              <strong>{score.toFixed(2)}</strong>
+                            </td>
+                            <td>
+                              {scoreVsFirst === null ? (
+                                "—"
+                              ) : (
+                                <span className={formatScoreDelta(scoreVsFirst).className}>
+                                  {formatScoreDelta(scoreVsFirst).text}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {scoreVsPrev === null ? (
+                                "—"
+                              ) : (
+                                <span className={formatScoreDelta(scoreVsPrev).className}>
+                                  {formatScoreDelta(scoreVsPrev).text}
+                                </span>
+                              )}
+                            </td>
+                            <td>{mins === null ? "—" : formatMinutes(mins)}</td>
+                            <td>{timeVsFirst === null ? "—" : formatTimeDelta(timeVsFirst)}</td>
+                            <td>{timeVsPrev === null ? "—" : formatTimeDelta(timeVsPrev)}</td>
+                            <td>
+                              <span className={`badge ${suspicion.className}`}>
+                                {suspicion.text}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>

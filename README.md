@@ -16,7 +16,17 @@ duy nhất).
   báo cáo AI + link xem cho phụ huynh (không cần tài khoản).
 - Học sinh: làm bài đúng 3 phần theo barem hiện hành, giao diện có đồng hồ
   đếm ngược + danh sách câu hỏi để nhảy nhanh (giống các nền tảng thi trắc
-  nghiệm phổ biến), xem lịch sử điểm qua các lần làm.
+  nghiệm phổ biến). Trang chủ có dashboard tiến độ (số bài đã làm, điểm
+  trung bình, điểm gần nhất, mức cải thiện so với lần trước, tổng thời gian
+  làm bài, biểu đồ xu hướng điểm). Sau khi nộp bài, xem lại được toàn bộ bài
+  làm — chỗ nào đúng/sai/thiếu, đáp án đúng, và lời giải chi tiết (nếu giáo
+  viên có nhập) cho từng câu.
+- Giáo viên: trang chi tiết từng học sinh hiện kết quả theo từng đề thi, kèm
+  số lần làm lại và chênh lệch điểm/thời gian hoàn thành so với lần đầu và
+  lần ngay trước đó — dễ thấy học sinh có tiến bộ qua các lần làm lại hay
+  không. Có thể nhập lời giải chi tiết cho từng câu (khi tạo đề từ JSON hoặc
+  nhập tay vào ngân hàng câu hỏi) — lời giải chỉ hiện ra cho học sinh sau khi
+  đã nộp bài.
 - Giám sát làm bài: ghi nhận rời tab/thoát toàn màn hình, chặn sao chép/dán
   nội dung trong lúc thi; giáo viên xem "mức độ nghi ngờ" từng lượt làm bài
   ở trang chi tiết học sinh (chỉ là gợi ý, không phải bằng chứng chắc chắn —
@@ -46,7 +56,7 @@ duy nhất).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
-- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
+- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
 - `.github/workflows/deploy.yml` — tự động build & deploy lên GitHub Pages.
 
 ## Chạy thử ở máy (không bắt buộc)

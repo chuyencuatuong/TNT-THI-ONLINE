@@ -118,6 +118,8 @@ export async function createQuestion(input: {
   image_url: string | null;
   options: unknown;
   correct_answer: unknown;
+  /** Lời giải chi tiết (LaTeX), không bắt buộc — null nếu chưa có. */
+  solution_latex?: string | null;
   default_points: number | null;
   ai_suggested_type_id: string | null;
   created_by: string;
@@ -681,6 +683,59 @@ export async function getAttemptDiagnostics(
     perQuestion,
     byTopic: diagnoseAllTopics(Array.from(groupMap.values())),
   };
+}
+
+export interface AttemptReviewItem {
+  question_id: string;
+  part: 1 | 2 | 3;
+  order_index: number;
+  question: QuestionRow;
+  finalAnswer: unknown;
+  score: number;
+  maxScore: number;
+}
+
+/**
+ * Dữ liệu đầy đủ để hiển thị lại bài làm của học sinh sau khi nộp bài: từng
+ * câu hỏi (nội dung, các phương án, đáp án đúng, lời giải) kèm đáp án học sinh
+ * đã chọn và điểm đạt được — dùng cho màn hình "Xem lại bài làm" ở ResultPage.
+ * Thứ tự trả về đúng thứ tự học sinh nhìn thấy lúc làm bài (Phần 1 -> 2 -> 3,
+ * theo order_index), giống getExamQuestions.
+ */
+export async function getAttemptReview(
+  attemptId: string,
+  examId: string,
+): Promise<AttemptReviewItem[]> {
+  const [examQuestions, { data: responses, error }] = await Promise.all([
+    getExamQuestions(examId),
+    supabase
+      .from("question_responses")
+      .select("question_id, final_answer, score")
+      .eq("attempt_id", attemptId),
+  ]);
+  if (error) throw error;
+
+  const responseMap = new Map(
+    (responses as { question_id: string; final_answer: unknown; score: number }[]).map(
+      (r) => [r.question_id, r],
+    ),
+  );
+
+  return examQuestions.map((eq) => {
+    const q = eq.question;
+    const resp = responseMap.get(q.id);
+    const maxScore =
+      q.part === 1 ? 0.25 : q.part === 2 ? 1 : q.default_points ?? 0.5;
+    return {
+      question_id: q.id,
+      part: q.part,
+      order_index: eq.order_index,
+      question: q,
+      finalAnswer: resp?.final_answer ?? null,
+      score: resp?.score ?? 0,
+      maxScore,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

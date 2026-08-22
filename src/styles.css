@@ -715,6 +715,177 @@ a {
   word-break: break-all;
 }
 
+/* Dashboard tiến độ (học sinh) */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 14px 0 20px;
+}
+.stat-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.stat-card-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+.stat-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+.stat-card-value--small {
+  font-size: 18px;
+}
+.stat-card-value--muted {
+  color: var(--color-text-muted);
+  font-size: 20px;
+}
+.dashboard-trend {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.dashboard-trend-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* Chênh lệch điểm/thời gian (dùng chung dashboard HS & trang chi tiết HS của GV) */
+.delta-up {
+  color: var(--color-success);
+  font-weight: 600;
+}
+.delta-down {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.delta-neutral {
+  color: var(--color-text-muted);
+}
+
+/* Kết quả theo từng đề thi (trang chi tiết học sinh - GV) */
+.exam-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.exam-group-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.exam-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.exam-group-title {
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.table-scroll .history-table {
+  min-width: 720px;
+}
+
+/* Xem lại bài làm sau khi nộp (ResultPage) */
+.result-section--review {
+  text-align: left;
+}
+.question-review {
+  border-left: 4px solid var(--color-border);
+}
+.question-review--correct {
+  border-left-color: var(--color-success);
+}
+.question-review--partial {
+  border-left-color: var(--color-accent);
+}
+.question-review--wrong {
+  border-left-color: var(--color-danger);
+}
+.question-review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.question-review-badge {
+  white-space: nowrap;
+}
+.question-review-badge.question-review--correct {
+  background: #e6f4ea;
+  color: #1e7b34;
+}
+.question-review-badge.question-review--partial {
+  background: #fff3cd;
+  color: #a15c00;
+}
+.question-review-badge.question-review--wrong {
+  background: #fdecea;
+  color: #b3261e;
+}
+.choice-item--readonly {
+  cursor: default;
+}
+.choice-item--correct-answer {
+  border-color: var(--color-success);
+  background: #eaf6ec;
+}
+.choice-item--wrong-answer {
+  border-color: var(--color-danger);
+  background: #fdecea;
+}
+.choice-tag {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-subtle-bg);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.choice-tag--correct {
+  color: #1e7b34;
+  background: #e6f4ea;
+}
+.truefalse-table--review .truefalse-row--correct {
+  background: #eaf6ec;
+}
+.truefalse-table--review .truefalse-row--wrong {
+  background: #fdecea;
+}
+.short-answer-review p {
+  margin: 4px 0;
+}
+.question-solution {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+.question-solution-title {
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  margin-bottom: 6px;
+}
+
 /* Public report */
 .report-page {
   max-width: 640px;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import logoFull from "../assets/logo-full.png";
 
@@ -20,7 +21,7 @@ function translateError(raw: string): string {
 }
 
 export function LoginPage() {
-  const { session, profile, signIn, signUp, createProfile } = useAuth();
+  const { session, profile, profileLoading, signIn, signUp, createProfile } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,6 +54,21 @@ export function LoginPage() {
     const { error } = await createProfile(fullName, role);
     if (error) setError(error);
     setSaving(false);
+  }
+
+  // Vừa đăng nhập/đăng ký xong, đang chờ tải hồ sơ -> hiện "Đang tải..." thay vì
+  // đứng im ở form cũ (khiến người dùng tưởng bị lag) hoặc nhầm hiện màn hình
+  // "chưa có hồ sơ" cho người đã có hồ sơ.
+  if (session && profileLoading) {
+    return <div className="page-loading">Đang tải...</div>;
+  }
+
+  // Đã đăng nhập VÀ đã xác định có hồ sơ -> chuyển thẳng vào giao diện chính
+  // tương ứng vai trò (route "/" tự điều hướng tiếp, xem App.tsx). Không có
+  // bước này thì sau khi đăng ký/hoàn tất hồ sơ, người dùng bị kẹt lại đúng
+  // trang đăng nhập/đăng ký mà không biết đã xong.
+  if (session && profile) {
+    return <Navigate to="/" replace />;
   }
 
   // Đã đăng nhập nhưng chưa có hồ sơ -> yêu cầu nhập tên & vai trò lần đầu

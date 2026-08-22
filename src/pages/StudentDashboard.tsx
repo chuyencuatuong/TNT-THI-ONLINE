@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
+import { completionMinutes, formatMinutes, formatScoreDelta } from "../lib/format";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 
 export function StudentDashboard() {
@@ -23,11 +33,98 @@ export function StudentDashboard() {
     );
   }, [profile]);
 
+  // Chỉ tính trên các lượt đã nộp bài và đã có điểm, xếp theo thời gian tăng
+  // dần để tính "cải thiện" (so lần gần nhất với lần ngay trước đó) và vẽ biểu
+  // đồ xu hướng theo đúng trình tự thời gian.
+  const submittedAsc = useMemo(
+    () =>
+      attempts
+        .filter((a) => a.submitted_at && a.score)
+        .slice()
+        .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()),
+    [attempts],
+  );
+
+  const totalAttempts = submittedAsc.length;
+  const averageScore =
+    totalAttempts > 0
+      ? submittedAsc.reduce((sum, a) => sum + a.score!.total_score, 0) / totalAttempts
+      : null;
+  const latest = totalAttempts > 0 ? submittedAsc[totalAttempts - 1] : null;
+  const previous = totalAttempts > 1 ? submittedAsc[totalAttempts - 2] : null;
+  const improvement =
+    latest && previous ? latest.score!.total_score - previous.score!.total_score : null;
+  const totalStudyMinutes = submittedAsc.reduce(
+    (sum, a) => sum + (completionMinutes(a) ?? 0),
+    0,
+  );
+  const trendData = submittedAsc.map((a, i) => ({
+    name: `Lần ${i + 1}`,
+    score: a.score!.total_score,
+  }));
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   return (
     <div className="dashboard">
-      <h2>Xin chào, {profile?.full_name}</h2>
+      <h2>Chào em, {profile?.full_name}!</h2>
+
+      <section>
+        <h3>Tổng quan tiến độ</h3>
+        {totalAttempts === 0 ? (
+          <p className="empty-hint">
+            Chưa có dữ liệu — hãy làm bài kiểm tra đầu tiên để xem tiến độ ở đây.
+          </p>
+        ) : (
+          <>
+            <div className="stat-grid">
+              <div className="stat-card">
+                <div className="stat-card-label">Số bài đã làm</div>
+                <div className="stat-card-value">{totalAttempts}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">Điểm trung bình</div>
+                <div className="stat-card-value">{averageScore!.toFixed(2)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">Điểm gần nhất</div>
+                <div className="stat-card-value">{latest!.score!.total_score.toFixed(2)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">Cải thiện so với lần trước</div>
+                {improvement === null ? (
+                  <div className="stat-card-value stat-card-value--muted">—</div>
+                ) : (
+                  <div className={`stat-card-value ${formatScoreDelta(improvement).className}`}>
+                    {formatScoreDelta(improvement).text}
+                  </div>
+                )}
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">Tổng thời gian làm bài</div>
+                <div className="stat-card-value stat-card-value--small">
+                  {formatMinutes(totalStudyMinutes)}
+                </div>
+              </div>
+            </div>
+
+            {trendData.length >= 2 && (
+              <div className="dashboard-trend">
+                <div className="dashboard-trend-title">Xu hướng điểm số</div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" fontSize={12} />
+                    <YAxis domain={[0, 10]} fontSize={12} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="score" stroke="#9c1420" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <section>
         <h3>Đề thi có thể làm</h3>
