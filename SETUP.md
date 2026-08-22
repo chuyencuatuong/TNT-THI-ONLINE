@@ -120,6 +120,11 @@ lên cần bạn làm bằng tay, nhưng vẫn chỉ là kéo-thả, không cầ
    | `VITE_SUPABASE_ANON_KEY` | anon public key lấy ở Supabase Settings > API |
    | `VITE_GEMINI_API_KEY`    | API key lấy ở aistudio.google.com/apikey |
 
+   Có thể thêm 1 secret **không bắt buộc** thứ 4, `VITE_GEMINI_MODEL`, nếu
+   sau này thấy báo lỗi gọi AI (model không khả dụng) — điền đúng tên model
+   bạn thấy khả dụng trong tài khoản Google AI Studio của mình. Nếu không
+   thêm, hệ thống tự dùng model mặc định đã cấu hình sẵn trong code.
+
 Sau khi lưu xong secret thứ 3, vào tab **Actions** ở repo, bạn sẽ thấy 1
 workflow đang chạy (biểu tượng vàng đang xoay). Đợi khoảng 1-2 phút tới khi
 nó chuyển thành dấu tích xanh — lúc đó website đã lên rồi, mở tại:
@@ -134,20 +139,28 @@ không cần bấm thêm gì ở phần Settings > Pages.
 ## Sau khi có website — dùng như thế nào
 
 - **Giáo viên — cách nhanh nhất để tạo đề**: mở link website, đăng nhập,
-  lần đầu chọn vai trò "Giáo viên". Vào **"+ Tạo đề thi mới"**. Vì công thức
-  của bạn gõ bằng MathType (dạng ảnh nhúng trong file Word, thư viện đọc file
-  tự động trên web không đọc được), màn hình này **ưu tiên cách dán JSON**:
-  gửi file `.docx` (kèm `.pdf` nếu có) trực tiếp trong cuộc trò chuyện này,
-  Claude sẽ đọc kỹ và trả lại 1 đoạn JSON để dán vào ô trên cùng — chính xác
-  hơn hẳn cách để web tự đọc. Cách để AI trên web tự đọc file Word vẫn còn,
-  nằm gọn trong mục "Hoặc để AI trên web tự đọc file Word" (bấm để mở ra),
-  chỉ nên dùng khi đề không có công thức MathType. Dù theo cách nào, màn
-  hình xem trước sau đó đều cho sửa tay bằng LaTeX và **bạn cần xác nhận đáp
-  án đúng cho từng câu** trước khi bấm "Xuất bản đề thi" (hệ thống không tự
-  công bố đề khi chưa có đáp án được xác nhận, để tránh chấm sai). Câu nào
-  có kèm bảng biến thiên/đồ thị, dùng ô "Hình minh hoạ" ở mỗi câu để tải ảnh
-  lên — giờ có thể **copy ảnh trong Word (Ctrl+C) rồi bấm vào ô đó dán luôn
-  (Ctrl+V)**, không cần lưu file ảnh ra máy trước.
+  lần đầu chọn vai trò "Giáo viên". Vào **"+ Tạo đề thi mới"**. Cách chính
+  từ bản cập nhật 22/08/2026: xuất file Word ra **PDF** (Word → File → Save
+  As → PDF, giữ nguyên công thức MathType, không cần chỉnh sửa gì), rồi tải
+  file PDF đó lên ở màn hình "Tạo đề thi mới". Trình duyệt tự chuyển từng
+  trang PDF thành ảnh và gửi cho AI đọc trực tiếp như đọc ảnh — nên không
+  còn bị giới hạn "bỏ sót công thức MathType" như khi đọc thẳng file .docx
+  (công thức MathType lưu ở dạng đối tượng nhị phân bên trong .docx, các công
+  cụ đọc file tự động không đọc được, nhưng khi xuất ra PDF thì hiển thị
+  đúng như bản gốc). AI cũng tự nhận diện đáp án đúng (tô màu/gạch chân/in
+  đậm/dấu "*"/ghi chú "Đáp án:"...) và lấy luôn lời giải chi tiết nếu đề có
+  ghi sẵn dưới mỗi câu — nhưng màn hình xem trước sau đó vẫn cho sửa tay
+  bằng LaTeX và **bạn cần xác nhận đáp án đúng cho từng câu** trước khi bấm
+  "Xuất bản đề thi" (hệ thống không tự công bố đề khi chưa có đáp án được
+  xác nhận, để tránh chấm sai — AI đọc ảnh vẫn có thể đọc sai màu/nét mờ,
+  nhất là công thức khó hoặc ảnh chụp không rõ). Câu nào có kèm bảng biến
+  thiên/đồ thị, AI chưa tự lấy được ảnh đó — sẽ ghi chú rõ câu nào cần dán
+  tay ở phần "AI lưu ý", dùng ô "Hình minh hoạ" ở mỗi câu để dán ảnh: **copy
+  ảnh trong Word (Ctrl+C) rồi bấm vào ô đó dán luôn (Ctrl+V)**, không cần
+  lưu file ảnh ra máy trước. Cách dán JSON đã xử lý sẵn và cách đọc thẳng
+  file .docx (kém chính xác hơn với MathType) vẫn còn, nằm trong mục
+  "Cách khác" (bấm để mở ra) — dùng khi không có file PDF hoặc muốn kiểm
+  soát thủ công hoàn toàn.
 - **Giáo viên — cách thủ công (không bắt buộc)**: vào "Ngân hàng câu hỏi" để
   nhập từng câu bằng tay (viết công thức Toán bằng cách đặt trong dấu
   `$...$`, ví dụ gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp),
@@ -164,7 +177,7 @@ không cần bấm thêm gì ở phần Settings > Pages.
   sách câu hỏi bên phải để nhảy nhanh tới từng câu. Làm xong, dashboard hiện
   ra ngay: điểm số, thời gian từng câu, và chẩn đoán mức độ nắm vững theo
   từng dạng bài (chỉ áp dụng khi câu hỏi đã được gán "dạng bài" — xem ngân
-  hàng câu hỏi hoặc gán khi tạo đề từ Word).
+  hàng câu hỏi hoặc gán khi tạo đề từ PDF/Word).
 - **Phụ huynh**: không cần tài khoản — giáo viên bấm "Tạo báo cáo" trong
   trang chi tiết học sinh, hệ thống tự sinh 1 link riêng để gửi qua Zalo/tin
   nhắn cho phụ huynh xem trực tiếp.

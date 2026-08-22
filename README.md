@@ -8,12 +8,19 @@ duy nhất).
 
 - Đăng nhập bằng email + mật khẩu tự đặt (không cần dịch vụ gửi email nào),
   phân quyền Giáo viên / Học sinh.
-- Giáo viên: **tạo đề từ file Word** (AI đọc file `.docx`, LaTeX hoá công
-  thức, tách câu hỏi theo 3 phần, giáo viên xem trước & xác nhận đáp án
-  trước khi xuất bản), ngân hàng câu hỏi thủ công (gán chủ đề/dạng bài/mức
-  độ tư duy, có gợi ý gán dạng bài bằng AI), đặt thời gian làm bài cho từng
-  đề, xem thống kê điểm và tỉ lệ đúng theo dạng bài của từng học sinh, tạo
-  báo cáo AI + link xem cho phụ huynh (không cần tài khoản).
+- Giáo viên: **tạo đề từ file PDF** (cách chính, từ 22/08/2026) — trình
+  duyệt tự chuyển từng trang PDF thành ảnh (pdf.js), AI đọc trực tiếp như
+  đọc ảnh nên không bị giới hạn "bỏ sót công thức MathType" như khi đọc
+  thẳng file .docx, tự nhận diện đáp án đúng theo nhiều quy ước trình bày
+  khác nhau (tô màu/gạch chân/in đậm/dấu "*"/ghi chú "Đáp án:"...) và lấy
+  luôn lời giải nếu đề có ghi sẵn, tách câu hỏi theo 3 phần — giáo viên luôn
+  xem trước & xác nhận đáp án trước khi xuất bản. Cách đọc thẳng file
+  `.docx` (kém chính xác hơn với MathType) và cách dán JSON đã xử lý sẵn
+  vẫn còn, dùng khi không có file PDF. Ngoài ra có ngân hàng câu hỏi thủ
+  công (gán chủ đề/dạng bài/mức độ tư duy, có gợi ý gán dạng bài bằng AI),
+  đặt thời gian làm bài cho từng đề, xem thống kê điểm và tỉ lệ đúng theo
+  dạng bài của từng học sinh, tạo báo cáo AI + link xem cho phụ huynh
+  (không cần tài khoản).
 - Học sinh: làm bài đúng 3 phần theo barem hiện hành, giao diện có đồng hồ
   đếm ngược + danh sách câu hỏi để nhảy nhanh (giống các nền tảng thi trắc
   nghiệm phổ biến). Trang chủ có dashboard tiến độ (số bài đã làm, điểm
@@ -50,9 +57,11 @@ duy nhất).
 
 - `src/lib/scoring.ts` — bộ máy chấm điểm 3 phần (18 unit test, xem `scoring.test.ts`).
 - `src/lib/diagnosis.ts` — chẩn đoán mức độ nắm vững theo dạng bài + tính thời gian tập trung từng câu (15 unit test).
-- `src/lib/wordImport.ts` — trích xuất văn bản/hình ảnh từ file `.docx` bằng mammoth.js (6 unit test).
+- `src/lib/wordImport.ts` — trích xuất văn bản/hình ảnh từ file `.docx` bằng mammoth.js (6 unit test, cách dự phòng — không đọc được công thức MathType).
+- `src/lib/pdfImport.ts` — render từng trang PDF thành ảnh ngay trên trình duyệt bằng pdf.js (cách chính để tạo đề).
+- `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.
 - `src/lib/api.ts` — toàn bộ truy vấn dữ liệu (Supabase).
-- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài, phân tích đề từ Word, sinh nhận xét báo cáo).
+- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài, phân tích đề từ ảnh PDF/Word, sinh nhận xét báo cáo), 7 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
@@ -63,7 +72,7 @@ duy nhất).
 
 ```bash
 npm install
-npm test        # chạy 39 unit test (chấm điểm, chẩn đoán, đọc file Word)
+npm test        # chạy 63 unit test (chấm điểm, chẩn đoán, đọc file Word, gộp kết quả phân tích PDF)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
-import { parseExamFromDocument, type ParsedExam } from "../lib/ai";
+import { parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
+import { renderPdfToImages } from "../lib/pdfImport";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
 
@@ -71,6 +72,7 @@ export function TeacherExamImport() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [pasteJson, setPasteJson] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [analyzingProgress, setAnalyzingProgress] = useState("");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -90,6 +92,50 @@ export function TeacherExamImport() {
     setStage("review");
   }
 
+  /**
+   * Cách tạo đề CHÍNH (khuyến nghị): tải file PDF lên → render từng trang
+   * thành ảnh ngay trên trình duyệt (pdf.js) → gửi ảnh cho AI đọc trực tiếp.
+   * Cách này né được hoàn toàn giới hạn "không đọc được công thức MathType"
+   * của việc đọc thẳng file .docx, vì PDF chỉ lưu lại hình ảnh cuối cùng của
+   * công thức — không phụ thuộc định dạng lưu trữ gốc.
+   */
+  async function handlePdfSelected(file: File) {
+    setError(null);
+    setFileName(file.name);
+    setStage("analyzing");
+    try {
+      setAnalyzingProgress("Đang chuyển từng trang PDF thành ảnh...");
+      const pageImages = await renderPdfToImages(file);
+      if (pageImages.length === 0) {
+        setError("Không đọc được trang nào từ file PDF này. Hãy kiểm tra lại file rồi thử lại.");
+        setStage("upload");
+        return;
+      }
+      setAnalyzingProgress(
+        `Đang gửi ${pageImages.length} trang cho AI phân tích (có thể mất 30-90 giây tuỳ độ dài đề)...`,
+      );
+      const { parsed, failedChunks, totalChunks } = await parseExamFromPdfPages(pageImages);
+      if (!parsed) {
+        setError(
+          "AI chưa phân tích được đề này (có thể do thiếu API key hoặc lỗi kết nối). Bạn có thể dán JSON đã xử lý sẵn ở ô bên dưới, hoặc thử lại.",
+        );
+        setStage("upload");
+        return;
+      }
+      if (failedChunks > 0) {
+        console.warn(`parseExamFromPdfPages: ${failedChunks}/${totalChunks} đợt lỗi.`);
+      }
+      loadParsed(parsed, file.name.replace(/\.pdf$/i, ""));
+    } catch (err) {
+      console.error(err);
+      setError("Có lỗi khi đọc file PDF. Hãy chắc chắn đây là file PDF hợp lệ, không bị hỏng hoặc đặt mật khẩu.");
+      setStage("upload");
+    } finally {
+      setAnalyzingProgress("");
+    }
+  }
+
+  /** Cách dự phòng: đọc thẳng .docx bằng mammoth.js — không đọc được công thức MathType (xem wordImport.ts). */
   async function handleFileSelected(file: File) {
     setError(null);
     setFileName(file.name);
@@ -230,52 +276,70 @@ export function TeacherExamImport() {
       <div className="teacher-page">
         <h2>Tạo đề thi mới</h2>
         <p className="empty-hint">
-          Cách nhanh và chính xác nhất: gửi file đề (.docx, kèm .pdf nếu có) ngay trong khung trò
-          chuyện với Claude — Claude đọc kỹ, chuyển từng công thức sang LaTeX (kể cả công thức gõ
-          bằng MathType/Equation Editor mà công cụ tự động bên dưới hay bỏ sót), lấy luôn lời giải
-          nếu đề có ghi sẵn dưới mỗi câu, rồi trả lại 1 đoạn JSON để bạn dán vào ô dưới đây. Nếu
-          đề của bạn có lời giải chi tiết ngay dưới mỗi câu, cứ nói với Claude — lời giải sẽ được
-          đưa vào field "solution_latex" và chỉ hiện ra cho học sinh sau khi các em nộp bài.
+          Cách nhanh và chính xác nhất: tải lên file <strong>PDF</strong> của đề thi (xuất từ Word
+          ra PDF, giữ nguyên công thức MathType — không cần chỉnh sửa gì thêm). AI đọc trực tiếp
+          từng trang như đọc ảnh, nên không bị giới hạn "bỏ sót công thức MathType" như khi đọc
+          thẳng file .docx. AI cũng tự nhận diện đáp án đúng (tô màu/gạch chân/in đậm/dấu "*"/ghi
+          chú "Đáp án:"...) và lời giải chi tiết nếu đề có ghi sẵn — nhưng bạn vẫn cần xem lại và
+          xác nhận từng câu ở bước tiếp theo trước khi xuất bản. Ảnh minh hoạ (đồ thị, bảng biến
+          thiên...) chưa tự động lấy được — AI sẽ đánh dấu câu nào có hình để bạn dán tay lại bằng
+          Ctrl+V ở bước xem trước.
         </p>
         {error && <p className="form-error">{error}</p>}
 
         <div className="form-row">
-          <label>Dán JSON đã xử lý sẵn</label>
-          <textarea
-            rows={5}
-            value={pasteJson}
-            onChange={(e) => setPasteJson(e.target.value)}
-            placeholder='{"part1": [{"content_latex": "...", "choices": {...}, "correct_choice": "A", "solution_latex": "..."}], "part2": [...], "part3": [...], "warnings": []}'
+          <label>Chọn file PDF</label>
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handlePdfSelected(f);
+            }}
           />
-          <button className="btn-primary" onClick={handlePasteJsonSubmit} disabled={!pasteJson.trim()}>
-            Dùng JSON này
-          </button>
+          {fileName && <span className="empty-hint">Đã chọn: {fileName}</span>}
         </div>
 
         <details style={{ marginTop: 28 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-            Hoặc để AI trên web tự đọc file Word (kém chính xác hơn với công thức MathType)
-          </summary>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>Cách khác</summary>
           <div style={{ marginTop: 12 }}>
-            <p className="ai-hint">
-              Nếu đề dùng công cụ gõ công thức có sẵn của Word (Equation/MathType), cách này có
-              thể bỏ sót công thức (giới hạn kỹ thuật của thư viện đọc file, không phải lỗi của
-              bạn) — bạn sẽ thấy rõ ở bước xem trước và cần gõ tay lại bằng LaTeX cho câu đó. Công
-              thức dạng ảnh chụp/dán thì đọc tốt hơn nhiều. Nếu đề có dùng MathType, nên dùng cách
-              dán JSON ở trên thay vì cách này.
-            </p>
             <div className="form-row">
-              <label>Chọn file .docx</label>
-              <input
-                type="file"
-                accept=".docx"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleFileSelected(f);
-                }}
+              <label>Dán JSON đã xử lý sẵn</label>
+              <textarea
+                rows={5}
+                value={pasteJson}
+                onChange={(e) => setPasteJson(e.target.value)}
+                placeholder='{"part1": [{"content_latex": "...", "choices": {...}, "correct_choice": "A", "solution_latex": "..."}], "part2": [...], "part3": [...], "warnings": []}'
               />
-              {fileName && <span className="empty-hint">Đã chọn: {fileName}</span>}
+              <button className="btn-primary" onClick={handlePasteJsonSubmit} disabled={!pasteJson.trim()}>
+                Dùng JSON này
+              </button>
             </div>
+
+            <details style={{ marginTop: 20 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+                Đọc thẳng file Word (.docx) — kém chính xác hơn với công thức MathType
+              </summary>
+              <div style={{ marginTop: 12 }}>
+                <p className="ai-hint">
+                  Nếu đề dùng công cụ gõ công thức có sẵn của Word (Equation/MathType), cách này có
+                  thể bỏ sót công thức (giới hạn kỹ thuật của thư viện đọc file .docx, không đọc
+                  được đối tượng OLE mà MathType tạo ra) — bạn sẽ thấy rõ ở bước xem trước và cần
+                  gõ tay lại bằng LaTeX cho câu đó. Nên ưu tiên tải PDF ở trên thay vì cách này.
+                </p>
+                <div className="form-row">
+                  <label>Chọn file .docx</label>
+                  <input
+                    type="file"
+                    accept=".docx"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileSelected(f);
+                    }}
+                  />
+                </div>
+              </div>
+            </details>
           </div>
         </details>
       </div>
@@ -283,7 +347,11 @@ export function TeacherExamImport() {
   }
 
   if (stage === "analyzing") {
-    return <div className="page-loading">Đang đọc file và phân tích bằng AI... (có thể mất khoảng 30-60 giây với đề dài)</div>;
+    return (
+      <div className="page-loading">
+        {analyzingProgress || "Đang đọc file và phân tích bằng AI..."}
+      </div>
+    );
   }
 
   return (

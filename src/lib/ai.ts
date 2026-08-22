@@ -9,11 +9,17 @@
 
 import type { QuestionType } from "./types";
 import type { ExtractedImage } from "./wordImport";
+import { chunkArray } from "./chunk";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
   | string
   | undefined;
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Cho phép ghi đè bằng biến môi trường VITE_GEMINI_MODEL mà không cần sửa code
+// — hữu ích vì tên model Gemini đổi khá thường xuyên (bản mặc định bên dưới
+// chỉ chính xác tại thời điểm viết, nên kiểm tra lại tên model khả dụng cho
+// API key của bạn tại Google AI Studio nếu gặp lỗi 404 khi gọi AI).
+const GEMINI_MODEL =
+  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-3.7-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 type GeminiPart =
@@ -57,7 +63,7 @@ async function callGemini(prompt: string): Promise<string | null> {
 }
 
 /** Bóc khối JSON ra khỏi câu trả lời của AI, kể cả khi AI bọc trong ```json ... ``` */
-function extractJsonBlock(raw: string): unknown {
+export function extractJsonBlock(raw: string): unknown {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : raw;
   const jsonMatch = candidate.match(/[[{][\s\S]*[\]}]/);
@@ -262,4 +268,135 @@ export async function parseExamFromDocument(
     console.error("Không đọc được JSON từ AI khi phân tích đề:", err, raw);
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Tạo đề từ file PDF (KHUYẾN NGHỊ — quy trình chính từ 22/08/2026): mỗi trang
+// PDF được render thành 1 ảnh ngay trên trình duyệt (xem pdfImport.ts), rồi
+// gửi thẳng cho Gemini đọc bằng khả năng đa phương thức (multimodal) — né
+// hoàn toàn giới hạn không đọc được công thức MathType/OLE của mammoth.js.
+// Quy ước nhận diện đáp án học theo cách Azota làm: chấp nhận NHIỀU tín hiệu
+// cùng lúc (tô màu, gạch chân, in đậm, dấu *, ghi chú "Đáp án:"...) thay vì
+// đòi 1 quy ước cứng — và luôn có bước giáo viên xác nhận lại trước khi xuất
+// bản, vì AI đọc ảnh vẫn có thể đọc sai màu/nét mờ.
+// ---------------------------------------------------------------------------
+
+const EXAM_PARSE_FROM_IMAGES_PROMPT = `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là ảnh chụp lần lượt từng trang của 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang (mỗi ảnh có ghi chú "Trang N" ngay trước).
+
+Đề thi có 3 phần theo cấu trúc chuẩn:
+- Phần 1: trắc nghiệm 4 phương án (A, B, C, D), chỉ 1 phương án đúng.
+- Phần 2: mỗi câu có 4 ý nhỏ (a, b, c, d), mỗi ý là 1 mệnh đề Đúng/Sai độc lập.
+- Phần 3: trả lời ngắn (điền số hoặc chuỗi ngắn), không có phương án cho sẵn.
+
+YÊU CẦU:
+1. Đọc trực tiếp từ ảnh, kể cả công thức Toán gõ bằng MathType/Equation Editor — khi xuất ra PDF các công thức này hiển thị đúng như bản gốc dù công cụ đọc văn bản thường không đọc được. Chuyển TOÀN BỘ công thức sang LaTeX, đặt trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay cú pháp khác.
+2. Bỏ qua các phần lặp lại ở đầu/cuối mỗi trang không phải nội dung đề (tên trường, logo, số trang, watermark) và các dòng ghi nguồn/tác giả kiểu "FB tác giả: ...", "Nguồn: ...", "Sưu tầm: ..." — đây là nhiễu, không đưa vào content_latex hay coi là tín hiệu đáp án.
+3. Xác định đáp án đúng dựa trên BẤT KỲ tín hiệu nào sau đây xuất hiện trong ảnh (không chỉ 1 quy ước cố định, vì mỗi đề có thể trình bày khác nhau):
+   - Phần 1: phương án được TÔ MÀU NỀN (thường là xanh lá) và/hoặc GẠCH CHÂN, hoặc in đậm, hoặc có dấu "*" cạnh phương án, hoặc có ghi chú "Đáp án: X" ngay sau câu.
+   - Phần 2: đáp án Đúng/Sai của từng ý có thể ghi dưới dạng bảng gọn (vd: a-Đ, b-S...) HOẶC dưới dạng văn xuôi trong phần lời giải (vd: "a) Đúng: vì...", "b) Sai: vì...") — đọc kỹ phần lời giải nếu không thấy bảng.
+   - Phần 3: đáp số cuối câu có thể ghi bằng nhiều nhãn khác nhau: "Đáp số:", "Đs:", "Đáp án:", hoặc dạng "<key=...>" — coi tất cả các nhãn này là chỉ báo đáp án đúng.
+   Nếu xem xét đủ các tín hiệu trên mà vẫn KHÔNG chắc chắn, để giá trị đáp án (correct_choice / correct / correct_value) là null — TUYỆT ĐỐI không tự đoán, vì đoán sai sẽ làm chấm điểm sai cho học sinh.
+4. Nếu trang có ghi lời giải chi tiết ngay dưới câu hỏi (thường thấy ở bản dành cho giáo viên), chuyển lời giải đó sang "solution_latex" — giữ nguyên các bước giải, không tự tóm tắt hay bịa thêm. Nếu không có lời giải cho câu nào, để "solution_latex" là null cho câu đó.
+5. Nếu câu có hình minh hoạ (đồ thị, bảng biến thiên, hình vẽ...) không phải là công thức Toán đơn thuần: KHÔNG cố mô tả lại hay tự vẽ hình đó bằng LaTeX. Ghi chú "(có hình minh hoạ — cần dán thủ công)" ngay trong content_latex tại vị trí hình xuất hiện, VÀ thêm 1 dòng vào "warnings" nêu rõ câu nào (Phần mấy, thứ tự xuất hiện) có hình cần giáo viên tự dán lại bằng Ctrl+V ở bước xem trước.
+6. Với Phần 3, "points" là thang điểm nếu đề ghi rõ, mặc định 0.5 nếu không có.
+7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) mọi điều không chắc chắn khác: câu không xác định được thuộc phần nào, chữ mờ/khó đọc, nghi ngờ đọc sai công thức, trang bị thiếu/lệch thứ tự, v.v.
+
+Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
+{
+  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null}],
+  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null}],
+  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null}],
+  "warnings": ["..."]
+}`;
+
+export interface PageImageInput {
+  mimeType: string;
+  dataBase64: string;
+}
+
+/** Gửi 1 đợt ảnh trang (đã trong giới hạn cho phép) cho Gemini phân tích. */
+export async function parseExamFromImages(
+  pageImages: PageImageInput[],
+  pageNumbers?: number[],
+): Promise<ParsedExam | null> {
+  const parts: GeminiPart[] = [{ text: EXAM_PARSE_FROM_IMAGES_PROMPT }];
+  pageImages.forEach((img, i) => {
+    const label = pageNumbers?.[i] ?? i + 1;
+    parts.push({ text: `\nTrang ${label}:` });
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
+  });
+
+  const raw = await callGeminiParts(parts, 8192);
+  if (!raw) return null;
+
+  try {
+    const parsed = extractJsonBlock(raw) as Partial<ParsedExam>;
+    return {
+      part1: Array.isArray(parsed.part1) ? parsed.part1 : [],
+      part2: Array.isArray(parsed.part2) ? parsed.part2 : [],
+      part3: Array.isArray(parsed.part3) ? parsed.part3 : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+    };
+  } catch (err) {
+    console.error("Không đọc được JSON từ AI khi phân tích ảnh trang PDF:", err, raw);
+    return null;
+  }
+}
+
+/** Gộp nhiều kết quả phân tích (nhiều đợt gửi) thành 1 đề duy nhất, giữ đúng thứ tự đợt. */
+export function mergeParsedExams(results: ParsedExam[]): ParsedExam {
+  return results.reduce<ParsedExam>(
+    (acc, r) => ({
+      part1: [...acc.part1, ...r.part1],
+      part2: [...acc.part2, ...r.part2],
+      part3: [...acc.part3, ...r.part3],
+      warnings: [...acc.warnings, ...r.warnings],
+    }),
+    { part1: [], part2: [], part3: [], warnings: [] },
+  );
+}
+
+export interface ParseFromPdfResult {
+  parsed: ParsedExam | null;
+  /** Số đợt (chunk) gọi AI bị lỗi/không đọc được — 0 nghĩa là mọi đợt đều thành công. */
+  failedChunks: number;
+  totalChunks: number;
+}
+
+/**
+ * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI nếu
+ * đề quá dài (tránh 1 lần gọi quá nặng). Ghép kết quả các đợt lại theo thứ tự
+ * trang. Nếu đề dài phải chia đợt, 1 câu hỏi lỡ nằm vắt ngang ranh giới 2 trang
+ * ở đúng điểm chia có thể bị đọc thiếu — trường hợp này hiếm (chunk mặc định
+ * đủ lớn cho hầu hết đề thi) nhưng giáo viên vẫn cần xem lại ở bước xác nhận.
+ */
+export async function parseExamFromPdfPages(
+  pageImages: PageImageInput[],
+  chunkSize = 12,
+): Promise<ParseFromPdfResult> {
+  const pageNumberChunks = chunkArray(
+    pageImages.map((_, i) => i + 1),
+    chunkSize,
+  );
+  const imageChunks = chunkArray(pageImages, chunkSize);
+
+  const results: ParsedExam[] = [];
+  let failedChunks = 0;
+  for (let i = 0; i < imageChunks.length; i++) {
+    const r = await parseExamFromImages(imageChunks[i], pageNumberChunks[i]);
+    if (r) results.push(r);
+    else failedChunks++;
+  }
+
+  if (results.length === 0) {
+    return { parsed: null, failedChunks, totalChunks: imageChunks.length };
+  }
+  const merged = mergeParsedExams(results);
+  if (failedChunks > 0) {
+    merged.warnings = [
+      `${failedChunks}/${imageChunks.length} đợt gọi AI bị lỗi (mất kết nối hoặc AI không trả JSON hợp lệ) — 1 số trang có thể chưa được phân tích, kiểm tra lại số câu trước khi xuất bản.`,
+      ...merged.warnings,
+    ];
+  }
+  return { parsed: merged, failedChunks, totalChunks: imageChunks.length };
 }
