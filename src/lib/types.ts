@@ -60,6 +60,10 @@ export interface QuestionRow {
   id: string;
   part: 1 | 2 | 3;
   question_type_id: string | null;
+  /** Chương (topics.id) — tách riêng khỏi question_type_id vì khung "dạng bài" chưa phủ hết mọi chương. */
+  topic_id: string | null;
+  /** Gợi ý chương của AI khi nhập đề/bấm "Gợi ý bằng AI" — chờ giáo viên xác nhận vào topic_id. */
+  ai_suggested_topic_id: string | null;
   difficulty: Difficulty | null;
   content_latex: string;
   image_url: string | null;
@@ -80,6 +84,10 @@ export interface ExamRow {
   title: string;
   description: string | null;
   duration_minutes: number | null;
+  /** Thư mục tự do do giáo viên đặt tên — null = "Chưa phân loại". */
+  folder: string | null;
+  /** Link Google Drive chứa file đề gốc để học sinh tải về — không bắt buộc. */
+  drive_link: string | null;
   created_by: string;
   created_at: string;
 }

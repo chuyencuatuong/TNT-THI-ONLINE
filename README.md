@@ -8,6 +8,10 @@ duy nhất).
 
 - Đăng nhập bằng email + mật khẩu tự đặt (không cần dịch vụ gửi email nào),
   phân quyền Giáo viên / Học sinh.
+- Giáo viên: tạo đề từ file PDF/Word, mỗi đề có thể gán vào **thư mục tự do**
+  (gõ tên tuỳ ý để nhóm lại, không bắt buộc) và **link Google Drive** chứa
+  file đề gốc để học sinh tải về (không lưu file trong hệ thống, chỉ lưu
+  link). Ngân hàng câu hỏi và danh sách đề có ô **tìm kiếm**.
 - Giáo viên: **tạo đề từ file PDF** (cách chính, cập nhật 23/08/2026) —
   trình duyệt đọc SONG SONG 2 nguồn cho mỗi trang: văn bản thật nhúng sẵn
   trong PDF (pdf.js, chính xác tuyệt đối, không tốn AI) và ảnh cả trang (chỉ
@@ -18,20 +22,24 @@ duy nhất).
   đọc thẳng file .docx. AI tự nhận diện đáp án đúng theo nhiều quy ước trình
   bày khác nhau (tô màu/gạch chân/in đậm/dấu "*"/ghi chú "Đáp án:"...) và lấy
   luôn lời giải nếu đề có ghi sẵn, tách câu hỏi theo 3 phần — giáo viên luôn
-  xem trước & xác nhận đáp án trước khi xuất bản. Cách đọc thẳng file
-  `.docx` (kém chính xác hơn với MathType) và cách dán JSON đã xử lý sẵn
-  vẫn còn, dùng khi không có file PDF. Ngoài ra có ngân hàng câu hỏi thủ
-  công (gán chủ đề/dạng bài/mức độ tư duy, có gợi ý gán dạng bài bằng AI),
-  đặt thời gian làm bài cho từng đề, xem thống kê điểm và tỉ lệ đúng theo
-  dạng bài của từng học sinh, tạo báo cáo AI + link xem cho phụ huynh
-  (không cần tài khoản).
+  xem trước & xác nhận đáp án trước khi xuất bản. AI cũng **tự gợi ý chương**
+  phù hợp cho từng câu (dựa trên khung chương có sẵn) ngay ở màn hình xem
+  trước — giáo viên xem lại/đổi trước khi xuất bản, không tự động gán. Cách
+  đọc thẳng file `.docx` (kém chính xác hơn với MathType) và cách dán JSON
+  đã xử lý sẵn vẫn còn, dùng khi không có file PDF. Ngoài ra có ngân hàng câu
+  hỏi thủ công (gán chủ đề/dạng bài/mức độ tư duy, có gợi ý gán dạng bài và
+  chương bằng AI, kèm nút "Phân loại lại chương bằng AI" hàng loạt cho câu cũ
+  chưa có chương), đặt thời gian làm bài cho từng đề, xem thống kê điểm và tỉ
+  lệ đúng theo dạng bài của từng học sinh, tạo báo cáo AI + link xem cho phụ
+  huynh (không cần tài khoản).
 - Học sinh: làm bài đúng 3 phần theo barem hiện hành, giao diện có đồng hồ
   đếm ngược + danh sách câu hỏi để nhảy nhanh (giống các nền tảng thi trắc
   nghiệm phổ biến). Trang chủ có dashboard tiến độ (số bài đã làm, điểm
   trung bình, điểm gần nhất, mức cải thiện so với lần trước, tổng thời gian
   làm bài, biểu đồ xu hướng điểm). Sau khi nộp bài, xem lại được toàn bộ bài
   làm — chỗ nào đúng/sai/thiếu, đáp án đúng, và lời giải chi tiết (nếu giáo
-  viên có nhập) cho từng câu.
+  viên có nhập) cho từng câu. Danh sách "Đề thi có thể làm" có ô tìm kiếm,
+  nhóm theo thư mục, và nút "Tải đề" (mở link Google Drive) nếu đề có link.
 - Giáo viên: trang chi tiết từng học sinh hiện kết quả theo từng đề thi, kèm
   số lần làm lại và chênh lệch điểm/thời gian hoàn thành so với lần đầu và
   lần ngay trước đó — dễ thấy học sinh có tiến bộ qua các lần làm lại hay
@@ -66,18 +74,18 @@ duy nhất).
 - `src/lib/pdfTextLayout.ts` — hàm thuần ghép các mục text rời rạc (kèm toạ độ) mà pdf.js trả về thành đoạn văn bản đọc được, tách riêng để unit-test không cần môi trường trình duyệt, 6 unit test.
 - `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.
 - `src/lib/api.ts` — toàn bộ truy vấn dữ liệu (Supabase).
-- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài, phân tích đề từ văn bản+ảnh PDF/Word, sinh nhận xét báo cáo), 7 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt).
+- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 12 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
-- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
+- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
 - `.github/workflows/deploy.yml` — tự động build & deploy lên GitHub Pages.
 
 ## Chạy thử ở máy (không bắt buộc)
 
 ```bash
 npm install
-npm test        # chạy 69 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF)
+npm test        # chạy 74 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 

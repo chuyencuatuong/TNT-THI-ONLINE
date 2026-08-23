@@ -8,7 +8,41 @@ hình. Khoảng 10 phút.
 
 ## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 2 việc để cập nhật
 
-**Bản cập nhật lần này (22/08/2026)** thêm:
+**Bản cập nhật mới nhất (23/08/2026 — Đợt 1 cải tiến)** thêm:
+
+- **Tự nhận CHƯƠNG khi nhập đề**: khi tạo đề từ PDF/Word, AI gợi ý luôn
+  chương phù hợp cho từng câu (dựa trên khung chương đã gieo sẵn) — màn hình
+  xem trước có thêm ô chọn "Chương" cho từng câu, đã điền sẵn theo gợi ý AI,
+  bạn xem lại/đổi nếu cần trước khi xuất bản. "Ngân hàng câu hỏi" cũng có nút
+  "Phân loại lại chương bằng AI" để gán lại chương cho các câu cũ chưa có
+  chương — AI chỉ **gợi ý**, mỗi câu vẫn cần bạn bấm "Xác nhận" mới áp dụng
+  thật (không tự động gán để tránh sai).
+- **Thư mục đề tự do**: khi tạo/sửa đề, có thêm ô "Thư mục" — gõ tên tuỳ ý
+  (vd: "Đề giữa kỳ", "Đề ôn chương 1"), để trống thì đề nằm ở nhóm "Chưa phân
+  loại". Trang "Đề thi" (giáo viên) và "Đề thi có thể làm" (học sinh) giờ
+  hiện theo từng nhóm thư mục, gập/mở được.
+- **Link Google Drive cho mỗi đề**: ô "Link Google Drive" khi tạo/sửa đề (dán
+  link file đề gốc bạn tự tải lên Drive) — học sinh sẽ thấy nút "Tải đề" bên
+  cạnh nút "Bắt đầu làm bài" nếu đề có link. Không bắt buộc, và hệ thống
+  không lưu file nào cả (chỉ lưu đường link) để không tốn thêm dung lượng.
+- **Thanh tìm kiếm**: thêm ô tìm kiếm ở "Ngân hàng câu hỏi", trang "Đề thi"
+  (giáo viên) và "Đề thi có thể làm" (học sinh).
+
+1. **Tải lại code**: lặp lại **Việc 1** bên dưới (kéo-thả toàn bộ file trong
+   bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2.
+2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần)**: vào Supabase Dashboard >
+   **SQL Editor** > **New query**, mở file
+   `supabase/migration_007_chuong_thu_muc_drive.sql` trong bản zip mới, copy
+   toàn bộ nội dung, dán vào query mới, bấm **Run**. File này chỉ thêm cột
+   mới vào 2 bảng có sẵn (`questions`, `exams`) — không đụng tới dữ liệu cũ.
+
+   Nếu bỏ qua bước này, các ô "Chương", "Thư mục", "Link Google Drive" vẫn
+   hiện được nhưng lưu sẽ báo lỗi vì database chưa có cột mới.
+
+<details>
+<summary>Bản cập nhật trước đó (22/08/2026)</summary>
+
+**Bản cập nhật (22/08/2026)** thêm:
 
 - **Sửa lỗi màn hình bị "kẹt" sau khi đăng ký/đăng nhập** — trước đây sau khi
   đăng ký xong (hoặc đăng nhập), trang đứng im ở form cũ khiến người dùng
@@ -61,6 +95,8 @@ hình. Khoảng 10 phút.
    Nếu trước đó bạn có bật "Custom SMTP" (Resend) theo hướng dẫn cũ, giờ có
    thể tắt luôn cho gọn (không bắt buộc, không dùng nữa) — vào cùng trang
    đó, tắt **"Enable Custom SMTP"**.
+
+</details>
 
 </details>
 
@@ -162,11 +198,16 @@ không cần bấm thêm gì ở phần Settings > Pages.
   lưu file ảnh ra máy trước. Cách dán JSON đã xử lý sẵn và cách đọc thẳng
   file .docx (kém chính xác hơn với MathType) vẫn còn, nằm trong mục
   "Cách khác" (bấm để mở ra) — dùng khi không có file PDF hoặc muốn kiểm
-  soát thủ công hoàn toàn.
+  soát thủ công hoàn toàn. Ở màn hình xem trước, mỗi câu còn có ô "Chương" đã
+  điền sẵn theo gợi ý AI — xem lại/đổi nếu cần. Khi đặt tên đề, có thêm ô
+  "Thư mục" (gõ tên tuỳ ý để nhóm đề lại, vd "Đề giữa kỳ") và "Link Google
+  Drive" (dán link file đề gốc để học sinh tải về).
 - **Giáo viên — cách thủ công (không bắt buộc)**: vào "Ngân hàng câu hỏi" để
   nhập từng câu bằng tay (viết công thức Toán bằng cách đặt trong dấu
   `$...$`, ví dụ gõ `$x^2 - 3x + 2 = 0$` sẽ hiển thị thành công thức đẹp),
-  rồi vào "Đề thi" để gom câu hỏi thành 1 đề.
+  rồi vào "Đề thi" để gom câu hỏi thành 1 đề. Ngân hàng câu hỏi có ô tìm
+  kiếm, lọc theo chương, và nút "Phân loại lại chương bằng AI" để gán chương
+  cho các câu cũ chưa có (mỗi câu vẫn cần bấm "Xác nhận" mới áp dụng thật).
 - **Đăng nhập lần đầu (cả giáo viên và học sinh)**: mở link website, nhập
   email + đặt 1 mật khẩu (ít nhất 6 ký tự), bấm "Đăng ký tài khoản mới".
   Không cần dùng email thật có thể nhận thư — chỉ cần một địa chỉ dạng email

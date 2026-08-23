@@ -7,7 +7,7 @@
  *     (AI không tự tính điểm, chỉ diễn giải số liệu thành lời văn).
  */
 
-import type { QuestionType } from "./types";
+import type { QuestionType, Topic } from "./types";
 import type { ExtractedImage } from "./wordImport";
 import { chunkArray } from "./chunk";
 
@@ -215,6 +215,87 @@ Nếu không dạng nào phù hợp, trả về {"id": null, "reasoning": "..."}
   }
 }
 
+export interface TopicSuggestion {
+  topic_id: string | null;
+  topic_name: string | null;
+  reasoning: string;
+}
+
+/**
+ * Gợi ý CHƯƠNG phù hợp nhất cho 1 câu hỏi, CHỈ chọn trong danh sách chương đã
+ * có sẵn (6 chương Toán 12 gieo sẵn, hoặc chương giáo viên tự thêm) — tách
+ * riêng khỏi suggestQuestionType() vì đây là mức phân loại thô hơn (chương),
+ * không cần đợi khung "dạng bài" chi tiết được định nghĩa đầy đủ mới dùng được.
+ */
+export async function suggestQuestionTopic(
+  questionContentLatex: string,
+  existingTopics: Topic[],
+): Promise<TopicSuggestion> {
+  if (existingTopics.length === 0) {
+    return {
+      topic_id: null,
+      topic_name: null,
+      reasoning: "Chưa có chương nào trong hệ thống để gợi ý.",
+    };
+  }
+
+  const topicList = existingTopics
+    .map((t) => `- id="${t.id}": ${t.name} (Lớp ${t.grade})`)
+    .join("\n");
+
+  const prompt = `Bạn là trợ lý phân loại đề Toán THPT (Việt Nam). Dưới đây là danh sách các "chương" đã có sẵn:
+${topicList}
+
+Câu hỏi cần phân loại (viết bằng LaTeX):
+"""
+${questionContentLatex}
+"""
+
+Hãy chọn ĐÚNG MỘT chương phù hợp nhất trong danh sách trên (không tự tạo chương mới).
+Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác:
+{"id": "<id của chương đã chọn>", "reasoning": "<giải thích ngắn gọn 1 câu bằng tiếng Việt>"}
+Nếu không chương nào phù hợp, trả về {"id": null, "reasoning": "..."}`;
+
+  const raw = await callGemini(prompt);
+  if (!raw) {
+    return {
+      topic_id: null,
+      topic_name: null,
+      reasoning: "Không gọi được AI (kiểm tra API key hoặc kết nối mạng).",
+    };
+  }
+
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw) as {
+      id: string | null;
+      reasoning: string;
+    };
+    const matched = existingTopics.find((t) => t.id === parsed.id);
+    return {
+      topic_id: matched?.id ?? null,
+      topic_name: matched?.name ?? null,
+      reasoning: parsed.reasoning ?? "",
+    };
+  } catch {
+    return {
+      topic_id: null,
+      topic_name: null,
+      reasoning: "AI trả về định dạng không đọc được, cần gán chương thủ công.",
+    };
+  }
+}
+
+/** Tìm chương khớp tên AI trả về (không phân biệt hoa/thường, bỏ khoảng trắng thừa) — tách hàm riêng để test được. */
+export function matchTopicByName(
+  name: string | null | undefined,
+  topics: Topic[],
+): string | null {
+  if (!name?.trim()) return null;
+  const normalized = name.trim().toLowerCase();
+  return topics.find((t) => t.name.trim().toLowerCase() === normalized)?.id ?? null;
+}
+
 export interface StudentStatsForAI {
   studentName: string;
   periodLabel: string;
@@ -270,18 +351,22 @@ export interface ParsedPart1Question {
   correct_choice: "A" | "B" | "C" | "D" | null;
   /** Lời giải chi tiết (LaTeX), nếu đề có ghi sẵn ngay dưới câu hỏi. Không bắt buộc. */
   solution_latex?: string | null;
+  /** Tên chương AI gợi ý (khớp đúng tên 1 trong danh sách topics đã gửi) — null nếu không chắc. Ánh xạ sang topic_id bằng matchTopicByName(). */
+  topic_name?: string | null;
 }
 export interface ParsedPart2Question {
   content_latex: string;
   items: { a: string; b: string; c: string; d: string };
   correct: { a: boolean; b: boolean; c: boolean; d: boolean } | null;
   solution_latex?: string | null;
+  topic_name?: string | null;
 }
 export interface ParsedPart3Question {
   content_latex: string;
   correct_value: string | null;
   points: number;
   solution_latex?: string | null;
+  topic_name?: string | null;
 }
 export interface ParsedExam {
   part1: ParsedPart1Question[];
@@ -290,7 +375,27 @@ export interface ParsedExam {
   warnings: string[];
 }
 
-const EXAM_PARSE_PROMPT = `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là văn bản trích từ 1 file Word chứa đề thi, cùng với các hình ảnh nhúng trong file (nếu có) được gửi kèm — mỗi hình có placeholder dạng [HINH_n] xuất hiện trong văn bản, hình gửi kèm theo ĐÚNG thứ tự đó.
+/**
+ * Danh sách chương gửi kèm prompt + đoạn hướng dẫn gợi ý chương — dùng chung
+ * cho cả 2 prompt (đọc .docx và đọc ảnh PDF) để không lặp lại nội dung.
+ * Trống (topics rỗng) thì bỏ qua hẳn yêu cầu này, không ép AI đoán mò khi
+ * giáo viên chưa gieo chương nào.
+ */
+function topicClassificationBlock(topics: Topic[]): {
+  ruleText: string;
+  jsonExample: string;
+} {
+  if (topics.length === 0) return { ruleText: "", jsonExample: "" };
+  const topicList = topics.map((t) => `"${t.name}"`).join(", ");
+  return {
+    ruleText: `\nGỢI Ý CHƯƠNG: với mỗi câu, chọn ĐÚNG MỘT chương phù hợp nhất trong danh sách sau (ghi lại ĐÚNG NGUYÊN VĂN tên chương, không tự bịa chương mới, không dịch/viết tắt khác đi): ${topicList}. Nếu không chương nào phù hợp hoặc không chắc chắn, để "topic_name" là null — không đoán bừa.\n`,
+    jsonExample: `, "topic_name": "..." | null`,
+  };
+}
+
+function buildExamParsePrompt(topics: Topic[]): string {
+  const { ruleText, jsonExample } = topicClassificationBlock(topics);
+  return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là văn bản trích từ 1 file Word chứa đề thi, cùng với các hình ảnh nhúng trong file (nếu có) được gửi kèm — mỗi hình có placeholder dạng [HINH_n] xuất hiện trong văn bản, hình gửi kèm theo ĐÚNG thứ tự đó.
 
 Đề thi có 3 phần theo cấu trúc chuẩn:
 - Phần 1: trắc nghiệm 4 phương án (A, B, C, D), chỉ 1 phương án đúng.
@@ -305,24 +410,26 @@ YÊU CẦU:
 5. Với Phần 3, "points" là thang điểm của câu đó nếu đề có ghi rõ, nếu không có thì để mặc định 0.5.
 6. Nếu đề có ghi lời giải chi tiết ngay dưới mỗi câu (thường thấy ở bản dành cho giáo viên), hãy chuyển lời giải đó sang "solution_latex" (cùng quy ước LaTeX như content_latex, giữ nguyên các bước giải, không tự tóm tắt hay bịa thêm). Nếu đề không có lời giải cho câu nào, để "solution_latex" là null cho câu đó — KHÔNG tự viết lời giải khi đề gốc không có.
 7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) bất kỳ điều gì không chắc chắn: câu thiếu công thức nghi do định dạng gốc không đọc được, câu không xác định được phần nào, hình ảnh không rõ nội dung, v.v.
-
+${ruleText}
 Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
 {
-  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null}],
-  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null}],
-  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null}],
+  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null${jsonExample}}],
+  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null${jsonExample}}],
+  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null${jsonExample}}],
   "warnings": ["..."]
 }
 
 Văn bản đề thi (in đậm được đánh dấu bằng **...**):
 """
 `;
+}
 
 export async function parseExamFromDocument(
   plainText: string,
   images: ExtractedImage[],
+  topics: Topic[] = [],
 ): Promise<ParsedExam | null> {
-  const parts: GeminiPart[] = [{ text: EXAM_PARSE_PROMPT + plainText + '\n"""' }];
+  const parts: GeminiPart[] = [{ text: buildExamParsePrompt(topics) + plainText + '\n"""' }];
   for (const img of images) {
     parts.push({ text: `\nHình ảnh cho placeholder ${img.placeholder}:` });
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
@@ -365,7 +472,9 @@ export async function parseExamFromDocument(
 // bản, vì AI đọc ảnh vẫn có thể đọc sai màu/nét mờ.
 // ---------------------------------------------------------------------------
 
-const EXAM_PARSE_FROM_IMAGES_PROMPT = `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu của từng trang 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang. Mỗi trang gồm 2 phần:
+function buildExamParseFromImagesPrompt(topics: Topic[]): string {
+  const { ruleText, jsonExample } = topicClassificationBlock(topics);
+  return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu của từng trang 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang. Mỗi trang gồm 2 phần:
 - "Văn bản trang N (đã trích chính xác 100%, dùng làm CƠ SỞ)": văn bản thật lấy trực tiếp từ file PDF — TIN TƯỞNG HOÀN TOÀN phần chữ tiếng Việt/số/ký hiệu này, KHÔNG cần tự đọc lại từ ảnh, không tự sửa chữ trừ khi rõ ràng bị thiếu do nằm trong công thức/hình. Phần này có thể thiếu chỗ có công thức Toán hoặc hình vẽ (vì công thức MathType/hình vẽ khi xuất PDF chỉ còn là HÌNH ẢNH, không phải chữ).
 - Ảnh chụp cả trang ngay sau đó: CHỈ dùng ảnh này để (a) đọc các công thức Toán đã thành hình rồi chuyển sang LaTeX chèn đúng chỗ còn thiếu trong văn bản, (b) nhận diện hình vẽ minh hoạ, (c) xác định đáp án đúng qua tín hiệu thị giác (màu, gạch chân, đậm...) mà văn bản thuần không thể hiện được.
 
@@ -386,14 +495,15 @@ YÊU CẦU:
 5. Nếu câu có hình minh hoạ (đồ thị, bảng biến thiên, hình vẽ...) không phải là công thức Toán đơn thuần: KHÔNG cố mô tả lại hay tự vẽ hình đó bằng LaTeX. Ghi chú "(có hình minh hoạ — cần dán thủ công)" ngay trong content_latex tại vị trí hình xuất hiện, VÀ thêm 1 dòng vào "warnings" nêu rõ câu nào (Phần mấy, thứ tự xuất hiện) có hình cần giáo viên tự dán lại bằng Ctrl+V ở bước xem trước.
 6. Với Phần 3, "points" là thang điểm nếu đề ghi rõ, mặc định 0.5 nếu không có.
 7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) mọi điều không chắc chắn khác: câu không xác định được thuộc phần nào, chữ mờ/khó đọc, nghi ngờ đọc sai công thức, trang bị thiếu/lệch thứ tự, v.v.
-
+${ruleText}
 Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
 {
-  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null}],
-  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null}],
-  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null}],
+  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null${jsonExample}}],
+  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null${jsonExample}}],
+  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null${jsonExample}}],
   "warnings": ["..."]
 }`;
+}
 
 export interface PageImageInput {
   mimeType: string;
@@ -429,8 +539,9 @@ function emptyParsedExamWithError(pageNumbers: number[] | undefined, reason: str
 export async function parseExamFromImages(
   pageImages: PageImageInput[],
   pageNumbers?: number[],
+  topics: Topic[] = [],
 ): Promise<ParsedExam> {
-  const parts: GeminiPart[] = [{ text: EXAM_PARSE_FROM_IMAGES_PROMPT }];
+  const parts: GeminiPart[] = [{ text: buildExamParseFromImagesPrompt(topics) }];
   pageImages.forEach((img, i) => {
     const label = pageNumbers?.[i] ?? i + 1;
     const textBlock = img.pageText?.trim()
@@ -497,6 +608,7 @@ export async function parseExamFromPdfPages(
   pageImages: PageImageInput[],
   chunkSize = 6,
   onProgress?: (done: number, total: number) => void,
+  topics: Topic[] = [],
 ): Promise<ParseFromPdfResult> {
   const pageNumberChunks = chunkArray(
     pageImages.map((_, i) => i + 1),
@@ -506,7 +618,7 @@ export async function parseExamFromPdfPages(
 
   const results: ParsedExam[] = [];
   for (let i = 0; i < imageChunks.length; i++) {
-    const r = await parseExamFromImages(imageChunks[i], pageNumberChunks[i]);
+    const r = await parseExamFromImages(imageChunks[i], pageNumberChunks[i], topics);
     results.push(r);
     onProgress?.(i + 1, imageChunks.length);
   }

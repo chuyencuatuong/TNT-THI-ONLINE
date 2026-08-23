@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
-import { suggestQuestionType } from "../lib/ai";
+import { suggestQuestionTopic, suggestQuestionType } from "../lib/ai";
 import { MathText } from "./MathText";
 import { ImageUploadField } from "./ImageUploadField";
 import type { Difficulty, QuestionType, Topic } from "../lib/types";
@@ -33,10 +33,14 @@ export function QuestionEditorForm({
   const [solution, setSolution] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("thong_hieu");
   const [questionTypeId, setQuestionTypeId] = useState<string>("");
+  const [topicId, setTopicId] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiTopicLoading, setAiTopicLoading] = useState(false);
+  const [aiTopicSuggestion, setAiTopicSuggestion] = useState<string | null>(null);
+  const [aiTopicSuggestedId, setAiTopicSuggestedId] = useState<string | null>(null);
 
   // Phần 1
   const [choices, setChoices] = useState({ A: "", B: "", C: "", D: "" });
@@ -105,6 +109,25 @@ export function QuestionEditorForm({
     setQuestionTypeId(typeId);
   }
 
+  async function handleAiTopicSuggest() {
+    if (!content.trim()) return;
+    setAiTopicLoading(true);
+    setAiTopicSuggestion(null);
+    setAiTopicSuggestedId(null);
+    const result = await suggestQuestionTopic(content, topics);
+    setAiTopicLoading(false);
+    if (result.topic_id) {
+      setAiTopicSuggestion(`AI gợi ý: "${result.topic_name}" — ${result.reasoning}`);
+      setAiTopicSuggestedId(result.topic_id);
+    } else {
+      setAiTopicSuggestion(`AI chưa chắc chắn: ${result.reasoning}`);
+    }
+  }
+
+  function applyAiTopicSuggestion(topicIdValue: string) {
+    setTopicId(topicIdValue);
+  }
+
   function resetForm() {
     setContent("");
     setSolution("");
@@ -112,6 +135,9 @@ export function QuestionEditorForm({
     setItems({ a: "", b: "", c: "", d: "" });
     setShortAnswer("");
     setAiSuggestion(null);
+    setAiTopicSuggestion(null);
+    setAiTopicSuggestedId(null);
+    setTopicId("");
     setImageUrl(null);
   }
 
@@ -138,6 +164,8 @@ export function QuestionEditorForm({
       await api.createQuestion({
         part,
         question_type_id: questionTypeId || null,
+        topic_id: topicId || null,
+        ai_suggested_topic_id: aiTopicSuggestedId,
         difficulty,
         content_latex: content,
         image_url: imageUrl,
@@ -292,6 +320,45 @@ export function QuestionEditorForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="form-row">
+        <label>Chương</label>
+        <div className="option-row">
+          <select value={topicId} onChange={(e) => setTopicId(e.target.value)}>
+            <option value="">-- Chưa gán --</option>
+            {topics.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} (Lớp {t.grade})
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleAiTopicSuggest}
+            disabled={aiTopicLoading || !content.trim()}
+          >
+            {aiTopicLoading ? "Đang hỏi AI..." : "Gợi ý bằng AI"}
+          </button>
+        </div>
+        {aiTopicSuggestion && (
+          <p className="ai-hint">
+            {aiTopicSuggestion}
+            {aiTopicSuggestedId && aiTopicSuggestedId !== topicId && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => applyAiTopicSuggestion(aiTopicSuggestedId)}
+                >
+                  Dùng gợi ý này
+                </button>
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       <div className="form-row">

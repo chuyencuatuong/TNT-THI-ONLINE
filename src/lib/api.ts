@@ -113,6 +113,9 @@ export async function listQuestions(filters?: {
 export async function createQuestion(input: {
   part: 1 | 2 | 3;
   question_type_id: string | null;
+  /** Chương — không bắt buộc, xem giải thích ở migration_007. */
+  topic_id?: string | null;
+  ai_suggested_topic_id?: string | null;
   difficulty: Difficulty | null;
   content_latex: string;
   image_url: string | null;
@@ -163,10 +166,27 @@ export async function listExams(): Promise<ExamRow[]> {
   return data as ExamRow[];
 }
 
+/** Danh sách tên thư mục đã dùng (không trùng, đã sắp xếp) — dùng gợi ý tự động khi giáo viên gõ tên thư mục. */
+export async function listExamFolders(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("exams")
+    .select("folder")
+    .not("folder", "is", null);
+  if (error) throw error;
+  const names = new Set(
+    (data as { folder: string | null }[])
+      .map((r) => r.folder?.trim())
+      .filter((f): f is string => !!f),
+  );
+  return Array.from(names).sort((a, b) => a.localeCompare(b, "vi"));
+}
+
 export async function createExam(input: {
   title: string;
   description: string | null;
   duration_minutes?: number | null;
+  folder?: string | null;
+  drive_link?: string | null;
   created_by: string;
 }): Promise<ExamRow> {
   const { data, error } = await supabase
@@ -180,7 +200,9 @@ export async function createExam(input: {
 
 export async function updateExam(
   id: string,
-  patch: Partial<Pick<ExamRow, "title" | "description" | "duration_minutes">>,
+  patch: Partial<
+    Pick<ExamRow, "title" | "description" | "duration_minutes" | "folder" | "drive_link">
+  >,
 ): Promise<void> {
   const { error } = await supabase.from("exams").update(patch).eq("id", id);
   if (error) throw error;

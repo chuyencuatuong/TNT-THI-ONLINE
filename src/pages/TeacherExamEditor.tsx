@@ -14,6 +14,9 @@ export function TeacherExamEditor() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<string>("");
+  const [folder, setFolder] = useState("");
+  const [driveLink, setDriveLink] = useState("");
+  const [existingFolders, setExistingFolders] = useState<string[]>([]);
   const [allQuestions, setAllQuestions] = useState<QuestionRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -24,8 +27,12 @@ export function TeacherExamEditor() {
 
   useEffect(() => {
     (async () => {
-      const questions = await api.listQuestions();
+      const [questions, folders] = await Promise.all([
+        api.listQuestions(),
+        api.listExamFolders(),
+      ]);
       setAllQuestions(questions);
+      setExistingFolders(folders);
       if (!isNew && examId) {
         const [existing, examRow] = await Promise.all([
           api.getExamQuestions(examId),
@@ -38,6 +45,8 @@ export function TeacherExamEditor() {
           setDurationMinutes(
             examRow.duration_minutes ? String(examRow.duration_minutes) : "",
           );
+          setFolder(examRow.folder ?? "");
+          setDriveLink(examRow.drive_link ?? "");
         }
       }
       setLoading(false);
@@ -68,6 +77,8 @@ export function TeacherExamEditor() {
           title: title.trim(),
           description: description.trim() || null,
           duration_minutes: duration,
+          folder: folder.trim() || null,
+          drive_link: driveLink.trim() || null,
           created_by: profile.id,
         });
         examIdToUse = created.id;
@@ -77,6 +88,8 @@ export function TeacherExamEditor() {
           title: title.trim(),
           description: description.trim() || null,
           duration_minutes: duration,
+          folder: folder.trim() || null,
+          drive_link: driveLink.trim() || null,
         });
       }
 
@@ -127,6 +140,30 @@ export function TeacherExamEditor() {
           value={durationMinutes}
           onChange={(e) => setDurationMinutes(e.target.value)}
           placeholder="vd: 90"
+        />
+      </div>
+      <div className="form-row">
+        <label>Thư mục (không bắt buộc — để trống = "Chưa phân loại")</label>
+        <input
+          type="text"
+          list="exam-editor-folder-options"
+          value={folder}
+          onChange={(e) => setFolder(e.target.value)}
+          placeholder="VD: Đề giữa kỳ, Đề ôn chương 1..."
+        />
+        <datalist id="exam-editor-folder-options">
+          {existingFolders.map((f) => (
+            <option key={f} value={f} />
+          ))}
+        </datalist>
+      </div>
+      <div className="form-row">
+        <label>Link Google Drive chứa file đề gốc (không bắt buộc — để học sinh tải về)</label>
+        <input
+          type="url"
+          value={driveLink}
+          onChange={(e) => setDriveLink(e.target.value)}
+          placeholder="https://drive.google.com/..."
         />
       </div>
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { extractJsonBlock, mergeParsedExams, type ParsedExam } from "./ai";
+import { extractJsonBlock, matchTopicByName, mergeParsedExams, type ParsedExam } from "./ai";
+import type { Topic } from "./types";
 
 describe("extractJsonBlock", () => {
   it("đọc JSON thuần không có code fence", () => {
@@ -51,5 +52,34 @@ describe("mergeParsedExams", () => {
     expect(merged.part2).toHaveLength(1);
     expect(merged.part3).toHaveLength(0);
     expect(merged.warnings).toEqual(["đợt 1 có 1 câu mờ"]);
+  });
+});
+
+describe("matchTopicByName", () => {
+  const topics: Topic[] = [
+    { id: "t1", name: "Ứng dụng đạo hàm", chapter: "Chương 1", grade: 12, created_at: "" },
+    { id: "t2", name: "Nguyên hàm - Tích phân", chapter: "Chương 3", grade: 12, created_at: "" },
+  ];
+
+  it("khớp đúng tên chương, không phân biệt hoa/thường", () => {
+    expect(matchTopicByName("ỨNG DỤNG ĐẠO HÀM", topics)).toBe("t1");
+  });
+
+  it("khớp được khi có khoảng trắng thừa ở đầu/cuối", () => {
+    expect(matchTopicByName("  Nguyên hàm - Tích phân  ", topics)).toBe("t2");
+  });
+
+  it("trả về null khi tên không khớp chương nào", () => {
+    expect(matchTopicByName("Hình học không gian", topics)).toBeNull();
+  });
+
+  it("trả về null khi tên là null/undefined/rỗng", () => {
+    expect(matchTopicByName(null, topics)).toBeNull();
+    expect(matchTopicByName(undefined, topics)).toBeNull();
+    expect(matchTopicByName("   ", topics)).toBeNull();
+  });
+
+  it("trả về null khi danh sách topics rỗng", () => {
+    expect(matchTopicByName("Ứng dụng đạo hàm", [])).toBeNull();
   });
 });

@@ -233,6 +233,17 @@ a {
   font-size: 14px;
 }
 
+.folder-group {
+  margin-bottom: 8px;
+}
+.folder-group-title {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 8px 0;
+  color: var(--color-primary-dark);
+}
+
 .history-table {
   width: 100%;
   border-collapse: collapse;
