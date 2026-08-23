@@ -137,12 +137,75 @@ async function callGemini(prompt: string): Promise<string | null> {
   return callGeminiParts([{ text: prompt }], 500);
 }
 
+/**
+ * AI thỉnh thoảng quên escape dấu `\` khi viết công thức LaTeX bên trong 1
+ * chuỗi JSON (vd viết `\lim` thay vì `\\lim`) — với JSON, `\` chỉ hợp lệ khi
+ * theo sau bởi đúng 1 trong các ký tự `" \ / b f n r t u`, nên `\l`, `\i`...
+ * làm `JSON.parse` báo lỗi "Bad escaped character" và làm MẤT TRẮNG cả đợt
+ * câu hỏi đó (dù nội dung AI trả về thực ra đọc đúng, chỉ sai định dạng).
+ * Hàm này duyệt qua chuỗi, chỉ bên trong các cặp dấu `"..."` của JSON, và tự
+ * escape thêm 1 dấu `\` cho mọi backslash không hợp lệ — biến `\lim` thành
+ * `\\lim` để JSON.parse đọc được, và sau khi JSON giải mã lại đúng ra `\lim`
+ * (1 dấu `\`) như LaTeX gốc cần có. Tách hàm thuần riêng để test được.
+ *
+ * GIỚI HẠN CÒN LẠI (cố ý, không cố sửa): chỉ coi `\` là "lỗi cần sửa" khi ký
+ * tự theo sau KHÔNG nằm trong đúng bộ escape hợp lệ của JSON — nên các lệnh
+ * LaTeX bắt đầu bằng đúng 1 trong các chữ `b f n r t` (vd `\frac`, `\nabla`,
+ * `\tan`, `\to`, `\bar`, `\rho`) vẫn được JSON.parse hiểu (sai) thành ký tự
+ * điều khiển (form feed/newline/tab...) + phần chữ còn lại, mà hàm này không
+ * phát hiện được — về bản chất KHÔNG thể phân biệt chắc chắn với 1 dấu xuống
+ * dòng/tab thật sự đã được escape đúng cách (vd trong solution_latex nhiều
+ * bước), nên cố "sửa" theo hướng ngược lại sẽ làm hỏng đúng những chỗ đang
+ * chạy tốt. Cách giảm rủi ro này chủ yếu nằm ở prompt (dặn AI escape đúng
+ * ngay từ đầu), hàm này chỉ đảm bảo KHÔNG mất trắng cả đợt câu hỏi khi AI
+ * escape sai theo kiểu dễ phát hiện (phần lớn các trường hợp thực tế).
+ */
+export function sanitizeJsonEscapes(raw: string): string {
+  const validEscapes = new Set(['"', "\\", "/", "b", "f", "n", "r", "t", "u"]);
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (!inString) {
+      out += ch;
+      if (ch === '"') inString = true;
+      continue;
+    }
+    if (ch === "\\") {
+      const next = raw[i + 1];
+      if (next !== undefined && validEscapes.has(next)) {
+        out += ch + next;
+        i++;
+      } else {
+        out += "\\\\";
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = false;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 /** Bóc khối JSON ra khỏi câu trả lời của AI, kể cả khi AI bọc trong ```json ... ``` */
 export function extractJsonBlock(raw: string): unknown {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : raw;
   const jsonMatch = candidate.match(/[[{][\s\S]*[\]}]/);
-  return JSON.parse(jsonMatch ? jsonMatch[0] : candidate);
+  const jsonText = jsonMatch ? jsonMatch[0] : candidate;
+  try {
+    return JSON.parse(jsonText);
+  } catch (err) {
+    // Không parse được ngay — thử tự sửa lỗi escape backslash thường gặp ở
+    // công thức LaTeX trước khi bỏ cuộc (xem sanitizeJsonEscapes ở trên).
+    try {
+      return JSON.parse(sanitizeJsonEscapes(jsonText));
+    } catch {
+      throw err; // báo đúng lỗi gốc nếu sửa tự động cũng không cứu được
+    }
+  }
 }
 
 export interface TypeSuggestion {
@@ -195,8 +258,7 @@ Nếu không dạng nào phù hợp, trả về {"id": null, "reasoning": "..."}
   }
 
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw) as {
+    const parsed = extractJsonBlock(raw) as {
       id: string | null;
       reasoning: string;
     };
@@ -266,8 +328,7 @@ Nếu không chương nào phù hợp, trả về {"id": null, "reasoning": "...
   }
 
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw) as {
+    const parsed = extractJsonBlock(raw) as {
       id: string | null;
       reasoning: string;
     };
@@ -411,7 +472,7 @@ YÊU CẦU:
 6. Nếu đề có ghi lời giải chi tiết ngay dưới mỗi câu (thường thấy ở bản dành cho giáo viên), hãy chuyển lời giải đó sang "solution_latex" (cùng quy ước LaTeX như content_latex, giữ nguyên các bước giải, không tự tóm tắt hay bịa thêm). Nếu đề không có lời giải cho câu nào, để "solution_latex" là null cho câu đó — KHÔNG tự viết lời giải khi đề gốc không có.
 7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) bất kỳ điều gì không chắc chắn: câu thiếu công thức nghi do định dạng gốc không đọc được, câu không xác định được phần nào, hình ảnh không rõ nội dung, v.v.
 ${ruleText}
-Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
+QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: trong mọi chuỗi (content_latex, solution_latex...), dấu chéo ngược '\' của LaTeX (vd '\frac', '\lim', '\infty', '\left(') PHẢI viết thành HAI dấu chéo ngược liên tiếp '\\' (vd '\\frac', '\\lim', '\\infty') để là JSON hợp lệ — 1 dấu chéo ngược đơn lẻ đứng trước 1 chữ cái sẽ làm hỏng toàn bộ JSON và mất hết câu hỏi trong đợt này. Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
 {
   "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null${jsonExample}}],
   "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null${jsonExample}}],
@@ -496,7 +557,7 @@ YÊU CẦU:
 6. Với Phần 3, "points" là thang điểm nếu đề ghi rõ, mặc định 0.5 nếu không có.
 7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) mọi điều không chắc chắn khác: câu không xác định được thuộc phần nào, chữ mờ/khó đọc, nghi ngờ đọc sai công thức, trang bị thiếu/lệch thứ tự, v.v.
 ${ruleText}
-Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
+QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: trong mọi chuỗi (content_latex, solution_latex...), dấu chéo ngược '\' của LaTeX (vd '\frac', '\lim', '\infty', '\left(') PHẢI viết thành HAI dấu chéo ngược liên tiếp '\\' (vd '\\frac', '\\lim', '\\infty') để là JSON hợp lệ — 1 dấu chéo ngược đơn lẻ đứng trước 1 chữ cái sẽ làm hỏng toàn bộ JSON và mất hết câu hỏi trong đợt này. Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
 {
   "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null${jsonExample}}],
   "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null${jsonExample}}],

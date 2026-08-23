@@ -85,7 +85,7 @@ duy nhất).
 
 ```bash
 npm install
-npm test        # chạy 74 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý)
+npm test        # chạy 79 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 

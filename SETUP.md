@@ -27,6 +27,13 @@ hình. Khoảng 10 phút.
   không lưu file nào cả (chỉ lưu đường link) để không tốn thêm dung lượng.
 - **Thanh tìm kiếm**: thêm ô tìm kiếm ở "Ngân hàng câu hỏi", trang "Đề thi"
   (giáo viên) và "Đề thi có thể làm" (học sinh).
+- **Vá thêm (cùng ngày)**: sửa 1 lỗi khiến cả 1 đợt câu hỏi (thường 5-6 câu)
+  bị mất trắng khi AI lỡ quên "nhân đôi" dấu `\` trong công thức LaTeX (gặp
+  khi tạo đề từ PDF) — giờ hệ thống tự sửa lỗi định dạng này trước khi bỏ
+  cuộc, nên không còn mất câu hỏi vì lỗi vặt này nữa. Nếu bấm "Tạo đề thi
+  mới" mà vẫn thấy lỗi `503`/"quá tải" từ Google, đó là do Google tạm quá
+  tải (không phải lỗi ở web) — bấm thử lại sau ít phút là được, hệ thống đã
+  tự thử lại vài lần trước khi báo lỗi cho bạn.
 
 1. **Tải lại code**: lặp lại **Việc 1** bên dưới (kéo-thả toàn bộ file trong
    bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2.

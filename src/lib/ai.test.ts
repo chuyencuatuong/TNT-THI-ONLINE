@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { extractJsonBlock, matchTopicByName, mergeParsedExams, type ParsedExam } from "./ai";
+import {
+  extractJsonBlock,
+  matchTopicByName,
+  mergeParsedExams,
+  sanitizeJsonEscapes,
+  type ParsedExam,
+} from "./ai";
 import type { Topic } from "./types";
 
 describe("extractJsonBlock", () => {
@@ -24,6 +30,44 @@ describe("extractJsonBlock", () => {
   it("bỏ qua chữ thừa trước/sau khối JSON", () => {
     const raw = 'Trả lời: {"x": "y"} — xong.';
     expect(extractJsonBlock(raw)).toEqual({ x: "y" });
+  });
+
+  it("tự sửa được dấu \\ chưa escape trong công thức LaTeX (lỗi AI hay gặp)", () => {
+    // AI quên nhân đôi \ khi viết \lim, \sqrt, \left... — JSON.parse thường sẽ
+    // báo lỗi "Bad escaped character" và làm mất trắng cả câu hỏi nếu không
+    // sửa. Dùng lệnh LaTeX không trùng chữ cái đầu với escape JSON hợp lệ
+    // (b/f/n/r/t/u) để phép thử không rơi vào vùng mơ hồ không thể phân biệt
+    // với ký tự điều khiển thật — xem ghi chú giới hạn ở sanitizeJsonEscapes.
+    const raw = String.raw`{"content_latex": "Tính $\lim\limits_{x} \sqrt{2}+(\alpha)$"}`;
+    expect(extractJsonBlock(raw)).toEqual({
+      content_latex: String.raw`Tính $\lim\limits_{x} \sqrt{2}+(\alpha)$`,
+    });
+  });
+
+  it("vẫn đọc đúng khi các phần khác của JSON không có lỗi escape", () => {
+    const raw = String.raw`{"a": "\\frac{1}{2}", "b": "bình thường", "c": "\lim"}`;
+    expect(extractJsonBlock(raw)).toEqual({
+      a: String.raw`\frac{1}{2}`,
+      b: "bình thường",
+      c: String.raw`\lim`,
+    });
+  });
+});
+
+describe("sanitizeJsonEscapes", () => {
+  it("nhân đôi dấu \\ đứng trước ký tự không hợp lệ trong JSON", () => {
+    expect(sanitizeJsonEscapes(String.raw`{"a": "\lim"}`)).toBe(String.raw`{"a": "\\lim"}`);
+  });
+
+  it("giữ nguyên các escape hợp lệ (\\\", \\\\, \\n...)", () => {
+    const raw = String.raw`{"a": "dòng 1\ndòng \"2\", \\ hết"}`;
+    expect(sanitizeJsonEscapes(raw)).toBe(raw);
+  });
+
+  it("không đụng vào backslash bên ngoài chuỗi JSON", () => {
+    // Không có trường hợp thực tế nào backslash nằm ngoài chuỗi trong JSON hợp
+    // lệ, nhưng hàm không được làm hỏng phần cấu trúc JSON (dấu {, }, ", ...).
+    expect(sanitizeJsonEscapes('{"a": 1, "b": [1, 2]}')).toBe('{"a": 1, "b": [1, 2]}');
   });
 });
 
