@@ -1,16 +1,28 @@
 /**
- * Trích xuất đề thi từ file PDF bằng cách render từng trang thành ẢNH ngay
- * trên trình duyệt (pdf.js), rồi gửi ảnh cho AI đọc trực tiếp (multimodal).
+ * Trích xuất đề thi từ file PDF ngay trên trình duyệt (pdf.js), theo 2 nguồn
+ * SONG SONG cho mỗi trang:
+ *   1. VĂN BẢN THẬT của trang (pdf.js đọc trực tiếp lớp text nhúng sẵn trong
+ *      PDF — chính xác tuyệt đối, không tốn AI). Khi Word/LibreOffice xuất
+ *      file .docx ra PDF, phần chữ thường (đề bài, đáp án, lời giải) vẫn giữ
+ *      nguyên là text thật; CHỈ RIÊNG công thức Toán gõ bằng MathType/Equation
+ *      Editor (lưu dưới dạng đối tượng OLE nhị phân, không phải OMML) mới bị
+ *      "in" lại thành hình ảnh khi xuất PDF — nên phần text lấy được ở đây đã
+ *      chính xác 100%, không cần AI đọc lại.
+ *   2. ẢNH của cả trang (render bằng canvas) — gửi kèm cho AI CHỈ để: (a) đọc
+ *      các công thức Toán hiện ra dưới dạng hình khi xuất PDF và chuyển sang
+ *      LaTeX, (b) nhận diện hình vẽ minh hoạ (đồ thị, bảng biến thiên...), và
+ *      (c) xác định đáp án đúng dựa trên tín hiệu thị giác (tô màu, gạch
+ *      chân, in đậm...) — những việc BẮT BUỘC phải nhìn ảnh mới làm được.
  *
- * TẠI SAO PDF thay vì đọc thẳng file .docx: công thức gõ bằng MathType/
- * Equation Editor 3.0 trong .docx được lưu dưới dạng đối tượng OLE nhị phân —
- * không phải OMML — nên KHÔNG thư viện JS nào chạy trong trình duyệt đọc được
- * (mammoth.js bỏ qua âm thầm, xem wordImport.ts). Khi xuất file .docx đó ra
- * PDF, công thức được vẽ lại đúng y hình ảnh cuối cùng bất kể định dạng lưu
- * trữ gốc — nên PDF + AI đọc ảnh né được hoàn toàn giới hạn kỹ thuật này.
+ * Vì AI đã có sẵn văn bản chính xác làm "khung", nó không cần tự đọc lại toàn
+ * bộ chữ tiếng Việt từ ảnh nữa — chỉ cần đối chiếu + bổ sung phần hình. Nhờ
+ * vậy có thể giảm độ phân giải/chất lượng ảnh gửi đi (ảnh giờ chỉ để tham
+ * khảo hình, không phải nguồn đọc chữ chính) mà vẫn chính xác hơn, đồng thời
+ * nhẹ và nhanh hơn hẳn so với gửi ảnh trang độ phân giải cao để AI tự đọc hết.
  *
  * Đây là bước xử lý CHỈ diễn ra trên máy người dùng (không upload PDF lên đâu
- * khác ngoài gửi ảnh trang cho Gemini để phân tích) — không cần server riêng.
+ * khác ngoài gửi ảnh + văn bản trang cho Gemini để phân tích) — không cần
+ * server riêng.
  */
 
 // pdfjs-dist v6 chỉ có bản ESM (.mjs). Vite hỗ trợ import kèm hậu tố "?url"
@@ -18,6 +30,8 @@
 import * as pdfjsLib from "pdfjs-dist";
 // eslint-disable-next-line import/no-unresolved
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import type { TextItem } from "pdfjs-dist/types/src/display/api";
+import { joinTextItems } from "./pdfTextLayout";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
@@ -25,10 +39,16 @@ export interface PdfPageImage {
   pageNumber: number;
   mimeType: string;
   dataBase64: string;
+  /** Văn bản thật trích từ lớp text của trang PDF — xem giải thích ở đầu file. */
+  pageText: string;
 }
 
 export interface RenderPdfOptions {
-  /** Hệ số phóng to khi render trang — cao hơn giúp AI đọc rõ chữ nhỏ/công thức, nhưng ảnh nặng hơn. */
+  /**
+   * Hệ số phóng to khi render trang. Ảnh giờ chỉ dùng để AI xem hình/công
+   * thức/tín hiệu đáp án (không phải nguồn đọc chữ chính — đã có văn bản
+   * thật riêng), nên không cần độ phân giải cao như trước.
+   */
   scale?: number;
   mimeType?: "image/png" | "image/jpeg";
   /** Chỉ áp dụng với image/jpeg. */
@@ -37,25 +57,23 @@ export interface RenderPdfOptions {
   maxPages?: number;
   /**
    * Giới hạn chiều rộng ảnh xuất ra (px) — bất kể `scale` là bao nhiêu, ảnh
-   * không vượt quá ngưỡng này. Đề dài (10+ trang) mà ảnh quá nặng làm request
-   * gửi lên AI rất to, dễ khiến trình duyệt "đứng hình" rất lâu ở bước phân
-   * tích mà không rõ đang chờ gì hay đã treo hẳn. Chữ/công thức vẫn đọc rõ ở
-   * mức 1400-1600px chiều rộng cho khổ A4.
+   * không vượt quá ngưỡng này, để tránh request gửi lên AI quá to khiến trình
+   * duyệt chờ rất lâu ở bước phân tích.
    */
   maxWidthPx?: number;
 }
 
-/** Render toàn bộ trang của 1 file PDF thành danh sách ảnh, theo đúng thứ tự trang. */
+/** Render toàn bộ trang của 1 file PDF thành danh sách ảnh + văn bản thật, theo đúng thứ tự trang. */
 export async function renderPdfToImages(
   file: File,
   opts: RenderPdfOptions = {},
 ): Promise<PdfPageImage[]> {
   const {
-    scale = 1.6,
+    scale = 1.2,
     mimeType = "image/jpeg",
-    quality = 0.82,
+    quality = 0.7,
     maxPages = 60,
-    maxWidthPx = 1500,
+    maxWidthPx = 1100,
   } = opts;
 
   const arrayBuffer = await file.arrayBuffer();
@@ -79,7 +97,11 @@ export async function renderPdfToImages(
     await page.render({ canvas, canvasContext: context, viewport }).promise;
     const dataUrl = canvas.toDataURL(mimeType, quality);
     const dataBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    images.push({ pageNumber, mimeType, dataBase64 });
+
+    const textContent = await page.getTextContent();
+    const pageText = joinTextItems(textContent.items as TextItem[]);
+
+    images.push({ pageNumber, mimeType, dataBase64, pageText });
   }
 
   return images;

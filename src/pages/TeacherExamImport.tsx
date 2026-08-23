@@ -93,18 +93,21 @@ export function TeacherExamImport() {
   }
 
   /**
-   * Cách tạo đề CHÍNH (khuyến nghị): tải file PDF lên → render từng trang
-   * thành ảnh ngay trên trình duyệt (pdf.js) → gửi ảnh cho AI đọc trực tiếp.
+   * Cách tạo đề CHÍNH (khuyến nghị): tải file PDF lên → với mỗi trang, lấy
+   * ĐỒNG THỜI văn bản thật (pdf.js đọc lớp text nhúng sẵn, chính xác tuyệt
+   * đối, không tốn AI) và ảnh render cả trang (chỉ để AI đọc công thức đã
+   * thành hình + nhận diện hình vẽ + xác định đáp án qua tín hiệu thị giác).
    * Cách này né được hoàn toàn giới hạn "không đọc được công thức MathType"
    * của việc đọc thẳng file .docx, vì PDF chỉ lưu lại hình ảnh cuối cùng của
-   * công thức — không phụ thuộc định dạng lưu trữ gốc.
+   * công thức — không phụ thuộc định dạng lưu trữ gốc — đồng thời nhẹ và
+   * chính xác hơn so với để AI tự đọc lại toàn bộ chữ từ ảnh độ phân giải cao.
    */
   async function handlePdfSelected(file: File) {
     setError(null);
     setFileName(file.name);
     setStage("analyzing");
     try {
-      setAnalyzingProgress("Đang chuyển từng trang PDF thành ảnh...");
+      setAnalyzingProgress("Đang đọc văn bản và render từng trang PDF...");
       const pageImages = await renderPdfToImages(file);
       if (pageImages.length === 0) {
         setError("Không đọc được trang nào từ file PDF này. Hãy kiểm tra lại file rồi thử lại.");

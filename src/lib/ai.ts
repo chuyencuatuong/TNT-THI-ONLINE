@@ -346,17 +346,28 @@ export async function parseExamFromDocument(
 }
 
 // ---------------------------------------------------------------------------
-// Tạo đề từ file PDF (KHUYẾN NGHỊ — quy trình chính từ 22/08/2026): mỗi trang
-// PDF được render thành 1 ảnh ngay trên trình duyệt (xem pdfImport.ts), rồi
-// gửi thẳng cho Gemini đọc bằng khả năng đa phương thức (multimodal) — né
-// hoàn toàn giới hạn không đọc được công thức MathType/OLE của mammoth.js.
+// Tạo đề từ file PDF (KHUYẾN NGHỊ — quy trình chính, cập nhật 23/08/2026):
+// mỗi trang PDF cung cấp 2 nguồn dữ liệu song song cho AI (xem pdfImport.ts):
+//   1. Văn bản THẬT trích trực tiếp từ lớp text của PDF (pdf.js) — chính xác
+//      tuyệt đối, không tốn AI. Khi xuất .docx ra PDF, chữ thường vẫn là text
+//      thật, CHỈ RIÊNG công thức MathType/Equation Editor (OLE nhị phân) mới
+//      bị "in" thành hình ảnh.
+//   2. Ảnh render cả trang — AI chỉ cần dùng để đọc công thức đã thành hình,
+//      nhận diện hình vẽ minh hoạ, và xác định đáp án qua tín hiệu thị giác.
+// Nhờ có sẵn văn bản chính xác làm khung, AI không cần tự OCR lại toàn bộ chữ
+// tiếng Việt từ ảnh (nguồn lỗi chính trước đây — sai dấu, sai chữ, hoặc lẫn
+// chữ thường vào trong cặp $...$) — chỉ cần đối chiếu + bổ sung phần hình,
+// giúp ảnh gửi đi nhẹ hơn, phân tích nhanh hơn, và chính xác hơn hẳn so với
+// việc gửi ảnh độ phân giải cao để AI tự đọc hết từ đầu.
 // Quy ước nhận diện đáp án học theo cách Azota làm: chấp nhận NHIỀU tín hiệu
 // cùng lúc (tô màu, gạch chân, in đậm, dấu *, ghi chú "Đáp án:"...) thay vì
 // đòi 1 quy ước cứng — và luôn có bước giáo viên xác nhận lại trước khi xuất
 // bản, vì AI đọc ảnh vẫn có thể đọc sai màu/nét mờ.
 // ---------------------------------------------------------------------------
 
-const EXAM_PARSE_FROM_IMAGES_PROMPT = `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là ảnh chụp lần lượt từng trang của 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang (mỗi ảnh có ghi chú "Trang N" ngay trước).
+const EXAM_PARSE_FROM_IMAGES_PROMPT = `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu của từng trang 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang. Mỗi trang gồm 2 phần:
+- "Văn bản trang N (đã trích chính xác 100%, dùng làm CƠ SỞ)": văn bản thật lấy trực tiếp từ file PDF — TIN TƯỞNG HOÀN TOÀN phần chữ tiếng Việt/số/ký hiệu này, KHÔNG cần tự đọc lại từ ảnh, không tự sửa chữ trừ khi rõ ràng bị thiếu do nằm trong công thức/hình. Phần này có thể thiếu chỗ có công thức Toán hoặc hình vẽ (vì công thức MathType/hình vẽ khi xuất PDF chỉ còn là HÌNH ẢNH, không phải chữ).
+- Ảnh chụp cả trang ngay sau đó: CHỈ dùng ảnh này để (a) đọc các công thức Toán đã thành hình rồi chuyển sang LaTeX chèn đúng chỗ còn thiếu trong văn bản, (b) nhận diện hình vẽ minh hoạ, (c) xác định đáp án đúng qua tín hiệu thị giác (màu, gạch chân, đậm...) mà văn bản thuần không thể hiện được.
 
 Đề thi có 3 phần theo cấu trúc chuẩn:
 - Phần 1: trắc nghiệm 4 phương án (A, B, C, D), chỉ 1 phương án đúng.
@@ -364,9 +375,9 @@ const EXAM_PARSE_FROM_IMAGES_PROMPT = `Bạn là trợ lý số hoá đề thi T
 - Phần 3: trả lời ngắn (điền số hoặc chuỗi ngắn), không có phương án cho sẵn.
 
 YÊU CẦU:
-1. Đọc trực tiếp từ ảnh, kể cả công thức Toán gõ bằng MathType/Equation Editor — khi xuất ra PDF các công thức này hiển thị đúng như bản gốc dù công cụ đọc văn bản thường không đọc được. Chuyển TOÀN BỘ công thức sang LaTeX, đặt trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay cú pháp khác. QUAN TRỌNG: cặp dấu $...$ CHỈ bọc phần biểu thức Toán thuần tuý (số, biến, ký hiệu toán học) — chữ tiếng Việt (kể cả có dấu) và văn bản thường (đề bài, mô tả) phải nằm NGOÀI dấu $, không được bọc chung. Nếu bắt buộc phải có chữ tiếng Việt ngay bên trong 1 công thức (ví dụ đơn vị "cm", "giây", hoặc chú thích ngắn), phải bọc riêng phần chữ đó bằng \\text{...} bên trong dấu $. Ví dụ ĐÚNG: "Chiều dài là $x$ cm."; ví dụ SAI: "$Chiều dài là x$ cm.".
+1. Dựng lại nội dung từng câu bằng cách LẤY NGUYÊN văn bản đã cho làm khung, CHÈN THÊM công thức Toán (đọc từ ảnh ở những chỗ văn bản bị thiếu) dưới dạng LaTeX trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay cú pháp khác. QUAN TRỌNG: cặp dấu $...$ CHỈ bọc phần biểu thức Toán thuần tuý (số, biến, ký hiệu toán học) — chữ tiếng Việt (kể cả có dấu) và văn bản thường (đề bài, mô tả) phải nằm NGOÀI dấu $, không được bọc chung. Nếu bắt buộc phải có chữ tiếng Việt ngay bên trong 1 công thức (ví dụ đơn vị "cm", "giây", hoặc chú thích ngắn), phải bọc riêng phần chữ đó bằng \\text{...} bên trong dấu $. Ví dụ ĐÚNG: "Chiều dài là $x$ cm."; ví dụ SAI: "$Chiều dài là x$ cm.".
 2. Bỏ qua các phần lặp lại ở đầu/cuối mỗi trang không phải nội dung đề (tên trường, logo, số trang, watermark) và các dòng ghi nguồn/tác giả kiểu "FB tác giả: ...", "Nguồn: ...", "Sưu tầm: ..." — đây là nhiễu, không đưa vào content_latex hay coi là tín hiệu đáp án.
-3. Xác định đáp án đúng dựa trên BẤT KỲ tín hiệu nào sau đây xuất hiện trong ảnh (không chỉ 1 quy ước cố định, vì mỗi đề có thể trình bày khác nhau):
+3. Xác định đáp án đúng dựa trên BẤT KỲ tín hiệu nào sau đây xuất hiện trong ẢNH (văn bản thuần không mang thông tin màu/gạch chân nên phải xem ảnh):
    - Phần 1: phương án được TÔ MÀU NỀN (thường là xanh lá) và/hoặc GẠCH CHÂN, hoặc in đậm, hoặc có dấu "*" cạnh phương án, hoặc có ghi chú "Đáp án: X" ngay sau câu.
    - Phần 2: đáp án Đúng/Sai của từng ý có thể ghi dưới dạng bảng gọn (vd: a-Đ, b-S...) HOẶC dưới dạng văn xuôi trong phần lời giải (vd: "a) Đúng: vì...", "b) Sai: vì...") — đọc kỹ phần lời giải nếu không thấy bảng.
    - Phần 3: đáp số cuối câu có thể ghi bằng nhiều nhãn khác nhau: "Đáp số:", "Đs:", "Đáp án:", hoặc dạng "<key=...>" — coi tất cả các nhãn này là chỉ báo đáp án đúng.
@@ -387,6 +398,8 @@ Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào kh
 export interface PageImageInput {
   mimeType: string;
   dataBase64: string;
+  /** Văn bản thật trích từ lớp text của trang PDF (xem pdfImport.ts) — gửi kèm ảnh để AI dùng làm cơ sở, không cần tự OCR lại phần chữ. */
+  pageText?: string;
 }
 
 /** Tiền tố đánh dấu 1 dòng warning là lỗi thật của cả đợt (không phải ghi chú nội dung bình thường của AI) — dùng để đếm/lọc bằng máy mà vẫn đọc được bằng mắt. */
@@ -420,7 +433,12 @@ export async function parseExamFromImages(
   const parts: GeminiPart[] = [{ text: EXAM_PARSE_FROM_IMAGES_PROMPT }];
   pageImages.forEach((img, i) => {
     const label = pageNumbers?.[i] ?? i + 1;
-    parts.push({ text: `\nTrang ${label}:` });
+    const textBlock = img.pageText?.trim()
+      ? img.pageText.trim()
+      : "(trang này không trích được văn bản — đọc hoàn toàn từ ảnh)";
+    parts.push({
+      text: `\nVăn bản trang ${label} (đã trích chính xác 100%, dùng làm CƠ SỞ):\n"""\n${textBlock}\n"""\nẢnh chụp trang ${label}:`,
+    });
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
   });
 

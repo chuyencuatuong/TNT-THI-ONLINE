@@ -140,17 +140,19 @@ không cần bấm thêm gì ở phần Settings > Pages.
 
 - **Giáo viên — cách nhanh nhất để tạo đề**: mở link website, đăng nhập,
   lần đầu chọn vai trò "Giáo viên". Vào **"+ Tạo đề thi mới"**. Cách chính
-  từ bản cập nhật 22/08/2026: xuất file Word ra **PDF** (Word → File → Save
+  từ bản cập nhật 23/08/2026: xuất file Word ra **PDF** (Word → File → Save
   As → PDF, giữ nguyên công thức MathType, không cần chỉnh sửa gì), rồi tải
-  file PDF đó lên ở màn hình "Tạo đề thi mới". Trình duyệt tự chuyển từng
-  trang PDF thành ảnh và gửi cho AI đọc trực tiếp như đọc ảnh — nên không
-  còn bị giới hạn "bỏ sót công thức MathType" như khi đọc thẳng file .docx
-  (công thức MathType lưu ở dạng đối tượng nhị phân bên trong .docx, các công
-  cụ đọc file tự động không đọc được, nhưng khi xuất ra PDF thì hiển thị
-  đúng như bản gốc). AI cũng tự nhận diện đáp án đúng (tô màu/gạch chân/in
-  đậm/dấu "*"/ghi chú "Đáp án:"...) và lấy luôn lời giải chi tiết nếu đề có
-  ghi sẵn dưới mỗi câu — nhưng màn hình xem trước sau đó vẫn cho sửa tay
-  bằng LaTeX và **bạn cần xác nhận đáp án đúng cho từng câu** trước khi bấm
+  file PDF đó lên ở màn hình "Tạo đề thi mới". Trình duyệt tự đọc SONG SONG
+  2 nguồn cho mỗi trang: văn bản thật nhúng sẵn trong PDF (chính xác tuyệt
+  đối, không tốn AI) và ảnh cả trang (chỉ để AI đọc công thức MathType đã
+  thành hình khi xuất PDF, nhận diện hình vẽ, và xác định đáp án qua tín
+  hiệu thị giác) — nhờ vậy AI không cần tự gõ lại toàn bộ chữ tiếng Việt từ
+  ảnh nữa, nên nhanh hơn, nhẹ hơn (tốn ít token AI hơn hẳn) và chính xác hơn
+  so với cách đọc ảnh toàn trang trước đây. AI cũng tự nhận diện đáp án đúng
+  (tô màu/gạch chân/in đậm/dấu "*"/ghi chú "Đáp án:"...) và lấy luôn lời
+  giải chi tiết nếu đề có ghi sẵn dưới mỗi câu — nhưng màn hình xem trước
+  sau đó vẫn cho sửa tay bằng LaTeX và **bạn cần xác nhận đáp án đúng cho
+  từng câu** trước khi bấm
   "Xuất bản đề thi" (hệ thống không tự công bố đề khi chưa có đáp án được
   xác nhận, để tránh chấm sai — AI đọc ảnh vẫn có thể đọc sai màu/nét mờ,
   nhất là công thức khó hoặc ảnh chụp không rõ). Câu nào có kèm bảng biến
