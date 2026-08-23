@@ -6,11 +6,20 @@
   --color-bg: #faf7f2;
   --color-card: #ffffff;
   --color-border: #e8ddc9;
-  --color-text: #2a1c14;
-  --color-text-muted: #7d6f5f;
+  --color-text: #1f2a33;
+  --color-text-muted: #63707c;
   --color-danger: #d6473a;
   --color-success: #2e7d32;
   --color-subtle-bg: #f3ece0;
+  /* DNA màu bổ sung (đề xuất thiết kế đợt 4) — dùng có chủ đích, không trang
+     trí: rêu thông cho trạng thái tốt/dữ liệu phụ, đất nung cho "cần chú ý"
+     (cố tình tách biệt với đỏ thương hiệu để không gây nhầm "đỏ = lỗi"). */
+  --color-pine: #3e6259;
+  --color-pine-light: #e4ece9;
+  --color-pine-text: #2e4941;
+  --color-clay: #b5502f;
+  --color-clay-light: #f4e2da;
+  --color-clay-text: #8a3a22;
   --radius: 10px;
   --shadow: 0 2px 8px rgba(85, 6, 15, 0.08);
 }
@@ -21,7 +30,7 @@
 
 body {
   margin: 0;
-  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: "Be Vietnam Pro", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.55;
@@ -38,21 +47,42 @@ a {
 }
 
 .app-shell {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 .app-header {
-  background: var(--color-primary-dark);
-  background-image: linear-gradient(135deg, #6b0a15, #430309);
-  border-bottom: 3px solid var(--color-accent);
-  padding: 10px 24px;
+  position: relative;
+  z-index: 1;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 24px;
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+/* Lớp phủ rất mỏng hiện lên phía sau toàn trang khi chuyển trang rồi tự mờ
+   dần — tạo chiều sâu nhẹ nhàng thay vì đổi hẳn màu nền (đề xuất thiết kế đợt
+   4, mục "lớp nền & chuyển động"). Toggle bằng class .page-tint--active gắn/gỡ
+   ở Layout.tsx khi route đổi. position:fixed để không phụ thuộc chiều cao của
+   phần tử cha nào. */
+.page-tint {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  background: radial-gradient(circle at 10% 0%, rgba(156, 20, 32, 0.05), rgba(156, 20, 32, 0) 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+.page-tint--active {
+  opacity: 1;
 }
 
 .app-logo {
@@ -61,14 +91,14 @@ a {
   gap: 10px;
   font-family: "Be Vietnam Pro", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   font-weight: 700;
-  font-size: 17px;
-  letter-spacing: 0.02em;
+  font-size: 16px;
+  letter-spacing: 0.01em;
   text-decoration: none;
-  color: #f6ecd8;
+  color: var(--color-text);
 }
 
 .app-logo img {
-  height: 40px;
+  height: 32px;
   width: auto;
   display: block;
 }
@@ -76,43 +106,82 @@ a {
 .app-nav {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 26px;
+  flex-wrap: wrap;
+}
+
+.app-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 26px;
   flex-wrap: wrap;
 }
 
 .app-nav a {
   text-decoration: none;
-  color: #f1e4c8;
+  color: var(--color-text-muted);
   font-weight: 500;
+  font-size: 14px;
+  position: relative;
+  padding-bottom: 4px;
+  transition: color 0.2s ease;
+}
+.app-nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -19px;
+  height: 2px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.app-nav a:hover {
+  color: var(--color-primary);
+}
+.app-nav a.app-nav-link--active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.app-nav a.app-nav-link--active::after {
+  transform: scaleX(1);
 }
 
-.app-nav a:hover {
-  color: var(--color-accent);
+.app-user-block {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .app-user {
-  color: #d9c6a8;
-  font-size: 14px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .app-nav .btn-link {
-  color: #f1e4c8;
+  color: var(--color-text-muted);
 }
 .app-nav .btn-link:hover {
-  color: var(--color-accent);
+  color: var(--color-primary);
 }
 
 .app-main {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  max-width: 920px;
+  max-width: 1240px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: 28px 24px 64px;
 }
 
 .btn-primary, .btn-secondary, .btn-link {
   font-family: inherit;
   font-size: 15px;
+  font-weight: 600;
   border-radius: var(--radius);
   cursor: pointer;
   border: none;
@@ -120,6 +189,7 @@ a {
   display: inline-block;
   text-decoration: none;
   text-align: center;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-primary {
@@ -128,10 +198,14 @@ a {
 }
 .btn-primary:hover {
   background: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(85, 6, 15, 0.22);
 }
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
@@ -139,14 +213,31 @@ a {
   color: var(--color-primary);
   border: 1px solid var(--color-primary);
 }
+.btn-secondary:hover {
+  background: var(--color-subtle-bg);
+  transform: translateY(-1px);
+}
 
 .btn-link {
   background: none;
   color: var(--color-primary);
   padding: 6px 8px;
+  font-weight: 500;
 }
 .btn-danger {
   color: var(--color-danger);
+}
+
+/* Thẻ nhấc nhẹ lên khi rê chuột — dùng cho các thẻ trên dashboard GV/HS (đề
+   xuất thiết kế đợt 4). Không đổi trên thiết bị cảm ứng (không có hover). */
+.hover-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+@media (hover: hover) {
+  .hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 26px rgba(31, 42, 51, 0.1);
+  }
 }
 
 .page-loading, .empty-hint {
@@ -991,8 +1082,8 @@ a {
 }
 .dashboard-col {
   background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   padding: 16px;
 }
 .dashboard-col h3 {
@@ -1044,4 +1135,540 @@ a {
   .dashboard-col--students {
     max-height: none;
   }
+}
+
+/* ============================================================================
+ * Dashboard học sinh — đề xuất thiết kế đợt 4 (dải thống kê kiểu editorial,
+ * bố cục 2 cột, cụm "Công cụ học mỗi ngày": Pomodoro vườn cây, đếm ngược kỳ
+ * thi, kế hoạch ôn tập sắp có).
+ * ==========================================================================*/
+.student-stat-strip {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-wrap: wrap;
+  margin: 14px 0 20px;
+  overflow: hidden;
+}
+.student-stat-cell {
+  flex: 1;
+  min-width: 140px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 1px solid var(--color-border);
+}
+.student-stat-cell:first-child {
+  border-left: none;
+}
+.student-stat-cell-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.student-stat-cell-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.student-stat-cell-value--muted {
+  color: var(--color-text-muted);
+  font-size: 20px;
+}
+.student-stat-cell-delta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.student-stat-cell-delta {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.student-stat-cell-delta--up {
+  background: var(--color-pine-light);
+  color: var(--color-pine-text);
+}
+.student-stat-cell-delta--down {
+  background: var(--color-clay-light);
+  color: var(--color-clay-text);
+}
+
+.student-2col {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 24px;
+  align-items: start;
+  margin: 20px 0;
+}
+.student-2col-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (max-width: 860px) {
+  .student-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.priority-chapter-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.priority-chapter-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.daily-tools-heading {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 28px 0 14px;
+}
+.daily-tools-row {
+  display: grid;
+  grid-template-columns: 1.5fr 0.85fr 0.85fr;
+  gap: 20px;
+  align-items: stretch;
+}
+@media (max-width: 980px) {
+  .daily-tools-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pomodoro / vườn cây */
+.pomodoro-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pomodoro-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pomodoro-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.pomodoro-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.pomodoro-level-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-pine-light);
+  color: var(--color-pine-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pomodoro-body {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.pomodoro-clock-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.pomodoro-clock {
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.pomodoro-controls {
+  display: flex;
+  gap: 10px;
+}
+.pomodoro-btn-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.pomodoro-btn-circle--primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+}
+.pomodoro-btn-circle--primary:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+}
+.pomodoro-btn-circle--ghost {
+  background: #fff;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.pomodoro-btn-circle--ghost:hover {
+  background: var(--color-subtle-bg);
+}
+.pomodoro-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-border);
+}
+.pomodoro-garden {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pomodoro-garden-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pomodoro-garden-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pomodoro-pot {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pomodoro-pot--grown {
+  background: var(--color-pine-light);
+}
+.pomodoro-pot--empty {
+  border: 1.5px dashed var(--color-border);
+}
+.pomodoro-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--color-subtle-bg);
+  padding-top: 16px;
+}
+.pomodoro-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pomodoro-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-subtle-bg);
+  overflow: hidden;
+}
+.pomodoro-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-pine);
+  transition: width 0.3s ease;
+}
+
+/* Đếm ngược kỳ thi */
+.countdown-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.countdown-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.countdown-number-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.countdown-number {
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+.countdown-unit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.countdown-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.countdown-note {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+/* Ô "sắp có" (kế hoạch ôn tập...) */
+.coming-soon-tile {
+  border: 1.5px dashed #dccbae;
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+.coming-soon-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--color-subtle-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.coming-soon-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.coming-soon-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7a5a19;
+  background: var(--color-accent-light);
+  padding: 2px 8px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+/* ============================================================================
+ * Góc âm nhạc — nút gọn trên thanh trên cùng (bên phải), bấm mở bảng nhỏ
+ * chọn/dán tối đa 3 playlist YouTube. Xem src/components/MusicWidget.tsx.
+ * ==========================================================================*/
+.music-widget {
+  position: relative;
+}
+.music-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  background: #fff;
+  font: inherit;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.music-pill:hover {
+  background: var(--color-subtle-bg);
+}
+.music-pill--playing {
+  border-color: var(--color-primary);
+}
+.music-pill-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-subtle-bg);
+  color: var(--color-text-muted);
+}
+.music-pill-icon--playing {
+  background: var(--color-primary);
+  color: #fff;
+}
+.music-pill-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  max-width: 110px;
+  text-align: left;
+}
+.music-pill-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.music-pill-status {
+  font-size: 9px;
+  color: var(--color-text-muted);
+}
+.music-pill-status--playing {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.music-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.music-chevron--open {
+  transform: rotate(180deg);
+}
+
+.music-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 300px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(31, 42, 51, 0.16);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 40;
+}
+.music-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.music-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: background 0.2s ease;
+}
+.music-row:hover {
+  background: var(--color-subtle-bg);
+}
+.music-row--active {
+  background: var(--color-subtle-bg);
+}
+.music-row--empty {
+  border: 1.5px dashed #dccbae;
+  cursor: default;
+}
+.music-row-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-subtle-bg);
+}
+.music-row-icon--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.music-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.music-row-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.music-row-sub {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+.music-row-sub--active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.music-row-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: 6px;
+}
+.music-row-remove:hover {
+  color: var(--color-danger);
+  background: var(--color-clay-light);
+}
+.music-player-frame {
+  border: none;
+  width: 100%;
+  height: 165px;
+  border-radius: 10px;
+}
+.music-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.music-add-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.music-hint {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.music-error {
+  font-size: 11px;
+  color: var(--color-danger);
 }

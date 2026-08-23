@@ -101,7 +101,7 @@ export function TeacherDashboard() {
       <h2>Tổng quan lớp</h2>
 
       <div className="teacher-dashboard-3col">
-        <section className="dashboard-col dashboard-col--students">
+        <section className="dashboard-col dashboard-col--students hover-card">
           <h3>Học sinh</h3>
           {summaries.length === 0 ? (
             <p className="empty-hint">
@@ -139,7 +139,7 @@ export function TeacherDashboard() {
           )}
         </section>
 
-        <section className="dashboard-col">
+        <section className="dashboard-col hover-card">
           <h3>
             Năng lực theo chương
             {selectedSummary ? ` — ${selectedSummary.profile.full_name}` : " — cả lớp"}
@@ -162,7 +162,7 @@ export function TeacherDashboard() {
           )}
         </section>
 
-        <section className="dashboard-col">
+        <section className="dashboard-col hover-card">
           <h3>{selectedSummary ? "So với trung bình cả lớp" : "Trung bình cả lớp theo chương"}</h3>
           {comparisonData.length === 0 ? (
             <p className="empty-hint">Chưa có dữ liệu chương nào để so sánh.</p>

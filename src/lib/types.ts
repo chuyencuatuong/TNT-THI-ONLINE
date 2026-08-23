@@ -196,6 +196,27 @@ export interface ReportRow {
   generated_at: string;
 }
 
+/** 1 phiên Pomodoro đã hoàn thành (không tính phiên bị huỷ giữa chừng) — xem
+ * src/lib/pomodoro.ts để biết cách tính cấp độ/số cây hôm nay/tháng này từ
+ * danh sách các dòng này. */
+export interface PomodoroSessionRow {
+  id: string;
+  student_id: string;
+  focus_minutes: number;
+  completed_at: string;
+}
+
+/** 1 trong tối đa 3 playlist YouTube yêu thích của học sinh (Góc âm nhạc) —
+ * `position` cố định 0/1/2 để hiển thị đúng thứ tự đã sắp. */
+export interface StudentPlaylistRow {
+  id: string;
+  student_id: string;
+  position: 0 | 1 | 2;
+  label: string;
+  url: string;
+  created_at: string;
+}
+
 /** Cấu trúc đề mặc định theo định dạng minh hoạ hiện hành (có thể chỉnh trong lúc tạo đề). */
 export const DEFAULT_EXAM_STRUCTURE = {
   part1: { count: 12, pointsPerQuestion: 0.25 }, // 3.0 điểm

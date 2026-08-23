@@ -11,7 +11,10 @@ import {
 } from "recharts";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
+import { accuracyPercent, type ChapterStat } from "../lib/chapterStats";
 import { completionMinutes, formatMinutes, formatScoreDelta } from "../lib/format";
+import { PomodoroGarden } from "../components/PomodoroGarden";
+import { ExamCountdown } from "../components/ExamCountdown";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 
 export function StudentDashboard() {
@@ -21,6 +24,7 @@ export function StudentDashboard() {
     (ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null })[]
   >([]);
   const [wrongCount, setWrongCount] = useState(0);
+  const [chapterStats, setChapterStats] = useState<ChapterStat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,10 +33,12 @@ export function StudentDashboard() {
       api.listExams(),
       api.listStudentAttempts(profile.id),
       api.getWrongAnswerJournalCount(profile.id),
-    ]).then(([e, a, wc]) => {
+      api.getStudentChapterStats(profile.id),
+    ]).then(([e, a, wc, cs]) => {
       setExams(e);
       setAttempts(a);
       setWrongCount(wc);
+      setChapterStats(cs);
       setLoading(false);
     });
   }, [profile]);
@@ -69,157 +75,209 @@ export function StudentDashboard() {
     score: a.score!.total_score,
   }));
 
+  // Chương ưu tiên ôn tập — chương có độ chính xác THẤP NHẤT trong số các
+  // chương đã có ít nhất 1 câu (maxScore > 0), tránh gợi ý chương chưa từng
+  // làm (không phải "yếu", chỉ là chưa có dữ liệu).
+  const priorityChapter = useMemo(() => {
+    const withData = chapterStats.filter((c) => c.maxScore > 0);
+    if (withData.length === 0) return null;
+    return withData.reduce((worst, c) =>
+      (accuracyPercent(c) ?? 100) < (accuracyPercent(worst) ?? 100) ? c : worst,
+    );
+  }, [chapterStats]);
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   return (
     <div className="dashboard">
       <h2>Chào em, {profile?.full_name}!</h2>
 
-      <section>
-        <h3>Tổng quan tiến độ</h3>
-        {totalAttempts === 0 ? (
-          <p className="empty-hint">
-            Chưa có dữ liệu — hãy làm bài kiểm tra đầu tiên để xem tiến độ ở đây.
-          </p>
-        ) : (
-          <>
-            <div className="stat-grid">
-              <div className="stat-card">
-                <div className="stat-card-label">Số bài đã làm</div>
-                <div className="stat-card-value">{totalAttempts}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-label">Điểm trung bình</div>
-                <div className="stat-card-value">{averageScore!.toFixed(2)}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-label">Điểm gần nhất</div>
-                <div className="stat-card-value">{latest!.score!.total_score.toFixed(2)}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-label">Cải thiện so với lần trước</div>
-                {improvement === null ? (
-                  <div className="stat-card-value stat-card-value--muted">—</div>
-                ) : (
-                  <div className={`stat-card-value ${formatScoreDelta(improvement).className}`}>
+      {totalAttempts === 0 ? (
+        <p className="empty-hint">
+          Chưa có dữ liệu — hãy làm bài kiểm tra đầu tiên để xem tiến độ ở đây.
+        </p>
+      ) : (
+        <>
+          <div className="student-stat-strip">
+            <div className="student-stat-cell">
+              <div className="student-stat-cell-label">Số bài đã làm</div>
+              <div className="student-stat-cell-value">{totalAttempts}</div>
+            </div>
+            <div className="student-stat-cell">
+              <div className="student-stat-cell-label">Điểm trung bình</div>
+              <div className="student-stat-cell-value">{averageScore!.toFixed(2)}</div>
+            </div>
+            <div className="student-stat-cell">
+              <div className="student-stat-cell-label">Điểm gần nhất</div>
+              <div className="student-stat-cell-delta-row">
+                <div className="student-stat-cell-value">{latest!.score!.total_score.toFixed(2)}</div>
+                {improvement !== null && (
+                  <span
+                    className={`student-stat-cell-delta student-stat-cell-delta--${
+                      improvement >= 0 ? "up" : "down"
+                    }`}
+                  >
                     {formatScoreDelta(improvement).text}
-                  </div>
+                  </span>
                 )}
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-label">Tổng thời gian làm bài</div>
-                <div className="stat-card-value stat-card-value--small">
-                  {formatMinutes(totalStudyMinutes)}
-                </div>
               </div>
             </div>
-
-            {trendData.length >= 2 && (
-              <div className="dashboard-trend">
-                <div className="dashboard-trend-title">Xu hướng điểm số</div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" fontSize={12} />
-                    <YAxis domain={[0, 10]} fontSize={12} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="score" stroke="#9c1420" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      <section>
-        <div className="page-header-row">
-          <h3>Đề thi mới nhất</h3>
-          <Link className="btn-secondary" to="/hoc-sinh/kho-de">
-            Xem tất cả trong Kho đề →
-          </Link>
-        </div>
-        {!latestExam ? (
-          <p className="empty-hint">Chưa có đề thi nào.</p>
-        ) : (
-          <div className="card-list">
-            <div className="card">
-              <div className="card-title">{latestExam.title}</div>
-              {latestExam.description && <p className="card-desc">{latestExam.description}</p>}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Link className="btn-primary" to={`/lam-bai/${latestExam.id}`}>
-                  Bắt đầu làm bài
-                </Link>
-                {latestExam.drive_link && (
-                  <a
-                    className="btn-secondary"
-                    href={latestExam.drive_link}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Tải đề
-                  </a>
-                )}
+            <div className="student-stat-cell">
+              <div className="student-stat-cell-label">Tổng thời gian làm bài</div>
+              <div className="student-stat-cell-value student-stat-cell-value--muted">
+                {formatMinutes(totalStudyMinutes)}
               </div>
             </div>
           </div>
-        )}
-      </section>
 
-      <section>
-        <h3>Ôn tập câu sai</h3>
-        {wrongCount === 0 ? (
-          <p className="empty-hint">
-            Chưa có câu nào trong nhật ký ôn tập — nhật ký sẽ tự có câu sau khi bạn làm sai 1 câu
-            nào đó trong lúc làm đề.
-          </p>
-        ) : (
-          <div className="card-list">
-            <div className="card">
-              <div className="card-title">{wrongCount} câu đang cần ôn</div>
-              <p className="card-desc">
-                Làm đúng đủ 3 buổi ôn tập riêng biệt liên tiếp thì câu đó mới được rút khỏi nhật ký.
-              </p>
-              <Link className="btn-primary" to="/hoc-sinh/on-tap-cau-sai">
-                Bắt đầu ôn tập
+          {trendData.length >= 2 && (
+            <div className="dashboard-trend hover-card">
+              <div className="dashboard-trend-title">Xu hướng điểm số</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={12} />
+                  <YAxis domain={[0, 10]} fontSize={12} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="score" stroke="#9c1420" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="student-2col">
+        <div className="student-2col-col">
+          <section>
+            <div className="page-header-row">
+              <h3>Đề thi mới nhất</h3>
+              <Link className="btn-secondary" to="/hoc-sinh/kho-de">
+                Xem tất cả trong Kho đề →
               </Link>
             </div>
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h3>Lịch sử làm bài</h3>
-        {attempts.length === 0 && (
-          <p className="empty-hint">Bạn chưa làm bài kiểm tra nào.</p>
-        )}
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th>Đề thi</th>
-              <th>Lần</th>
-              <th>Ngày làm</th>
-              <th>Điểm</th>
-            </tr>
-          </thead>
-          <tbody>
-            {attempts
-              .filter((a) => a.submitted_at)
-              .map((a) => (
-                <tr key={a.id}>
-                  <td>{a.exam?.title}</td>
-                  <td>{a.attempt_number}</td>
-                  <td>{new Date(a.started_at).toLocaleDateString("vi-VN")}</td>
-                  <td>
-                    <Link to={`/ket-qua/${a.id}`}>
-                      {a.score ? a.score.total_score.toFixed(2) : "—"}
+            {!latestExam ? (
+              <p className="empty-hint">Chưa có đề thi nào.</p>
+            ) : (
+              <div className="card-list">
+                <div className="card hover-card">
+                  <div className="card-title">{latestExam.title}</div>
+                  {latestExam.description && <p className="card-desc">{latestExam.description}</p>}
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <Link className="btn-primary" to={`/lam-bai/${latestExam.id}`}>
+                      Bắt đầu làm bài
                     </Link>
-                  </td>
+                    {latestExam.drive_link && (
+                      <a
+                        className="btn-secondary"
+                        href={latestExam.drive_link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Tải đề
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h3>Lịch sử làm bài</h3>
+            {attempts.length === 0 && (
+              <p className="empty-hint">Bạn chưa làm bài kiểm tra nào.</p>
+            )}
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Đề thi</th>
+                  <th>Lần</th>
+                  <th>Ngày làm</th>
+                  <th>Điểm</th>
                 </tr>
-              ))}
-          </tbody>
-        </table>
-      </section>
+              </thead>
+              <tbody>
+                {attempts
+                  .filter((a) => a.submitted_at)
+                  .map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.exam?.title}</td>
+                      <td>{a.attempt_number}</td>
+                      <td>{new Date(a.started_at).toLocaleDateString("vi-VN")}</td>
+                      <td>
+                        <Link to={`/ket-qua/${a.id}`}>
+                          {a.score ? a.score.total_score.toFixed(2) : "—"}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <div className="student-2col-col">
+          <section>
+            <h3>Ôn tập câu sai</h3>
+            {wrongCount === 0 ? (
+              <p className="empty-hint">
+                Chưa có câu nào trong nhật ký ôn tập — nhật ký sẽ tự có câu sau khi bạn làm sai 1
+                câu nào đó trong lúc làm đề.
+              </p>
+            ) : (
+              <div className="card-list">
+                <div className="card hover-card">
+                  <div className="card-title">{wrongCount} câu đang cần ôn</div>
+                  <p className="card-desc">
+                    Làm đúng đủ 3 buổi ôn tập riêng biệt liên tiếp thì câu đó mới được rút khỏi
+                    nhật ký.
+                  </p>
+                  <Link className="btn-primary" to="/hoc-sinh/on-tap-cau-sai">
+                    Bắt đầu ôn tập
+                  </Link>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {priorityChapter && (
+            <section>
+              <h3>Chương cần ôn ưu tiên</h3>
+              <div className="card-list">
+                <div className="card hover-card">
+                  <div className="priority-chapter-title">{priorityChapter.topic_name}</div>
+                  <div className="priority-chapter-meta">
+                    Độ chính xác hiện tại: {accuracyPercent(priorityChapter)}% ·{" "}
+                    {priorityChapter.total} câu đã làm
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+
+      <div className="daily-tools-heading">Công cụ học mỗi ngày</div>
+      <div className="daily-tools-row">
+        {profile && <PomodoroGarden studentId={profile.id} />}
+        <ExamCountdown />
+        <div className="coming-soon-tile">
+          <div className="coming-soon-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9c1420" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="17" rx="2" />
+              <path d="M3 9h18M8 2v4M16 2v4" />
+            </svg>
+          </div>
+          <div>
+            <div className="coming-soon-label">Kế hoạch ôn tập</div>
+            <div className="priority-chapter-meta">
+              Tự lập chiến lược ôn theo ngày thi — đang phát triển.
+            </div>
+          </div>
+          <div className="coming-soon-chip">Sắp có</div>
+        </div>
+      </div>
     </div>
   );
 }

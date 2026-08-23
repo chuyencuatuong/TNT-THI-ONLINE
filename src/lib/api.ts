@@ -20,11 +20,13 @@ import type {
   Part1Answer,
   Part2Answer,
   Part3Answer,
+  PomodoroSessionRow,
   Profile,
   QuestionRow,
   QuestionType,
   QuestionViewEventRow,
   ReviewSessionRow,
+  StudentPlaylistRow,
   Topic,
   WrongAnswerJournalRow,
 } from "./types";
@@ -1074,4 +1076,75 @@ export async function submitReviewAnswer(input: {
     is_correct: isCorrect,
   });
   if (logErr) throw logErr;
+}
+
+// ---------------------------------------------------------------------------
+// Đồng hồ tập trung Pomodoro (kiểu "vườn cây") — xem src/lib/pomodoro.ts cho
+// toàn bộ logic tính cấp độ/số cây hôm nay/tháng này (hàm thuần, có unit
+// test). Ở đây chỉ ghi/đọc sự kiện thô, không lưu số đã tính sẵn.
+// ---------------------------------------------------------------------------
+
+/** Toàn bộ phiên Pomodoro đã hoàn thành của 1 học sinh, mới nhất trước —
+ * dùng để tính cấp độ (toàn bộ lịch sử) + số cây hôm nay/tháng này. */
+export async function listPomodoroSessions(studentId: string): Promise<PomodoroSessionRow[]> {
+  const { data, error } = await supabase
+    .from("pomodoro_sessions")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("completed_at", { ascending: false });
+  if (error) throw error;
+  return data as PomodoroSessionRow[];
+}
+
+/** Ghi nhận 1 phiên tập trung đã hoàn thành trọn vẹn (gọi khi đồng hồ đếm về
+ * 0, KHÔNG gọi khi học sinh bấm đặt lại/huỷ giữa chừng). */
+export async function recordPomodoroSession(
+  studentId: string,
+  focusMinutes: number,
+): Promise<PomodoroSessionRow> {
+  const { data, error } = await supabase
+    .from("pomodoro_sessions")
+    .insert({ student_id: studentId, focus_minutes: focusMinutes })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as PomodoroSessionRow;
+}
+
+// ---------------------------------------------------------------------------
+// Góc âm nhạc — tối đa 3 playlist YouTube yêu thích/học sinh (vị trí 0/1/2).
+// Chỉ lưu URL học sinh dán vào, không gọi API YouTube nào — xem
+// src/lib/youtube.ts để trích ID playlist khi nhúng iframe phát nhạc.
+// ---------------------------------------------------------------------------
+
+export async function listStudentPlaylists(studentId: string): Promise<StudentPlaylistRow[]> {
+  const { data, error } = await supabase
+    .from("student_playlists")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("position");
+  if (error) throw error;
+  return data as StudentPlaylistRow[];
+}
+
+/** Thêm/thay playlist ở đúng vị trí (0/1/2) — dùng upsert vì mỗi học sinh chỉ
+ * có đúng 1 dòng cho mỗi vị trí (unique(student_id, position) ở migration_009). */
+export async function saveStudentPlaylist(input: {
+  student_id: string;
+  position: 0 | 1 | 2;
+  label: string;
+  url: string;
+}): Promise<StudentPlaylistRow> {
+  const { data, error } = await supabase
+    .from("student_playlists")
+    .upsert(input, { onConflict: "student_id,position" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as StudentPlaylistRow;
+}
+
+export async function deleteStudentPlaylist(id: string): Promise<void> {
+  const { error } = await supabase.from("student_playlists").delete().eq("id", id);
+  if (error) throw error;
 }
