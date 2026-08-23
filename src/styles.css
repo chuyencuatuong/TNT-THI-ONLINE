@@ -918,3 +918,65 @@ a {
   border-radius: var(--radius);
   padding: 16px;
 }
+
+/* Kho đề (thư viện đề) */
+.library-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.library-filter {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: sticky;
+  top: 16px;
+}
+.library-filter h3 {
+  margin-top: 0;
+  font-size: 15px;
+  color: var(--color-primary-dark);
+}
+.library-filter select {
+  width: 100%;
+}
+.library-content {
+  min-width: 0;
+}
+.card--folder {
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.card--folder:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+}
+@media (max-width: 720px) {
+  .library-layout {
+    grid-template-columns: 1fr;
+  }
+  .library-filter {
+    position: static;
+  }
+}
+
+/* Ôn tập câu sai */
+.review-feedback--correct {
+  background: #e8f5e9;
+  color: var(--color-success);
+  border: 1px solid #b8dfba;
+}
+.review-feedback--wrong {
+  background: #fdecea;
+  color: var(--color-danger);
+  border: 1px solid #f3c1ba;
+}
+
+/* Chọn thư mục/chương trình (TagPicker) */
+.tag-picker {
+  margin-top: 2px;
+}

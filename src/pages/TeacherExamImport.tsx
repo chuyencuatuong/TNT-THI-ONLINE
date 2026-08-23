@@ -7,7 +7,8 @@ import { matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type Pa
 import { renderPdfToImages } from "../lib/pdfImport";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
-import type { Topic } from "../lib/types";
+import { TagPicker } from "../components/TagPicker";
+import type { ExamTag, Topic } from "../lib/types";
 
 let localIdCounter = 0;
 function nextLocalId() {
@@ -100,7 +101,10 @@ export function TeacherExamImport() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
-  const [folder, setFolder] = useState("");
+  const [grade, setGrade] = useState("");
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [termId, setTermId] = useState<string | null>(null);
+  const [selectedExamTopicIds, setSelectedExamTopicIds] = useState<Set<string>>(new Set());
   const [driveLink, setDriveLink] = useState("");
   const [part1, setPart1] = useState<EditableP1[]>([]);
   const [part2, setPart2] = useState<EditableP2[]>([]);
@@ -108,12 +112,23 @@ export function TeacherExamImport() {
   const [publishing, setPublishing] = useState(false);
 
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [existingFolders, setExistingFolders] = useState<string[]>([]);
+  const [folders, setFolders] = useState<ExamTag[]>([]);
+  const [terms, setTerms] = useState<ExamTag[]>([]);
 
   useEffect(() => {
     api.listTopics().then(setTopics).catch(console.error);
-    api.listExamFolders().then(setExistingFolders).catch(console.error);
+    api.listExamTags("folder").then(setFolders).catch(console.error);
+    api.listExamTags("term").then(setTerms).catch(console.error);
   }, []);
+
+  function toggleExamTopic(id: string) {
+    setSelectedExamTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function loadParsed(parsed: ParsedExam, suggestedTitle?: string) {
     const withLocalIds = withIds(parsed, topics);
@@ -122,6 +137,14 @@ export function TeacherExamImport() {
     setPart3(withLocalIds.part3);
     setWarnings(parsed.warnings);
     if (suggestedTitle && !title) setTitle(suggestedTitle);
+    // Gợi ý sẵn "Chương mà đề bao phủ" = hợp các chương AI đã gợi ý cho từng
+    // câu — giáo viên xem lại/đổi ở bước xem trước, không tự động chốt.
+    const suggested = new Set(
+      [...withLocalIds.part1, ...withLocalIds.part2, ...withLocalIds.part3]
+        .map((q) => q.topic_id)
+        .filter((id): id is string => !!id),
+    );
+    setSelectedExamTopicIds(suggested);
     setStage("review");
   }
 
@@ -310,11 +333,14 @@ export function TeacherExamImport() {
         title: title.trim(),
         description: description.trim() || null,
         duration_minutes: durationMinutes.trim() ? Number(durationMinutes) : null,
-        folder: folder.trim() || null,
+        grade: grade ? (Number(grade) as 10 | 11 | 12) : null,
+        folder_id: folderId,
+        term_id: termId,
         drive_link: driveLink.trim() || null,
         created_by: profile.id,
       });
       await api.setExamQuestions(exam.id, createdIds);
+      await api.setExamTopics(exam.id, Array.from(selectedExamTopicIds));
       navigate("/giao-vien/de-thi");
     } catch (err) {
       console.error(err);
@@ -441,19 +467,57 @@ export function TeacherExamImport() {
         />
       </div>
       <div className="form-row">
-        <label>Thư mục (không bắt buộc — để trống = "Chưa phân loại")</label>
-        <input
-          type="text"
-          list="exam-folder-options"
-          value={folder}
-          onChange={(e) => setFolder(e.target.value)}
-          placeholder="VD: Đề giữa kỳ, Đề ôn chương 1..."
+        <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
+        <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ maxWidth: 140 }}>
+          <option value="">— Chọn khối —</option>
+          <option value="10">Lớp 10</option>
+          <option value="11">Lớp 11</option>
+          <option value="12">Lớp 12</option>
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Chương trình / kỳ thi (không bắt buộc — VD: Giữa kỳ 1, Luyện đề tổng ôn...)</label>
+        <TagPicker
+          kind="term"
+          label="Chương trình"
+          tags={terms}
+          value={termId}
+          onChange={setTermId}
+          onCreated={(t) => setTerms((prev) => [...prev, t])}
+          createdBy={profile?.id ?? ""}
+          placeholder="— Chọn chương trình —"
         />
-        <datalist id="exam-folder-options">
-          {existingFolders.map((f) => (
-            <option key={f} value={f} />
+      </div>
+      <div className="form-row">
+        <label>Thư mục / tuyển tập (không bắt buộc — để trống = "Chưa phân loại")</label>
+        <TagPicker
+          kind="folder"
+          label="Thư mục"
+          tags={folders}
+          value={folderId}
+          onChange={setFolderId}
+          onCreated={(t) => setFolders((prev) => [...prev, t])}
+          createdBy={profile?.id ?? ""}
+          placeholder="— Chọn thư mục —"
+        />
+      </div>
+      <div className="form-row">
+        <label>
+          Chương mà đề này bao phủ (đã tự chọn sẵn theo gợi ý AI của từng câu — xem lại/đổi nếu cần,
+          dùng để lọc ở Kho đề)
+        </label>
+        <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
+          {topics.map((t) => (
+            <label key={t.id} className="pickable-item">
+              <input
+                type="checkbox"
+                checked={selectedExamTopicIds.has(t.id)}
+                onChange={() => toggleExamTopic(t.id)}
+              />
+              Lớp {t.grade} · {t.name}
+            </label>
           ))}
-        </datalist>
+        </div>
       </div>
       <div className="form-row">
         <label>Link Google Drive chứa file đề gốc (không bắt buộc — để học sinh tải về)</label>

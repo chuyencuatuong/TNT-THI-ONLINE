@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import * as api from "../lib/api";
-import type { ExamRow } from "../lib/types";
-
-const UNCATEGORIZED = "Chưa phân loại";
+import { groupExamsByFolder } from "../lib/examLibrary";
+import type { ExamRow, ExamTag } from "../lib/types";
 
 function ExamCard({ exam }: { exam: ExamRow }) {
   return (
@@ -26,15 +25,19 @@ function ExamCard({ exam }: { exam: ExamRow }) {
 
 export function TeacherExamList() {
   const [exams, setExams] = useState<ExamRow[]>([]);
+  const [folders, setFolders] = useState<ExamTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    api.listExams().then((data) => {
-      setExams(data);
+    Promise.all([api.listExams(), api.listExamTags("folder")]).then(([e, f]) => {
+      setExams(e);
+      setFolders(f);
       setLoading(false);
     });
   }, []);
+
+  const folderNameById = useMemo(() => new Map(folders.map((f) => [f.id, f.name])), [folders]);
 
   const filtered = exams.filter((exam) => {
     if (!search.trim()) return true;
@@ -45,19 +48,10 @@ export function TeacherExamList() {
     );
   });
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, ExamRow[]>();
-    for (const exam of filtered) {
-      const key = exam.folder?.trim() || UNCATEGORIZED;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(exam);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => {
-      if (a === UNCATEGORIZED) return 1;
-      if (b === UNCATEGORIZED) return -1;
-      return a.localeCompare(b, "vi");
-    });
-  }, [filtered]);
+  const grouped = useMemo(
+    () => groupExamsByFolder(filtered, folderNameById),
+    [filtered, folderNameById],
+  );
 
   return (
     <div className="teacher-page">
@@ -90,13 +84,13 @@ export function TeacherExamList() {
       ) : filtered.length === 0 ? (
         <p className="empty-hint">Không có đề nào khớp với tìm kiếm hiện tại.</p>
       ) : (
-        grouped.map(([folderName, folderExams]) => (
-          <details key={folderName} open className="folder-group">
+        grouped.map((group) => (
+          <details key={group.folderId ?? "__none__"} open className="folder-group">
             <summary className="folder-group-title">
-              {folderName} ({folderExams.length})
+              {group.folderName} ({group.exams.length})
             </summary>
             <div className="card-list">
-              {folderExams.map((exam) => (
+              {group.exams.map((exam) => (
                 <ExamCard key={exam.id} exam={exam} />
               ))}
             </div>

@@ -14,27 +14,30 @@ import * as api from "../lib/api";
 import { completionMinutes, formatMinutes, formatScoreDelta } from "../lib/format";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 
-const UNCATEGORIZED = "Chưa phân loại";
-
 export function StudentDashboard() {
   const { profile } = useAuth();
   const [exams, setExams] = useState<ExamRow[]>([]);
   const [attempts, setAttempts] = useState<
     (ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null })[]
   >([]);
+  const [wrongCount, setWrongCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [examSearch, setExamSearch] = useState("");
 
   useEffect(() => {
     if (!profile) return;
-    Promise.all([api.listExams(), api.listStudentAttempts(profile.id)]).then(
-      ([e, a]) => {
-        setExams(e);
-        setAttempts(a);
-        setLoading(false);
-      },
-    );
+    Promise.all([
+      api.listExams(),
+      api.listStudentAttempts(profile.id),
+      api.getWrongAnswerJournalCount(profile.id),
+    ]).then(([e, a, wc]) => {
+      setExams(e);
+      setAttempts(a);
+      setWrongCount(wc);
+      setLoading(false);
+    });
   }, [profile]);
+
+  const latestExam = exams.length > 0 ? exams[0] : null; // listExams() đã sắp created_at desc
 
   // Chỉ tính trên các lượt đã nộp bài và đã có điểm, xếp theo thời gian tăng
   // dần để tính "cải thiện" (so lần gần nhất với lần ngay trước đó) và vẽ biểu
@@ -65,29 +68,6 @@ export function StudentDashboard() {
     name: `Lần ${i + 1}`,
     score: a.score!.total_score,
   }));
-
-  const filteredExams = exams.filter((exam) => {
-    if (!examSearch.trim()) return true;
-    const q = examSearch.trim().toLowerCase();
-    return (
-      exam.title.toLowerCase().includes(q) ||
-      (exam.description ?? "").toLowerCase().includes(q)
-    );
-  });
-  const groupedExams = useMemo(() => {
-    const map = new Map<string, ExamRow[]>();
-    for (const exam of filteredExams) {
-      const key = exam.folder?.trim() || UNCATEGORIZED;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(exam);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => {
-      if (a === UNCATEGORIZED) return 1;
-      if (b === UNCATEGORIZED) return -1;
-      return a.localeCompare(b, "vi");
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredExams]);
 
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
@@ -153,55 +133,58 @@ export function StudentDashboard() {
       </section>
 
       <section>
-        <h3>Đề thi có thể làm</h3>
-        {exams.length === 0 ? (
+        <div className="page-header-row">
+          <h3>Đề thi mới nhất</h3>
+          <Link className="btn-secondary" to="/hoc-sinh/kho-de">
+            Xem tất cả trong Kho đề →
+          </Link>
+        </div>
+        {!latestExam ? (
           <p className="empty-hint">Chưa có đề thi nào.</p>
         ) : (
-          <>
-            <div className="filter-row">
-              <input
-                type="text"
-                placeholder="Tìm theo tên hoặc mô tả đề..."
-                value={examSearch}
-                onChange={(e) => setExamSearch(e.target.value)}
-                style={{ minWidth: 240 }}
-              />
+          <div className="card-list">
+            <div className="card">
+              <div className="card-title">{latestExam.title}</div>
+              {latestExam.description && <p className="card-desc">{latestExam.description}</p>}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Link className="btn-primary" to={`/lam-bai/${latestExam.id}`}>
+                  Bắt đầu làm bài
+                </Link>
+                {latestExam.drive_link && (
+                  <a
+                    className="btn-secondary"
+                    href={latestExam.drive_link}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Tải đề
+                  </a>
+                )}
+              </div>
             </div>
-            {filteredExams.length === 0 ? (
-              <p className="empty-hint">Không có đề nào khớp với tìm kiếm hiện tại.</p>
-            ) : (
-              groupedExams.map(([folderName, folderExams]) => (
-                <details key={folderName} open className="folder-group">
-                  <summary className="folder-group-title">
-                    {folderName} ({folderExams.length})
-                  </summary>
-                  <div className="card-list">
-                    {folderExams.map((exam) => (
-                      <div key={exam.id} className="card">
-                        <div className="card-title">{exam.title}</div>
-                        {exam.description && <p className="card-desc">{exam.description}</p>}
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <Link className="btn-primary" to={`/lam-bai/${exam.id}`}>
-                            Bắt đầu làm bài
-                          </Link>
-                          {exam.drive_link && (
-                            <a
-                              className="btn-secondary"
-                              href={exam.drive_link}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Tải đề
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              ))
-            )}
-          </>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h3>Ôn tập câu sai</h3>
+        {wrongCount === 0 ? (
+          <p className="empty-hint">
+            Chưa có câu nào trong nhật ký ôn tập — nhật ký sẽ tự có câu sau khi bạn làm sai 1 câu
+            nào đó trong lúc làm đề.
+          </p>
+        ) : (
+          <div className="card-list">
+            <div className="card">
+              <div className="card-title">{wrongCount} câu đang cần ôn</div>
+              <p className="card-desc">
+                Làm đúng đủ 3 buổi ôn tập riêng biệt liên tiếp thì câu đó mới được rút khỏi nhật ký.
+              </p>
+              <Link className="btn-primary" to="/hoc-sinh/on-tap-cau-sai">
+                Bắt đầu ôn tập
+              </Link>
+            </div>
+          </div>
         )}
       </section>
 

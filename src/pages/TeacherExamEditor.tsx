@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { MathText } from "../components/MathText";
-import type { QuestionRow } from "../lib/types";
+import { TagPicker } from "../components/TagPicker";
+import type { ExamTag, QuestionRow, Topic } from "../lib/types";
 
 export function TeacherExamEditor() {
   const { examId } = useParams<{ examId?: string }>();
@@ -14,9 +15,14 @@ export function TeacherExamEditor() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<string>("");
-  const [folder, setFolder] = useState("");
+  const [grade, setGrade] = useState<string>("");
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [termId, setTermId] = useState<string | null>(null);
+  const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(new Set());
   const [driveLink, setDriveLink] = useState("");
-  const [existingFolders, setExistingFolders] = useState<string[]>([]);
+  const [folders, setFolders] = useState<ExamTag[]>([]);
+  const [terms, setTerms] = useState<ExamTag[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [allQuestions, setAllQuestions] = useState<QuestionRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -27,25 +33,33 @@ export function TeacherExamEditor() {
 
   useEffect(() => {
     (async () => {
-      const [questions, folders] = await Promise.all([
+      const [questions, folderTags, termTags, topicList] = await Promise.all([
         api.listQuestions(),
-        api.listExamFolders(),
+        api.listExamTags("folder"),
+        api.listExamTags("term"),
+        api.listTopics(),
       ]);
       setAllQuestions(questions);
-      setExistingFolders(folders);
+      setFolders(folderTags);
+      setTerms(termTags);
+      setTopics(topicList);
       if (!isNew && examId) {
-        const [existing, examRow] = await Promise.all([
+        const [existing, examRow, examTopicIds] = await Promise.all([
           api.getExamQuestions(examId),
           api.getExam(examId),
+          api.getExamTopicIds(examId),
         ]);
         setSelected(new Set(existing.map((e) => e.question_id)));
+        setSelectedTopicIds(new Set(examTopicIds));
         if (examRow) {
           setTitle(examRow.title);
           setDescription(examRow.description ?? "");
           setDurationMinutes(
             examRow.duration_minutes ? String(examRow.duration_minutes) : "",
           );
-          setFolder(examRow.folder ?? "");
+          setGrade(examRow.grade ? String(examRow.grade) : "");
+          setFolderId(examRow.folder_id);
+          setTermId(examRow.term_id);
           setDriveLink(examRow.drive_link ?? "");
         }
       }
@@ -53,6 +67,15 @@ export function TeacherExamEditor() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId]);
+
+  function toggleTopic(id: string) {
+    setSelectedTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -71,13 +94,16 @@ export function TeacherExamEditor() {
     setSaving(true);
     try {
       const duration = durationMinutes.trim() ? Number(durationMinutes) : null;
+      const gradeValue = grade ? (Number(grade) as 10 | 11 | 12) : null;
       let examIdToUse = currentExamId;
       if (!examIdToUse) {
         const created = await api.createExam({
           title: title.trim(),
           description: description.trim() || null,
           duration_minutes: duration,
-          folder: folder.trim() || null,
+          grade: gradeValue,
+          folder_id: folderId,
+          term_id: termId,
           drive_link: driveLink.trim() || null,
           created_by: profile.id,
         });
@@ -88,7 +114,9 @@ export function TeacherExamEditor() {
           title: title.trim(),
           description: description.trim() || null,
           duration_minutes: duration,
-          folder: folder.trim() || null,
+          grade: gradeValue,
+          folder_id: folderId,
+          term_id: termId,
           drive_link: driveLink.trim() || null,
         });
       }
@@ -104,6 +132,7 @@ export function TeacherExamEditor() {
       ];
 
       await api.setExamQuestions(examIdToUse, examQuestions);
+      await api.setExamTopics(examIdToUse, Array.from(selectedTopicIds));
       navigate("/giao-vien/de-thi");
     } finally {
       setSaving(false);
@@ -143,19 +172,55 @@ export function TeacherExamEditor() {
         />
       </div>
       <div className="form-row">
-        <label>Thư mục (không bắt buộc — để trống = "Chưa phân loại")</label>
-        <input
-          type="text"
-          list="exam-editor-folder-options"
-          value={folder}
-          onChange={(e) => setFolder(e.target.value)}
-          placeholder="VD: Đề giữa kỳ, Đề ôn chương 1..."
+        <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
+        <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ maxWidth: 140 }}>
+          <option value="">— Chọn khối —</option>
+          <option value="10">Lớp 10</option>
+          <option value="11">Lớp 11</option>
+          <option value="12">Lớp 12</option>
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Chương trình / kỳ thi (không bắt buộc — VD: Giữa kỳ 1, Luyện đề tổng ôn...)</label>
+        <TagPicker
+          kind="term"
+          label="Chương trình"
+          tags={terms}
+          value={termId}
+          onChange={setTermId}
+          onCreated={(t) => setTerms((prev) => [...prev, t])}
+          createdBy={profile?.id ?? ""}
+          placeholder="— Chọn chương trình —"
         />
-        <datalist id="exam-editor-folder-options">
-          {existingFolders.map((f) => (
-            <option key={f} value={f} />
+      </div>
+      <div className="form-row">
+        <label>Thư mục / tuyển tập (không bắt buộc — để trống = "Chưa phân loại")</label>
+        <TagPicker
+          kind="folder"
+          label="Thư mục"
+          tags={folders}
+          value={folderId}
+          onChange={setFolderId}
+          onCreated={(t) => setFolders((prev) => [...prev, t])}
+          createdBy={profile?.id ?? ""}
+          placeholder="— Chọn thư mục —"
+        />
+      </div>
+      <div className="form-row">
+        <label>Chương mà đề này bao phủ (không bắt buộc — có thể chọn nhiều, dùng để lọc ở Kho đề)</label>
+        <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
+          {topics.length === 0 && <p className="empty-hint">Chưa có chương nào trong khung kiến thức.</p>}
+          {topics.map((t) => (
+            <label key={t.id} className="pickable-item">
+              <input
+                type="checkbox"
+                checked={selectedTopicIds.has(t.id)}
+                onChange={() => toggleTopic(t.id)}
+              />
+              Lớp {t.grade} · {t.name}
+            </label>
           ))}
-        </datalist>
+        </div>
       </div>
       <div className="form-row">
         <label>Link Google Drive chứa file đề gốc (không bắt buộc — để học sinh tải về)</label>

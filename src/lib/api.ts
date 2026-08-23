@@ -6,12 +6,21 @@ import {
   scorePart3Question,
 } from "./scoring";
 import { computeActiveSeconds, diagnoseAllTopics, type TopicOutcomeGroup } from "./diagnosis";
+import {
+  applyReviewResult,
+  markWrongFromExam,
+  pickRandomForSession,
+  type JournalStreakState,
+} from "./leitner";
 import type {
   AttemptScoreRow,
   Difficulty,
   ExamAttemptRow,
   ExamQuestionRow,
   ExamRow,
+  ExamTag,
+  ExamTagKind,
+  ExamTopicRow,
   Part1Answer,
   Part2Answer,
   Part3Answer,
@@ -19,7 +28,9 @@ import type {
   QuestionRow,
   QuestionType,
   QuestionViewEventRow,
+  ReviewSessionRow,
   Topic,
+  WrongAnswerJournalRow,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -166,26 +177,53 @@ export async function listExams(): Promise<ExamRow[]> {
   return data as ExamRow[];
 }
 
-/** Danh sách tên thư mục đã dùng (không trùng, đã sắp xếp) — dùng gợi ý tự động khi giáo viên gõ tên thư mục. */
-export async function listExamFolders(): Promise<string[]> {
+// ---------------------------------------------------------------------------
+// Thư mục/tuyển tập ('folder') và Chương trình/kỳ thi ('term') — exam_tags
+// ---------------------------------------------------------------------------
+
+/** Danh sách tag theo loại (kind), sắp xếp tên A-Z — dùng cho ô chọn thư mục/chương trình. */
+export async function listExamTags(kind: ExamTagKind): Promise<ExamTag[]> {
   const { data, error } = await supabase
-    .from("exams")
-    .select("folder")
-    .not("folder", "is", null);
+    .from("exam_tags")
+    .select("*")
+    .eq("kind", kind)
+    .order("name");
   if (error) throw error;
-  const names = new Set(
-    (data as { folder: string | null }[])
-      .map((r) => r.folder?.trim())
-      .filter((f): f is string => !!f),
-  );
-  return Array.from(names).sort((a, b) => a.localeCompare(b, "vi"));
+  return data as ExamTag[];
+}
+
+/** Tạo mới 1 thư mục/chương trình — chặn trùng tên (case-sensitive theo unique(kind, name) ở DB). */
+export async function createExamTag(input: {
+  kind: ExamTagKind;
+  name: string;
+  description?: string | null;
+  created_by: string;
+}): Promise<ExamTag> {
+  const { data, error } = await supabase
+    .from("exam_tags")
+    .insert(input)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ExamTag;
+}
+
+/** Sửa tên/mô tả 1 thư mục/chương trình — áp dụng ngay cho mọi đề đang tham chiếu tới nó. */
+export async function updateExamTag(
+  id: string,
+  patch: Partial<Pick<ExamTag, "name" | "description">>,
+): Promise<void> {
+  const { error } = await supabase.from("exam_tags").update(patch).eq("id", id);
+  if (error) throw error;
 }
 
 export async function createExam(input: {
   title: string;
   description: string | null;
   duration_minutes?: number | null;
-  folder?: string | null;
+  grade?: 10 | 11 | 12 | null;
+  folder_id?: string | null;
+  term_id?: string | null;
   drive_link?: string | null;
   created_by: string;
 }): Promise<ExamRow> {
@@ -201,10 +239,43 @@ export async function createExam(input: {
 export async function updateExam(
   id: string,
   patch: Partial<
-    Pick<ExamRow, "title" | "description" | "duration_minutes" | "folder" | "drive_link">
+    Pick<
+      ExamRow,
+      "title" | "description" | "duration_minutes" | "grade" | "folder_id" | "term_id" | "drive_link"
+    >
   >,
 ): Promise<void> {
   const { error } = await supabase.from("exams").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Chương mà cả đề bao phủ (exam_topics, m:n — khác questions.topic_id)
+// ---------------------------------------------------------------------------
+
+export async function getExamTopicIds(examId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("exam_topics")
+    .select("topic_id")
+    .eq("exam_id", examId);
+  if (error) throw error;
+  return (data as { topic_id: string }[]).map((r) => r.topic_id);
+}
+
+/** Toàn bộ exam_topics (mọi đề) — dùng để dựng bộ lọc theo Chương ở Kho đề. */
+export async function listAllExamTopics(): Promise<ExamTopicRow[]> {
+  const { data, error } = await supabase.from("exam_topics").select("exam_id, topic_id");
+  if (error) throw error;
+  return data as ExamTopicRow[];
+}
+
+export async function setExamTopics(examId: string, topicIds: string[]): Promise<void> {
+  const { error: delErr } = await supabase.from("exam_topics").delete().eq("exam_id", examId);
+  if (delErr) throw delErr;
+  if (topicIds.length === 0) return;
+  const { error } = await supabase
+    .from("exam_topics")
+    .insert(topicIds.map((topic_id) => ({ exam_id: examId, topic_id })));
   if (error) throw error;
 }
 
@@ -353,13 +424,53 @@ export async function getProctoringCounts(
   return counts;
 }
 
+/** Điểm tối đa của 1 câu, dùng cả để chấm và để biết câu đó có "làm sai/chưa
+ * trọn điểm" hay không (ghi vào nhật ký câu sai) — tách hàm để dùng chung
+ * với getAttemptReview và màn hình ôn tập câu sai, tránh lặp lại đúng 1 công
+ * thức ở nhiều nơi. */
+export function questionMaxScore(q: Pick<QuestionRow, "part" | "default_points">): number {
+  return q.part === 1 ? 0.25 : q.part === 2 ? 1 : q.default_points ?? 0.5;
+}
+
+/**
+ * Ghi/cập nhật nhật ký câu sai kiểu Leitner cho các câu làm sai/chưa trọn
+ * điểm trong 1 lượt làm ĐỀ THẬT (không phải buổi ôn tập) — luôn đưa câu về
+ * lại nhật ký với streak = 0 (xem markWrongFromExam trong leitner.ts), kể cả
+ * khi trước đó câu này đã từng được rút ra khỏi nhật ký.
+ */
+async function recordWrongAnswersFromExam(
+  studentId: string,
+  wrongQuestionIds: string[],
+): Promise<void> {
+  if (wrongQuestionIds.length === 0) return;
+  const nowIso = new Date().toISOString();
+  const rows = wrongQuestionIds.map((question_id) => {
+    const state = markWrongFromExam(nowIso);
+    return {
+      student_id: studentId,
+      question_id,
+      last_wrong_at: nowIso,
+      correct_streak: state.correctStreak,
+      last_reviewed_session_id: state.lastReviewedSessionId,
+      retired_at: state.retiredAt,
+    };
+  });
+  const { error } = await supabase
+    .from("wrong_answer_journal")
+    .upsert(rows, { onConflict: "student_id,question_id" });
+  if (error) throw error;
+}
+
 /**
  * Chấm điểm toàn bộ 1 lượt làm bài dựa trên answer_events đã ghi nhận,
  * ghi vào question_responses + attempt_scores, rồi đánh dấu đã nộp bài.
+ * `studentId` (không bắt buộc) dùng để tự động ghi câu sai vào nhật ký ôn
+ * tập của học sinh đó — truyền vào từ trang làm bài (đã có sẵn qua useAuth).
  */
 export async function submitAttempt(
   attemptId: string,
   examId: string,
+  studentId?: string,
 ): Promise<AttemptScoreRow> {
   const examQuestions = await getExamQuestions(examId);
   const [{ data: events, error: evErr }, { data: viewEvents, error: veErr }] =
@@ -382,6 +493,7 @@ export async function submitAttempt(
   let part2Score = 0;
   let part3Score = 0;
   const responsesToInsert: Record<string, unknown>[] = [];
+  const wrongQuestionIds: string[] = [];
 
   for (const eq of examQuestions) {
     const q = eq.question;
@@ -447,6 +559,8 @@ export async function submitAttempt(
     else if (q.part === 2) part2Score += score;
     else part3Score += score;
 
+    if (score < questionMaxScore(q)) wrongQuestionIds.push(q.id);
+
     responsesToInsert.push({
       attempt_id: attemptId,
       question_id: q.id,
@@ -491,6 +605,10 @@ export async function submitAttempt(
     .from("exam_attempts")
     .update({ submitted_at: new Date().toISOString() })
     .eq("id", attemptId);
+
+  if (studentId) {
+    await recordWrongAnswersFromExam(studentId, wrongQuestionIds);
+  }
 
   return scoreRow as AttemptScoreRow;
 }
@@ -746,8 +864,7 @@ export async function getAttemptReview(
   return examQuestions.map((eq) => {
     const q = eq.question;
     const resp = responseMap.get(q.id);
-    const maxScore =
-      q.part === 1 ? 0.25 : q.part === 2 ? 1 : q.default_points ?? 0.5;
+    const maxScore = questionMaxScore(q);
     return {
       question_id: q.id,
       part: q.part,
@@ -796,4 +913,103 @@ export async function getPublicReportByToken(token: string) {
   });
   if (error) throw error;
   return data?.[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Ôn tập câu sai (nhật ký + buổi ôn tập kiểu Leitner) — xem src/lib/leitner.ts
+// cho toàn bộ logic đếm streak/rút khỏi nhật ký (hàm thuần, có unit test).
+// ---------------------------------------------------------------------------
+
+/** Số câu đang cần ôn (chưa rút khỏi nhật ký) — hiện ở trang chủ học sinh. */
+export async function getWrongAnswerJournalCount(studentId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("wrong_answer_journal")
+    .select("*", { count: "exact", head: true })
+    .eq("student_id", studentId)
+    .is("retired_at", null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function startReviewSession(studentId: string): Promise<ReviewSessionRow> {
+  const { data, error } = await supabase
+    .from("review_sessions")
+    .insert({ student_id: studentId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ReviewSessionRow;
+}
+
+export async function finishReviewSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from("review_sessions")
+    .update({ finished_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  if (error) throw error;
+}
+
+/** Lấy ngẫu nhiên tối đa `count` câu đang cần ôn (retired_at null) cho 1 buổi ôn tập mới. */
+export async function pickReviewQuestions(
+  studentId: string,
+  count: number,
+): Promise<(WrongAnswerJournalRow & { question: QuestionRow })[]> {
+  const { data, error } = await supabase
+    .from("wrong_answer_journal")
+    .select("*, question:questions(*)")
+    .eq("student_id", studentId)
+    .is("retired_at", null);
+  if (error) throw error;
+  const entries = data as unknown as (WrongAnswerJournalRow & { question: QuestionRow })[];
+  return pickRandomForSession(entries, count);
+}
+
+/**
+ * Ghi nhận 1 lượt trả lời trong buổi ôn tập: cập nhật streak theo đúng quy
+ * tắc Leitner (applyReviewResult, đã unit test riêng) rồi ghi lại vào
+ * wrong_answer_journal + log vào review_session_answers.
+ */
+export async function submitReviewAnswer(input: {
+  sessionId: string;
+  studentId: string;
+  questionId: string;
+  isCorrect: boolean;
+}): Promise<void> {
+  const { sessionId, studentId, questionId, isCorrect } = input;
+  const { data: existing, error: fetchErr } = await supabase
+    .from("wrong_answer_journal")
+    .select("correct_streak, last_reviewed_session_id, retired_at")
+    .eq("student_id", studentId)
+    .eq("question_id", questionId)
+    .maybeSingle();
+  if (fetchErr) throw fetchErr;
+
+  const current: JournalStreakState = existing
+    ? {
+        correctStreak: existing.correct_streak,
+        lastReviewedSessionId: existing.last_reviewed_session_id,
+        retiredAt: existing.retired_at,
+      }
+    : { correctStreak: 0, lastReviewedSessionId: null, retiredAt: null };
+
+  const nowIso = new Date().toISOString();
+  const next = applyReviewResult(current, sessionId, isCorrect, nowIso);
+
+  const { error: updateErr } = await supabase
+    .from("wrong_answer_journal")
+    .update({
+      correct_streak: next.correctStreak,
+      last_reviewed_session_id: next.lastReviewedSessionId,
+      retired_at: next.retiredAt,
+    })
+    .eq("student_id", studentId)
+    .eq("question_id", questionId);
+  if (updateErr) throw updateErr;
+
+  const { error: logErr } = await supabase.from("review_session_answers").insert({
+    session_id: sessionId,
+    question_id: questionId,
+    is_correct: isCorrect,
+  });
+  if (logErr) throw logErr;
 }

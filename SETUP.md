@@ -8,7 +8,55 @@ hình. Khoảng 10 phút.
 
 ## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 2 việc để cập nhật
 
-**Bản cập nhật mới nhất (23/08/2026 — Đợt 1 cải tiến)** thêm:
+**Bản cập nhật mới nhất (23/08/2026 — Đợt 2: Kho đề có bộ lọc + Ôn tập câu
+sai)** thêm:
+
+- **Thư mục/Chương trình giờ CHỌN từ danh sách thay vì gõ tự do**: khi
+  tạo/sửa đề, ô "Thư mục" (tuyển tập) và ô mới "Chương trình" (kỳ thi — VD
+  Giữa kỳ 1, Luyện đề tổng ôn...) giờ là 1 danh sách xổ xuống, chọn cái đã có
+  sẵn hoặc bấm "+ ... mới" khi thật sự cần thêm — tránh việc gõ tay dễ tạo ra
+  nhiều thư mục na ná nhau (vd "GK1" và "Gk 1"). Đổi tên 1 thư mục sẽ áp dụng
+  ngay cho mọi đề đang thuộc thư mục đó.
+- **Khối + Chương cho mỗi đề**: đề giờ có thể gán "Khối" (10/11/12) và chọn
+  (nhiều) "Chương" mà đề đó bao phủ — màn hình nhập đề tự chọn sẵn theo gợi ý
+  AI của từng câu, bạn xem lại/đổi nếu cần. Dùng để lọc ở mục "Kho đề" mới.
+- **Trang chủ học sinh gọn lại**: mục "Đề thi có thể làm" giờ chỉ hiện đúng 1
+  đề mới thêm gần đây nhất (đỡ rối khi số đề tăng dần), kèm nút "Xem tất cả
+  trong Kho đề".
+- **Trang mới "Kho đề"** (`/hoc-sinh/kho-de`): mặc định hiện các thẻ theo
+  thư mục/tuyển tập (bấm vào xem danh sách đề bên trong, giống các nền tảng
+  luyện đề phổ biến). Có bộ lọc chọn nối tiếp **Khối → Chương trình →
+  Chương** ở sidebar — hễ chọn bất kỳ điều kiện nào thì chuyển sang xem danh
+  sách đề khớp lọc (bỏ qua nhóm thư mục), bấm "Bỏ lọc" để quay lại xem theo
+  thư mục.
+- **Ôn tập câu sai (nhật ký kiểu Leitner)**: sau khi nộp bài, câu làm
+  sai/chưa trọn điểm tự động vào "nhật ký ôn tập" của học sinh đó (thấy số
+  lượng ở trang chủ, mục "Ôn tập câu sai"). Trang ôn tập riêng
+  (`/hoc-sinh/on-tap-cau-sai`) lấy ngẫu nhiên các câu đang cần ôn, không tính
+  giờ, học sinh trả lời lại y hệt lúc làm đề gốc. Câu chỉ được rút khỏi nhật
+  ký khi làm đúng **đủ 3 buổi ôn tập RIÊNG BIỆT liên tiếp** (không phải 3
+  lần trong cùng 1 lần mở màn hình) — làm sai bất kỳ buổi nào thì tính lại
+  từ đầu. Đây mới là bản đơn giản (trả lời lại y hệt câu gốc); chế độ "sắp
+  xếp lại các bước lời giải" (kéo thả) sẽ làm ở đợt sau, code đã viết sẵn để
+  dễ thêm chế độ mới mà không cần đổi lại phần đã có.
+
+1. **Tải lại code**: lặp lại **Việc 1** bên dưới (kéo-thả toàn bộ file trong
+   bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2.
+2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần)**: vào Supabase Dashboard >
+   **SQL Editor** > **New query**, mở file
+   `supabase/migration_008_kho_de_va_on_tap_leitner.sql` trong bản zip mới,
+   copy toàn bộ nội dung, dán vào query mới, bấm **Run**. File này thêm cột
+   mới vào bảng `exams` (giữ nguyên dữ liệu cũ — cột "Thư mục" cũ tự động
+   chuyển sang danh sách quản lý mới, không cần bạn nhập lại tay) và vài
+   bảng mới, không đụng tới dữ liệu hiện có.
+
+   Nếu bỏ qua bước này, trang sẽ báo lỗi khi tạo/sửa đề hoặc vào "Kho đề" vì
+   database chưa có cột/bảng mới.
+
+<details>
+<summary>Bản cập nhật trước đó (23/08/2026 — Đợt 1 cải tiến)</summary>
+
+**Bản cập nhật (23/08/2026 — Đợt 1 cải tiến)** thêm:
 
 - **Tự nhận CHƯƠNG khi nhập đề**: khi tạo đề từ PDF/Word, AI gợi ý luôn
   chương phù hợp cho từng câu (dựa trên khung chương đã gieo sẵn) — màn hình
@@ -35,16 +83,9 @@ hình. Khoảng 10 phút.
   tải (không phải lỗi ở web) — bấm thử lại sau ít phút là được, hệ thống đã
   tự thử lại vài lần trước khi báo lỗi cho bạn.
 
-1. **Tải lại code**: lặp lại **Việc 1** bên dưới (kéo-thả toàn bộ file trong
-   bản zip mới đè lên repo cũ trên GitHub) — không cần làm lại Việc 2.
-2. **Chạy thêm SQL (bắt buộc, chỉ 1 lần)**: vào Supabase Dashboard >
-   **SQL Editor** > **New query**, mở file
-   `supabase/migration_007_chuong_thu_muc_drive.sql` trong bản zip mới, copy
-   toàn bộ nội dung, dán vào query mới, bấm **Run**. File này chỉ thêm cột
-   mới vào 2 bảng có sẵn (`questions`, `exams`) — không đụng tới dữ liệu cũ.
+Cần chạy `supabase/migration_007_chuong_thu_muc_drive.sql` nếu chưa chạy.
 
-   Nếu bỏ qua bước này, các ô "Chương", "Thư mục", "Link Google Drive" vẫn
-   hiện được nhưng lưu sẽ báo lỗi vì database chưa có cột mới.
+</details>
 
 <details>
 <summary>Bản cập nhật trước đó (22/08/2026)</summary>

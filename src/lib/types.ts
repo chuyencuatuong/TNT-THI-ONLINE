@@ -79,17 +79,64 @@ export interface QuestionRow {
   created_at: string;
 }
 
+/** Thư mục/tuyển tập ('folder') và chương trình/kỳ thi ('term') — 2 danh sách
+ * do giáo viên tự quản lý (thêm/sửa tên), dùng chung 1 bảng vì cùng cấu trúc.
+ */
+export type ExamTagKind = "folder" | "term";
+
+export interface ExamTag {
+  id: string;
+  kind: ExamTagKind;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface ExamRow {
   id: string;
   title: string;
   description: string | null;
   duration_minutes: number | null;
-  /** Thư mục tự do do giáo viên đặt tên — null = "Chưa phân loại". */
-  folder: string | null;
+  /** Khối lớp của đề (10/11/12) — không bắt buộc, dùng để lọc ở Kho đề. */
+  grade: 10 | 11 | 12 | null;
+  /** Thư mục/tuyển tập chứa đề (exam_tags kind='folder') — null = "Chưa phân loại". */
+  folder_id: string | null;
+  /** Chương trình/kỳ thi (exam_tags kind='term', vd GK1/CK1...) — không bắt buộc. */
+  term_id: string | null;
   /** Link Google Drive chứa file đề gốc để học sinh tải về — không bắt buộc. */
   drive_link: string | null;
   created_by: string;
   created_at: string;
+}
+
+/** Đề có thể thuộc nhiều chương (topics) — giáo viên tự chọn lúc nhập đề, dùng
+ * để lọc ở Kho đề. Tách biệt với questions.topic_id (chương của từng câu). */
+export interface ExamTopicRow {
+  exam_id: string;
+  topic_id: string;
+}
+
+/** Nhật ký câu sai kiểu Leitner — xem src/lib/leitner.ts cho logic đếm streak. */
+export interface WrongAnswerJournalRow {
+  id: string;
+  student_id: string;
+  question_id: string;
+  first_wrong_at: string;
+  last_wrong_at: string;
+  correct_streak: number;
+  last_reviewed_session_id: string | null;
+  retired_at: string | null;
+  created_at: string;
+}
+
+/** 1 buổi ôn tập câu sai — mỗi lần học sinh mở màn hình ôn tập là 1 buổi mới,
+ * dùng để đếm "3 buổi RIÊNG BIỆT liên tiếp" (không phải 3 lần trong 1 buổi). */
+export interface ReviewSessionRow {
+  id: string;
+  student_id: string;
+  started_at: string;
+  finished_at: string | null;
 }
 
 export interface QuestionViewEventRow {

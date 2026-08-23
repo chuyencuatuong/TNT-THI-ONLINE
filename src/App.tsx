@@ -5,6 +5,8 @@ import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { PublicReportPage } from "./pages/PublicReportPage";
 import { StudentDashboard } from "./pages/StudentDashboard";
+import { StudentExamLibrary } from "./pages/StudentExamLibrary";
+import { StudentReviewPage } from "./pages/StudentReviewPage";
 import { ExamTakingPage } from "./pages/ExamTakingPage";
 import { ResultPage } from "./pages/ResultPage";
 import { TeacherDashboard } from "./pages/TeacherDashboard";
@@ -65,6 +67,22 @@ export default function App() {
           element={
             <RequireRole role="student">
               <StudentDashboard />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/hoc-sinh/kho-de"
+          element={
+            <RequireRole role="student">
+              <StudentExamLibrary />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/hoc-sinh/on-tap-cau-sai"
+          element={
+            <RequireRole role="student">
+              <StudentReviewPage />
             </RequireRole>
           }
         />

@@ -187,7 +187,7 @@ export function ExamTakingPage() {
     }
     setSubmitting(true);
     try {
-      await api.submitAttempt(attemptIdRef.current, examId);
+      await api.submitAttempt(attemptIdRef.current, examId, profile?.id);
       navigate(`/ket-qua/${attemptIdRef.current}`);
     } catch (err) {
       console.error(err);

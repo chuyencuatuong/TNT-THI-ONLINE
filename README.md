@@ -8,10 +8,24 @@ duy nhất).
 
 - Đăng nhập bằng email + mật khẩu tự đặt (không cần dịch vụ gửi email nào),
   phân quyền Giáo viên / Học sinh.
-- Giáo viên: tạo đề từ file PDF/Word, mỗi đề có thể gán vào **thư mục tự do**
-  (gõ tên tuỳ ý để nhóm lại, không bắt buộc) và **link Google Drive** chứa
-  file đề gốc để học sinh tải về (không lưu file trong hệ thống, chỉ lưu
-  link). Ngân hàng câu hỏi và danh sách đề có ô **tìm kiếm**.
+- Giáo viên: tạo đề từ file PDF/Word, mỗi đề có thể gán **Khối** (10/11/12),
+  **Chương** (đề có thể thuộc nhiều chương, tự chọn sẵn theo gợi ý AI của
+  từng câu), **Thư mục/tuyển tập** và **Chương trình/kỳ thi** (2 danh sách
+  do giáo viên tự quản lý — chọn từ danh sách có sẵn hoặc bấm "+ mới" khi
+  cần, tránh gõ tay dễ tạo trùng tên) và **link Google Drive** chứa file đề
+  gốc để học sinh tải về (không lưu file trong hệ thống, chỉ lưu link). Ngân
+  hàng câu hỏi và danh sách đề có ô **tìm kiếm**.
+- Học sinh: trang chủ chỉ hiện đề mới thêm gần đây nhất (đỡ rối khi số đề
+  tăng dần), có trang riêng **"Kho đề"** hiện thẻ theo thư mục/tuyển tập
+  (bấm vào xem danh sách đề bên trong) kèm bộ lọc chọn nối tiếp **Khối →
+  Chương trình → Chương** — chọn bất kỳ điều kiện nào sẽ chuyển sang xem
+  danh sách đề khớp lọc.
+- **Ôn tập câu sai kiểu Leitner**: câu làm sai/chưa trọn điểm khi làm đề tự
+  vào "nhật ký ôn tập" của học sinh đó. Có màn hình ôn tập riêng, không tính
+  giờ, lấy ngẫu nhiên câu trong nhật ký; câu chỉ được rút khỏi nhật ký khi
+  làm đúng đủ 3 buổi ôn tập RIÊNG BIỆT liên tiếp (làm sai buổi nào thì tính
+  lại từ đầu). Hiện tại là bản đơn giản (trả lời lại y hệt câu gốc) — kiến
+  trúc đã tách sẵn để sau này thêm chế độ "sắp xếp lại các bước lời giải".
 - Giáo viên: **tạo đề từ file PDF** (cách chính, cập nhật 23/08/2026) —
   trình duyệt đọc SONG SONG 2 nguồn cho mỗi trang: văn bản thật nhúng sẵn
   trong PDF (pdf.js, chính xác tuyệt đối, không tốn AI) và ảnh cả trang (chỉ
@@ -73,19 +87,21 @@ duy nhất).
 - `src/lib/pdfImport.ts` — với mỗi trang PDF: render thành ảnh + đọc văn bản thật (pdf.js) ngay trên trình duyệt (cách chính để tạo đề).
 - `src/lib/pdfTextLayout.ts` — hàm thuần ghép các mục text rời rạc (kèm toạ độ) mà pdf.js trả về thành đoạn văn bản đọc được, tách riêng để unit-test không cần môi trường trình duyệt, 6 unit test.
 - `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.
+- `src/lib/leitner.ts` — logic thuần cho nhật ký câu sai kiểu Leitner (đếm streak theo buổi ôn tập riêng biệt, chọn ngẫu nhiên), 10 unit test.
+- `src/lib/examLibrary.ts` — logic thuần cho Kho đề (nhóm theo thư mục, lọc theo Khối → Chương trình → Chương), 9 unit test.
 - `src/lib/api.ts` — toàn bộ truy vấn dữ liệu (Supabase).
-- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 12 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý).
+- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 17 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
-- `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề...).
+- `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề, TagPicker chọn thư mục/chương trình...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
-- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
+- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql`, `migration_008_kho_de_va_on_tap_leitner.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
 - `.github/workflows/deploy.yml` — tự động build & deploy lên GitHub Pages.
 
 ## Chạy thử ở máy (không bắt buộc)
 
 ```bash
 npm install
-npm test        # chạy 79 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI)
+npm test        # chạy 98 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI, nhật ký câu sai kiểu Leitner, lọc/nhóm Kho đề)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 
