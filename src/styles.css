@@ -980,3 +980,68 @@ a {
 .tag-picker {
   margin-top: 2px;
 }
+
+/* Dashboard tổng quan giáo viên — 3 cột (mục 19.4) */
+.teacher-dashboard-3col {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 1.6fr 1.6fr;
+  gap: 20px;
+  align-items: start;
+  margin-top: 16px;
+}
+.dashboard-col {
+  background: var(--color-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+.dashboard-col h3 {
+  margin-top: 0;
+  font-size: 15px;
+}
+.dashboard-col--students {
+  max-height: 640px;
+  overflow-y: auto;
+}
+.student-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.student-picker-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  background: var(--color-subtle-bg);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: inherit;
+  color: var(--color-text);
+}
+.student-picker-item--active {
+  border-color: var(--color-primary);
+  background: var(--color-accent-light);
+}
+.student-picker-detail-link {
+  display: block;
+  font-size: 12px;
+  text-align: right;
+  margin: 2px 4px 4px;
+  color: var(--color-primary-dark);
+}
+
+@media (max-width: 1080px) {
+  .teacher-dashboard-3col {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-col--students {
+    max-height: none;
+  }
+}

@@ -6,12 +6,8 @@ import {
   scorePart3Question,
 } from "./scoring";
 import { computeActiveSeconds, diagnoseAllTopics, type TopicOutcomeGroup } from "./diagnosis";
-import {
-  applyReviewResult,
-  markWrongFromExam,
-  pickRandomForSession,
-  type JournalStreakState,
-} from "./leitner";
+import { applyReviewResult, markWrongFromExam, type JournalStreakState } from "./leitner";
+import { mergeChapterStats, type ChapterStat } from "./chapterStats";
 import type {
   AttemptScoreRow,
   Difficulty,
@@ -726,6 +722,67 @@ export async function getStudentTopicStats(studentId: string): Promise<
   }));
 }
 
+/**
+ * Thống kê đúng/sai theo CHƯƠNG (topics) cho 1 học sinh — dùng cho dashboard
+ * tổng quan giáo viên (mục 19.4 — Đợt 3). Xem chapterStats.ts để biết lý do
+ * dùng CHƯƠNG thay vì "dạng bài" (question_type_id).
+ *
+ * LƯU Ý QUAN TRỌNG: bảng `questions` có 2 khoá ngoại tới `topics`
+ * (`topic_id` và `ai_suggested_topic_id`) — PostgREST không tự biết nên dùng
+ * khoá nào khi embed `topics` từ `questions` nếu không chỉ rõ, sẽ ném lỗi
+ * PGRST201 "more than one relationship was found". Vì vậy bắt buộc chỉ rõ
+ * `topics!questions_topic_id_fkey(...)` ở đây (đúng khoá `topic_id` đã được
+ * giáo viên XÁC NHẬN, không phải `ai_suggested_topic_id` — gợi ý AI chưa
+ * chắc đúng nên không dùng để thống kê).
+ */
+export async function getStudentChapterStats(studentId: string): Promise<ChapterStat[]> {
+  const { data, error } = await supabase
+    .from("question_responses")
+    .select(
+      "score, question:questions(part, default_points, topic:topics!questions_topic_id_fkey(id, name)), attempt:exam_attempts!inner(student_id)",
+    )
+    .eq("attempt.student_id", studentId);
+  if (error) throw error;
+
+  const map = new Map<string, ChapterStat>();
+
+  for (const row of data as unknown[]) {
+    const r = row as {
+      score: number;
+      question: {
+        part: 1 | 2 | 3;
+        default_points: number | null;
+        topic: { id: string; name: string } | null;
+      };
+    };
+    const topic = r.question.topic;
+    if (!topic) continue; // câu chưa được gán chương (topic_id null) -> không tính vào thống kê chương
+    const maxForQuestion = questionMaxScore(r.question);
+    const existing = map.get(topic.id) ?? {
+      topic_id: topic.id,
+      topic_name: topic.name,
+      total: 0,
+      correctScore: 0,
+      maxScore: 0,
+    };
+    existing.total += 1;
+    existing.correctScore += r.score;
+    existing.maxScore += maxForQuestion;
+    map.set(topic.id, existing);
+  }
+
+  return Array.from(map.values());
+}
+
+/** Thống kê theo chương gộp của NHIỀU học sinh (mặc định "cả lớp") — gọi
+ * song song getStudentChapterStats cho từng học sinh rồi gộp bằng
+ * mergeChapterStats (hàm thuần, xem chapterStats.ts). */
+export async function getClassChapterStats(studentIds: string[]): Promise<ChapterStat[]> {
+  if (studentIds.length === 0) return [];
+  const perStudent = await Promise.all(studentIds.map((id) => getStudentChapterStats(id)));
+  return mergeChapterStats(perStudent);
+}
+
 export interface AttemptQuestionDetail {
   question_id: string;
   part: 1 | 2 | 3;
@@ -949,10 +1006,16 @@ export async function finishReviewSession(sessionId: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Lấy ngẫu nhiên tối đa `count` câu đang cần ôn (retired_at null) cho 1 buổi ôn tập mới. */
-export async function pickReviewQuestions(
+/**
+ * Toàn bộ câu đang cần ôn (retired_at null) của 1 học sinh — KHÔNG giới hạn
+ * số lượng ở đây nữa (trước đây giới hạn cứng 10 câu/lần, bỏ sót các câu còn
+ * lại nếu nhật ký có nhiều hơn 10 câu). Trang ôn tập tự chịu trách nhiệm xáo
+ * ngẫu nhiên + chia thành nhiều đợt an toàn bằng `reviewBatching.ts`, đảm bảo
+ * TẤT CẢ câu trong nhật ký đều được luyện tới trong 1 lượt mở màn hình (chỉ
+ * chia nhỏ ra nhiều đợt để không dồn quá tải, không bỏ sót câu nào).
+ */
+export async function listActiveJournalEntries(
   studentId: string,
-  count: number,
 ): Promise<(WrongAnswerJournalRow & { question: QuestionRow })[]> {
   const { data, error } = await supabase
     .from("wrong_answer_journal")
@@ -960,8 +1023,7 @@ export async function pickReviewQuestions(
     .eq("student_id", studentId)
     .is("retired_at", null);
   if (error) throw error;
-  const entries = data as unknown as (WrongAnswerJournalRow & { question: QuestionRow })[];
-  return pickRandomForSession(entries, count);
+  return data as unknown as (WrongAnswerJournalRow & { question: QuestionRow })[];
 }
 
 /**

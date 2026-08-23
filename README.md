@@ -22,10 +22,20 @@ duy nhất).
   danh sách đề khớp lọc.
 - **Ôn tập câu sai kiểu Leitner**: câu làm sai/chưa trọn điểm khi làm đề tự
   vào "nhật ký ôn tập" của học sinh đó. Có màn hình ôn tập riêng, không tính
-  giờ, lấy ngẫu nhiên câu trong nhật ký; câu chỉ được rút khỏi nhật ký khi
+  giờ, lấy toàn bộ câu trong nhật ký; câu chỉ được rút khỏi nhật ký khi
   làm đúng đủ 3 buổi ôn tập RIÊNG BIỆT liên tiếp (làm sai buổi nào thì tính
   lại từ đầu). Hiện tại là bản đơn giản (trả lời lại y hệt câu gốc) — kiến
   trúc đã tách sẵn để sau này thêm chế độ "sắp xếp lại các bước lời giải".
+  Vị trí đáp án được **xáo ngẫu nhiên mỗi lần hiện ra** (chỉ ở màn hình ôn
+  tập, không ảnh hưởng đề thi thật) để học sinh không "đối phó" được bằng
+  cách nhớ vị trí đã bấm. Khi nhật ký có nhiều câu, buổi ôn tập tự **chia
+  thành nhiều đợt nhỏ** (tối đa 10 câu/đợt, đợt sau dồn phần dư nên có thể
+  nhiều hơn đợt trước) để không bị quá tải trong 1 lần mở màn hình, nhưng
+  vẫn tính chung là 1 buổi cho mục Leitner ở trên.
+- **Dashboard tổng quan giáo viên 3 cột**: danh sách học sinh (bấm để chọn) —
+  biểu đồ % đúng theo từng CHƯƠNG của học sinh đang chọn — so sánh học sinh
+  đó với trung bình cả lớp theo từng chương. Chưa chọn học sinh nào thì cả 3
+  cột mặc định hiện tổng quan cả lớp.
 - Giáo viên: **tạo đề từ file PDF** (cách chính, cập nhật 23/08/2026) —
   trình duyệt đọc SONG SONG 2 nguồn cho mỗi trang: văn bản thật nhúng sẵn
   trong PDF (pdf.js, chính xác tuyệt đối, không tốn AI) và ảnh cả trang (chỉ
@@ -89,6 +99,9 @@ duy nhất).
 - `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.
 - `src/lib/leitner.ts` — logic thuần cho nhật ký câu sai kiểu Leitner (đếm streak theo buổi ôn tập riêng biệt, chọn ngẫu nhiên), 10 unit test.
 - `src/lib/examLibrary.ts` — logic thuần cho Kho đề (nhóm theo thư mục, lọc theo Khối → Chương trình → Chương), 9 unit test.
+- `src/lib/reviewBatching.ts` — chia 1 buổi ôn tập thành nhiều đợt tối đa 10 câu/đợt khi nhật ký nhiều câu (dồn phần dư vào đợt sau), 10 unit test.
+- `src/lib/reviewShuffle.ts` — xáo ngẫu nhiên vị trí đáp án 1 câu cho màn hình ôn tập (chỉ ôn tập, không đụng đề thi thật), 5 unit test.
+- `src/lib/chapterStats.ts` — gộp/so sánh thống kê đúng-sai theo CHƯƠNG cho dashboard giáo viên 3 cột, 9 unit test.
 - `src/lib/api.ts` — toàn bộ truy vấn dữ liệu (Supabase).
 - `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 17 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
@@ -101,7 +114,7 @@ duy nhất).
 
 ```bash
 npm install
-npm test        # chạy 98 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI, nhật ký câu sai kiểu Leitner, lọc/nhóm Kho đề)
+npm test        # chạy 122 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI, nhật ký câu sai kiểu Leitner, lọc/nhóm Kho đề, chia đợt ôn tập, xáo đáp án ôn tập, gộp thống kê theo chương)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 

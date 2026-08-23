@@ -6,9 +6,50 @@ hình. Khoảng 10 phút.
 
 ---
 
-## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 2 việc để cập nhật
+## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 1 việc để cập nhật
 
-**Bản cập nhật mới nhất (23/08/2026 — Đợt 2: Kho đề có bộ lọc + Ôn tập câu
+**Bản cập nhật mới nhất (23/08/2026 — Đợt 3: xáo đáp án ôn tập, chia đợt ôn
+tập, dashboard giáo viên 3 cột)** thêm:
+
+- **Xáo ngẫu nhiên vị trí đáp án ở màn hình Ôn tập câu sai**: mỗi lần 1 câu
+  hiện ra để ôn, vị trí các đáp án (A/B/C/D hoặc a/b/c/d) được xáo lại ngẫu
+  nhiên — để học sinh không thể "đối phó" yêu cầu 3 buổi làm đúng liên tiếp
+  bằng cách nhớ đúng vị trí đã bấm lần trước rồi bấm lại y hệt mà không thực
+  sự hiểu bài. Chỉ áp dụng ở màn hình ôn tập — đề thi thật (làm bài chính
+  thức) KHÔNG xáo, giữ nguyên như cũ.
+- **Chia nhỏ buổi ôn tập thành nhiều "đợt" khi nhật ký có nhiều câu**: mỗi
+  đợt tối đa 10 câu. Nếu tổng số câu không chia hết cho số đợt, các đợt SAU
+  sẽ nhiều câu hơn đợt trước (dồn phần dư về cuối), đảm bảo không đợt nào
+  vượt quá 10 câu. Ví dụ 23 câu đang cần ôn sẽ chia thành 3 đợt: 7-8-8 câu.
+  Toàn bộ các đợt này vẫn tính chung là **1 buổi ôn tập** (đúng 1 trong 3
+  buổi riêng biệt cần để rút câu khỏi nhật ký) — chia đợt chỉ để đỡ mỏi khi
+  làm liền một lúc, không phải chia nhỏ số buổi cần làm đúng liên tiếp.
+  *(Lưu ý: ban đầu có nhắc tới "số nguyên tố" như một trường hợp cần chia lẻ
+  — thực ra yếu tố quyết định là tổng số câu có chia HẾT cho số đợt hay
+  không, không phải bản thân nó có phải số nguyên tố hay không; ví dụ 15 câu
+  dù không phải số nguyên tố vẫn chia lẻ 7-8 giống hệt 1 số nguyên tố. Đã
+  viết đúng 1 công thức chung xử lý mọi trường hợp, không cần kiểm tra riêng
+  số nguyên tố.)*
+- **Dashboard tổng quan giáo viên — bố cục 3 cột mới** (trang "Tổng quan" khi
+  đăng nhập giáo viên): cột 1 là danh sách học sinh (bấm để chọn), cột 2 là
+  biểu đồ % đúng theo TỪNG CHƯƠNG của học sinh đang chọn, cột 3 so sánh học
+  sinh đang chọn với TRUNG BÌNH CẢ LỚP theo từng chương. Khi chưa chọn học
+  sinh nào (mở trang lần đầu), cả 3 cột mặc định hiện tổng quan cả lớp. Bảng
+  thống kê cũ (điểm trung bình, số lần làm bài) vẫn còn, nằm trong cột danh
+  sách học sinh; trang chi tiết từng học sinh (bấm "Xem chi tiết") không đổi.
+  *(Lưu ý: biểu đồ này gộp theo CHƯƠNG, không phải "dạng bài chi tiết" —
+  dạng bài chi tiết vẫn chưa được nhập/dùng thật nên nếu gộp theo đó nhiều
+  khả năng biểu đồ sẽ trống trơn; chương thì đã được gán khá đầy đủ từ Đợt 1
+  nên có dữ liệu thật để hiển thị ngay.)*
+
+**Không cần chạy SQL nào cho lần cập nhật này** — chỉ cần lặp lại **Việc 1**
+bên dưới (kéo-thả toàn bộ file trong bản zip mới đè lên repo cũ trên GitHub),
+không cần làm lại Việc 2 và không có migration mới.
+
+<details>
+<summary>Bản cập nhật trước đó (23/08/2026 — Đợt 2: Kho đề có bộ lọc + Ôn tập câu sai)</summary>
+
+**Bản cập nhật (23/08/2026 — Đợt 2: Kho đề có bộ lọc + Ôn tập câu
 sai)** thêm:
 
 - **Thư mục/Chương trình giờ CHỌN từ danh sách thay vì gõ tự do**: khi
@@ -143,6 +184,8 @@ Cần chạy `supabase/migration_007_chuong_thu_muc_drive.sql` nếu chưa chạ
    Nếu trước đó bạn có bật "Custom SMTP" (Resend) theo hướng dẫn cũ, giờ có
    thể tắt luôn cho gọn (không bắt buộc, không dùng nữa) — vào cùng trang
    đó, tắt **"Enable Custom SMTP"**.
+
+</details>
 
 </details>
 
