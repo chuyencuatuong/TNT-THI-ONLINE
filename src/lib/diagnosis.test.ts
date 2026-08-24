@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  blankQuestionAdvice,
+  classifyBlankQuestions,
   computeActiveSeconds,
   diagnoseAllTopics,
   diagnoseTopic,
@@ -128,5 +130,57 @@ describe("computeActiveSeconds", () => {
       { event_type: "enter" as const, created_at: "2026-01-01T00:00:00.000Z" },
     ];
     expect(computeActiveSeconds(events)).toBe(30);
+  });
+});
+
+describe("classifyBlankQuestions", () => {
+  it("trả về rỗng khi không có câu nào bị bỏ trống", () => {
+    const result = classifyBlankQuestions([], ["q1", "q2"]);
+    expect(result.totalBlank).toBe(0);
+    expect(result.timeoutCount).toBe(0);
+    expect(result.skippedCount).toBe(0);
+  });
+
+  it("xếp vào 'chua_kip_doc' khi câu bỏ trống chưa từng được mở xem", () => {
+    const result = classifyBlankQuestions(["q1", "q2"], []);
+    expect(result.timeoutCount).toBe(2);
+    expect(result.skippedCount).toBe(0);
+    expect(result.items.every((i) => i.reason === "chua_kip_doc")).toBe(true);
+  });
+
+  it("xếp vào 'doc_roi_bo_qua' khi câu bỏ trống đã từng được mở xem", () => {
+    const result = classifyBlankQuestions(["q1", "q2"], ["q1", "q2"]);
+    expect(result.skippedCount).toBe(2);
+    expect(result.timeoutCount).toBe(0);
+  });
+
+  it("phân loại đúng khi trộn lẫn cả 2 nguyên nhân", () => {
+    const result = classifyBlankQuestions(["q1", "q2", "q3"], ["q2"]);
+    expect(result.totalBlank).toBe(3);
+    expect(result.timeoutCount).toBe(2);
+    expect(result.skippedCount).toBe(1);
+    expect(result.items.find((i) => i.question_id === "q2")?.reason).toBe("doc_roi_bo_qua");
+  });
+});
+
+describe("blankQuestionAdvice", () => {
+  it("trả về null khi không có câu bỏ trống", () => {
+    expect(blankQuestionAdvice(classifyBlankQuestions([], []))).toBeNull();
+  });
+
+  it("nêu rõ vấn đề thời gian khi toàn bộ là 'chua_kip_doc'", () => {
+    const advice = blankQuestionAdvice(classifyBlankQuestions(["q1"], []));
+    expect(advice).toContain("phân bổ thời gian");
+  });
+
+  it("nêu rõ vấn đề kiến thức khi toàn bộ là 'doc_roi_bo_qua'", () => {
+    const advice = blankQuestionAdvice(classifyBlankQuestions(["q1"], ["q1"]));
+    expect(advice).toContain("kiểm tra lại kiến thức");
+  });
+
+  it("nêu cả 2 nguyên nhân khi trộn lẫn", () => {
+    const advice = blankQuestionAdvice(classifyBlankQuestions(["q1", "q2"], ["q2"]));
+    expect(advice).toContain("1 câu chưa kịp xem");
+    expect(advice).toContain("1 câu đã xem nhưng bỏ qua");
   });
 });

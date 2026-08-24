@@ -5,7 +5,13 @@ import {
   scorePart2Question,
   scorePart3Question,
 } from "./scoring";
-import { computeActiveSeconds, diagnoseAllTopics, type TopicOutcomeGroup } from "./diagnosis";
+import {
+  classifyBlankQuestions,
+  computeActiveSeconds,
+  diagnoseAllTopics,
+  type BlankQuestionSummary,
+  type TopicOutcomeGroup,
+} from "./diagnosis";
 import { applyReviewResult, markWrongFromExam, type JournalStreakState } from "./leitner";
 import { mergeChapterStats, type ChapterStat } from "./chapterStats";
 import type {
@@ -443,6 +449,56 @@ export async function getProctoringCounts(
   return counts;
 }
 
+/**
+ * Đếm nhanh số câu bỏ trống (và nguyên nhân chưa-kịp-đọc/đọc-rồi-bỏ-qua) cho
+ * NHIỀU lượt làm bài cùng lúc — dùng để hiện badge tổng quan ở bảng danh sách
+ * lượt làm bài của giáo viên, không cần bấm vào từng dòng mới thấy.
+ * Xem classifyBlankQuestions (diagnosis.ts) cho ý nghĩa của 2 nguyên nhân.
+ */
+export async function getBlankQuestionCounts(
+  attemptIds: string[],
+): Promise<Record<string, BlankQuestionSummary>> {
+  if (attemptIds.length === 0) return {};
+  const [{ data: blankResponses, error: rErr }, { data: viewEvents, error: veErr }] =
+    await Promise.all([
+      supabase
+        .from("question_responses")
+        .select("attempt_id, question_id")
+        .in("attempt_id", attemptIds)
+        .is("final_answer", null),
+      supabase
+        .from("question_view_events")
+        .select("attempt_id, question_id")
+        .in("attempt_id", attemptIds)
+        .eq("event_type", "enter"),
+    ]);
+  if (rErr) throw rErr;
+  if (veErr) throw veErr;
+
+  const viewedByAttempt = new Map<string, Set<string>>();
+  for (const row of viewEvents as { attempt_id: string; question_id: string }[]) {
+    const set = viewedByAttempt.get(row.attempt_id) ?? new Set<string>();
+    set.add(row.question_id);
+    viewedByAttempt.set(row.attempt_id, set);
+  }
+
+  const blankByAttempt = new Map<string, string[]>();
+  for (const row of blankResponses as { attempt_id: string; question_id: string }[]) {
+    const list = blankByAttempt.get(row.attempt_id) ?? [];
+    list.push(row.question_id);
+    blankByAttempt.set(row.attempt_id, list);
+  }
+
+  const result: Record<string, BlankQuestionSummary> = {};
+  for (const [attemptId, blankIds] of blankByAttempt) {
+    result[attemptId] = classifyBlankQuestions(
+      blankIds,
+      viewedByAttempt.get(attemptId) ?? new Set<string>(),
+    );
+  }
+  return result;
+}
+
 /** Toàn bộ dấu hiệu giám sát của 1 lượt làm bài, theo đúng thứ tự thời gian —
  * dùng cho "Xem chi tiết vi phạm" ở trang chi tiết học sinh (biên bản đầy đủ
  * cho giáo viên, thay vì chỉ 1 con số nghi ngờ). */
@@ -840,11 +896,15 @@ export interface AttemptQuestionDetail {
   scoreRatio: number;
   timeSpentSeconds: number;
   changeCount: number;
+  /** false nếu học sinh không nộp đáp án nào cho câu này (final_answer = null). */
+  answered: boolean;
 }
 
 export interface AttemptDiagnostics {
   perQuestion: AttemptQuestionDetail[];
   byTopic: ReturnType<typeof diagnoseAllTopics>;
+  /** Chẩn đoán nguyên nhân bỏ trống — xem classifyBlankQuestions trong diagnosis.ts. */
+  blankQuestions: BlankQuestionSummary;
 }
 
 /**
@@ -857,19 +917,29 @@ export async function getAttemptDiagnostics(
   attemptId: string,
   examId: string,
 ): Promise<AttemptDiagnostics> {
-  const [examQuestions, { data: responses, error }] = await Promise.all([
-    getExamQuestions(examId),
-    supabase
-      .from("question_responses")
-      .select(
-        "question_id, score, time_spent_seconds, change_count, question:questions(question_type_id, question_type:question_types!questions_question_type_id_fkey(name))",
-      )
-      .eq("attempt_id", attemptId),
-  ]);
+  const [examQuestions, { data: responses, error }, { data: viewEvents, error: veErr }] =
+    await Promise.all([
+      getExamQuestions(examId),
+      supabase
+        .from("question_responses")
+        .select(
+          "question_id, final_answer, score, time_spent_seconds, change_count, question:questions(question_type_id, question_type:question_types!questions_question_type_id_fkey(name))",
+        )
+        .eq("attempt_id", attemptId),
+      // Chỉ cần sự kiện "enter" để biết học sinh có từng mở câu hỏi ra xem hay
+      // chưa — dùng cho chẩn đoán "chua_kip_doc" vs "doc_roi_bo_qua" bên dưới.
+      supabase
+        .from("question_view_events")
+        .select("question_id")
+        .eq("attempt_id", attemptId)
+        .eq("event_type", "enter"),
+    ]);
   if (error) throw error;
+  if (veErr) throw veErr;
 
   type ResponseRow = {
     question_id: string;
+    final_answer: unknown;
     score: number;
     time_spent_seconds: number;
     change_count: number;
@@ -880,6 +950,9 @@ export async function getAttemptDiagnostics(
   };
   const responseMap = new Map<string, ResponseRow>(
     (responses as unknown as ResponseRow[]).map((r) => [r.question_id, r]),
+  );
+  const viewedQuestionIds = new Set(
+    (viewEvents as { question_id: string }[]).map((e) => e.question_id),
   );
 
   const perQuestion: AttemptQuestionDetail[] = examQuestions.map((eq) => {
@@ -900,8 +973,14 @@ export async function getAttemptDiagnostics(
       scoreRatio: maxScore > 0 ? Math.min(1, score / maxScore) : 0,
       timeSpentSeconds: resp?.time_spent_seconds ?? 0,
       changeCount: resp?.change_count ?? 0,
+      answered: (resp?.final_answer ?? null) !== null,
     };
   });
+
+  const blankQuestions = classifyBlankQuestions(
+    perQuestion.filter((pq) => !pq.answered).map((pq) => pq.question_id),
+    viewedQuestionIds,
+  );
 
   const groupMap = new Map<string, TopicOutcomeGroup>();
   for (const pq of perQuestion) {
@@ -924,6 +1003,7 @@ export async function getAttemptDiagnostics(
   return {
     perQuestion,
     byTopic: diagnoseAllTopics(Array.from(groupMap.values())),
+    blankQuestions,
   };
 }
 

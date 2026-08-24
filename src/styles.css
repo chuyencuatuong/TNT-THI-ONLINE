@@ -791,6 +791,36 @@ a {
   color: var(--color-text-muted);
 }
 
+.blank-question-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.blank-question-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.blank-question-tag {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.blank-question-tag--chua_kip_doc {
+  background: var(--color-clay-light);
+  color: var(--color-clay-text);
+}
+.blank-question-tag--doc_roi_bo_qua {
+  background: #fbe9c6;
+  color: #8a6a25;
+}
+
 /* Teacher pages */
 .page-header-row {
   display: flex;

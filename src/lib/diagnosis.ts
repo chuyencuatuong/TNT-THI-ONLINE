@@ -167,3 +167,66 @@ export function computeActiveSeconds(
   }
   return Math.round(total);
 }
+
+/**
+ * Với các câu bị bỏ trống (final_answer = null), phân biệt 2 nguyên nhân khác
+ * nhau dựa vào việc học sinh có từng "mở" câu đó ra xem hay không
+ * (question_view_events, event_type "enter"):
+ *  - Không có sự kiện "enter" nào -> nhiều khả năng do hết giờ, chưa kịp đọc
+ *    tới câu này (vấn đề PHÂN BỐ THỜI GIAN).
+ *  - Có sự kiện "enter" nhưng vẫn bỏ trống -> đã đọc nhưng chủ động không
+ *    làm, có thể do thấy khó quá hoặc chủ động bỏ qua (vấn đề KIẾN THỨC/tâm
+ *    lý, không phải thời gian).
+ * Hai nguyên nhân này cần 2 hướng can thiệp khác nhau nên tách riêng thay vì
+ * gộp chung thành 1 số "số câu bỏ trống" như hầu hết hệ thống chấm điểm khác.
+ */
+export type BlankReason = "chua_kip_doc" | "doc_roi_bo_qua";
+
+export const BLANK_REASON_LABELS: Record<BlankReason, string> = {
+  chua_kip_doc: "Chưa kịp đọc (có thể do hết giờ)",
+  doc_roi_bo_qua: "Đã đọc nhưng bỏ qua",
+};
+
+export interface BlankQuestionInfo {
+  question_id: string;
+  reason: BlankReason;
+}
+
+export interface BlankQuestionSummary {
+  totalBlank: number;
+  /** Số câu bỏ trống mà học sinh chưa từng mở ra xem. */
+  timeoutCount: number;
+  /** Số câu bỏ trống mà học sinh đã mở ra xem nhưng không làm. */
+  skippedCount: number;
+  items: BlankQuestionInfo[];
+}
+
+export function classifyBlankQuestions(
+  blankQuestionIds: string[],
+  viewedQuestionIds: Iterable<string>,
+): BlankQuestionSummary {
+  const viewedSet = new Set(viewedQuestionIds);
+  const items: BlankQuestionInfo[] = blankQuestionIds.map((question_id) => ({
+    question_id,
+    reason: viewedSet.has(question_id) ? "doc_roi_bo_qua" : "chua_kip_doc",
+  }));
+  return {
+    totalBlank: items.length,
+    timeoutCount: items.filter((i) => i.reason === "chua_kip_doc").length,
+    skippedCount: items.filter((i) => i.reason === "doc_roi_bo_qua").length,
+    items,
+  };
+}
+
+/** Gợi ý ngắn, diễn giải nguyên nhân bỏ trống chiếm đa số — trả về null nếu
+ * không có câu nào bị bỏ trống. */
+export function blankQuestionAdvice(summary: BlankQuestionSummary): string | null {
+  if (summary.totalBlank === 0) return null;
+  if (summary.skippedCount === 0) {
+    return `Cả ${summary.timeoutCount} câu bỏ trống đều chưa kịp mở ra xem — nhiều khả năng do phân bổ thời gian chưa hợp lý, chưa chắc do thiếu kiến thức.`;
+  }
+  if (summary.timeoutCount === 0) {
+    return `Cả ${summary.skippedCount} câu bỏ trống đều đã mở ra xem nhưng không làm — nên ưu tiên kiểm tra lại kiến thức ở các câu này.`;
+  }
+  return `${summary.timeoutCount} câu chưa kịp xem (có thể do thiếu thời gian) và ${summary.skippedCount} câu đã xem nhưng bỏ qua (có thể do chưa nắm kiến thức).`;
+}

@@ -12,7 +12,12 @@ import {
 } from "recharts";
 import * as api from "../lib/api";
 import type { AttemptDiagnostics, AttemptReviewItem } from "../lib/api";
-import { MASTERY_LABELS, type MasteryLabel } from "../lib/diagnosis";
+import {
+  BLANK_REASON_LABELS,
+  blankQuestionAdvice,
+  MASTERY_LABELS,
+  type MasteryLabel,
+} from "../lib/diagnosis";
 import { QuestionReview } from "../components/QuestionReview";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 
@@ -171,6 +176,28 @@ export function ResultPage() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {diagnostics && diagnostics.blankQuestions.totalBlank > 0 && (
+        <section className="result-section">
+          <h3>Câu bỏ trống</h3>
+          <p className="empty-hint">{blankQuestionAdvice(diagnostics.blankQuestions)}</p>
+          <ul className="blank-question-list">
+            {diagnostics.blankQuestions.items.map((item) => {
+              const order =
+                diagnostics.perQuestion.findIndex((pq) => pq.question_id === item.question_id) +
+                1;
+              return (
+                <li key={item.question_id}>
+                  <span className={`blank-question-tag blank-question-tag--${item.reason}`}>
+                    {BLANK_REASON_LABELS[item.reason]}
+                  </span>
+                  {order > 0 ? `Câu ${order}` : ""}
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 

@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import * as api from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
+import { BLANK_REASON_LABELS, type BlankQuestionSummary } from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile, ProctoringEventRow } from "../lib/types";
 
@@ -66,6 +67,7 @@ export function TeacherStudentDetail() {
     { type_name: string; accuracyPercent: number }[]
   >([]);
   const [proctoringCounts, setProctoringCounts] = useState<Record<string, number>>({});
+  const [blankCounts, setBlankCounts] = useState<Record<string, BlankQuestionSummary>>({});
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [reportLink, setReportLink] = useState<string | null>(null);
@@ -94,6 +96,10 @@ export function TeacherStudentDetail() {
         .getProctoringCounts(scoredAttempts.map((a) => a.id))
         .then(setProctoringCounts)
         .catch((err) => console.error("Không lấy được dữ liệu giám sát:", err));
+      api
+        .getBlankQuestionCounts(scoredAttempts.map((a) => a.id))
+        .then(setBlankCounts)
+        .catch((err) => console.error("Không lấy được dữ liệu câu bỏ trống:", err));
       setLoading(false);
     })();
   }, [studentId]);
@@ -200,7 +206,9 @@ export function TeacherStudentDetail() {
           đầu và lần ngay trước đó (lần n-1) — để thấy rõ học sinh có tiến bộ qua các lần làm lại
           hay không. Cột "Giám sát" dựa trên số lần rời tab, thoát toàn màn hình, hoặc cố sao
           chép/dán trong lúc làm bài — chỉ để gợi ý hỏi lại học sinh, không phải bằng chứng gian
-          lận chắc chắn.
+          lận chắc chắn. Cột "Câu bỏ trống" tách riêng 2 nguyên nhân: "hết giờ" (chưa từng mở câu
+          đó ra xem — có thể do phân bổ thời gian) và "bỏ qua" (đã mở ra xem nhưng không làm — có
+          thể do chưa nắm kiến thức phần đó).
         </p>
         {examGroups.length === 0 ? (
           <p className="empty-hint">Chưa có lượt làm bài nào.</p>
@@ -225,6 +233,7 @@ export function TeacherStudentDetail() {
                         <th>TG so với lần đầu</th>
                         <th>TG so với lần trước</th>
                         <th>Giám sát</th>
+                        <th>Câu bỏ trống</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -293,10 +302,23 @@ export function TeacherStudentDetail() {
                                 </button>
                               )}
                             </td>
+                            <td>
+                              {(() => {
+                                const b = blankCounts[a.id];
+                                if (!b || b.totalBlank === 0) {
+                                  return <span className="badge badge-ok">Không có</span>;
+                                }
+                                return (
+                                  <span className="badge badge-warn" title={`${b.timeoutCount} ${BLANK_REASON_LABELS.chua_kip_doc.toLowerCase()}, ${b.skippedCount} ${BLANK_REASON_LABELS.doc_roi_bo_qua.toLowerCase()}`}>
+                                    {b.totalBlank} câu ({b.timeoutCount} hết giờ, {b.skippedCount} bỏ qua)
+                                  </span>
+                                );
+                              })()}
+                            </td>
                           </tr>
                           {isOpen && (
                             <tr>
-                              <td colSpan={9} className="proctoring-detail-cell">
+                              <td colSpan={10} className="proctoring-detail-cell">
                                 {loadingViolations && !violationEvents[a.id] ? (
                                   <span className="empty-hint">Đang tải...</span>
                                 ) : (violationEvents[a.id] ?? []).length === 0 ? (
