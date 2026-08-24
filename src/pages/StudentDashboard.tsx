@@ -13,6 +13,11 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { accuracyPercent, type ChapterStat } from "../lib/chapterStats";
 import { completionMinutes, formatMinutes, formatScoreDelta } from "../lib/format";
+import {
+  formatCountdownLabel,
+  getAssignmentStatus,
+  pickFeaturedAssignedExam,
+} from "../lib/examAssignment";
 import { PomodoroGarden } from "../components/PomodoroGarden";
 import { ExamCountdown } from "../components/ExamCountdown";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
@@ -26,6 +31,14 @@ export function StudentDashboard() {
   const [wrongCount, setWrongCount] = useState(0);
   const [chapterStats, setChapterStats] = useState<ChapterStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Chỉ cần cập nhật mỗi phút là đủ để đếm ngược mở khoá/khoá đề được chỉ
+  // định tự nhảy đúng lúc, không cần theo giây.
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
@@ -44,6 +57,9 @@ export function StudentDashboard() {
   }, [profile]);
 
   const latestExam = exams.length > 0 ? exams[0] : null; // listExams() đã sắp created_at desc
+
+  const featuredExam = useMemo(() => pickFeaturedAssignedExam(exams, nowMs), [exams, nowMs]);
+  const featuredStatus = featuredExam ? getAssignmentStatus(featuredExam, nowMs) : null;
 
   // Chỉ tính trên các lượt đã nộp bài và đã có điểm, xếp theo thời gian tăng
   // dần để tính "cải thiện" (so lần gần nhất với lần ngay trước đó) và vẽ biểu
@@ -91,6 +107,33 @@ export function StudentDashboard() {
   return (
     <div className="dashboard">
       <h2>Chào em, {profile?.full_name}!</h2>
+
+      {featuredExam && featuredStatus && (
+        <div className="featured-assigned-card">
+          <div className="featured-assigned-eyebrow">Đề thi được chỉ định</div>
+          <div className="featured-assigned-title">{featuredExam.title}</div>
+          {featuredStatus === "open" ? (
+            <>
+              <Link className="btn-primary featured-assigned-cta" to={`/lam-bai/${featuredExam.id}`}>
+                Vào thi ngay
+              </Link>
+              {featuredExam.assigned_lock_at && (
+                <div className="featured-assigned-note">
+                  Đóng sau {formatCountdownLabel(
+                    new Date(featuredExam.assigned_lock_at).getTime() - nowMs,
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="featured-assigned-note">
+              Mở khoá sau {formatCountdownLabel(
+                new Date(featuredExam.assigned_unlock_at!).getTime() - nowMs,
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {totalAttempts === 0 ? (
         <p className="empty-hint">

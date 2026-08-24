@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
+import { getAssignmentStatus } from "../lib/examAssignment";
+import {
+  INVALIDATED_REASON_TOO_MANY_EXITS,
+  isAutoCancelEvent,
+  shouldAutoCancel,
+  violationToastMessage,
+} from "../lib/proctoring";
 import type {
   ExamQuestionRow,
   ExamRow,
@@ -15,6 +22,11 @@ import { Part2Question } from "../components/Part2Question";
 import { Part3Question } from "../components/Part3Question";
 
 type AnyAnswer = Part1Answer | Partial<Part2Answer> | Part3Answer;
+
+/** Trạng thái "cửa vào" bài thi — tách khỏi việc tải câu hỏi để có thể chặn
+ * (chưa mở khoá / đã khoá) hoặc yêu cầu xác nhận (đề nghiêm túc) TRƯỚC khi
+ * thật sự tạo 1 lượt làm bài mới trong CSDL. */
+type Phase = "loading" | "not_unlocked" | "locked" | "confirm" | "taking";
 
 const PART_LABELS: Record<1 | 2 | 3, string> = {
   1: "Phần 1. Trắc nghiệm 4 phương án",
@@ -30,12 +42,22 @@ function formatCountdown(totalSeconds: number): string {
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 export function ExamTakingPage() {
   const { examId } = useParams<{ examId: string }>();
   const { profile } = useAuth();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
+  const [phase, setPhase] = useState<Phase>("loading");
   const [exam, setExam] = useState<ExamRow | null>(null);
   const [items, setItems] = useState<(ExamQuestionRow & { question: QuestionRow })[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
@@ -44,40 +66,83 @@ export function ExamTakingPage() {
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const visibleSince = useRef<Set<string>>(new Set());
   const attemptIdRef = useRef<string | null>(null);
   const autoSubmitted = useRef(false);
+  const invalidatedRef = useRef(false);
+  const violationCountRef = useRef(0);
   const submitRef = useRef<() => void>(() => {});
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const isStrict = exam?.mode === "nghiem_tuc";
+
+  // Bước 1: tải thông tin đề trước — quyết định có được vào làm bài luôn hay
+  // không (đề "được chỉ định" ngoài khung giờ mở/khoá, hoặc đề nghiêm túc cần
+  // xác nhận trước). CHƯA tạo lượt làm bài ở bước này.
   useEffect(() => {
-    if (!examId || !profile) return;
+    if (!examId) return;
+    let cancelled = false;
+    api.getExam(examId).then((examRow) => {
+      if (cancelled || !examRow) return;
+      setExam(examRow);
+      const status = getAssignmentStatus(examRow, Date.now());
+      if (status === "before_unlock") setPhase("not_unlocked");
+      else if (status === "after_lock") setPhase("locked");
+      else if (examRow.mode === "nghiem_tuc") setPhase("confirm");
+      else setPhase("taking");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [examId]);
+
+  // Bước 2: chỉ chạy khi đã qua "cửa vào" (phase === "taking") — tạo lượt làm
+  // bài + tải câu hỏi. Việc chặn ngoài khung giờ còn được chặn LẦN NỮA ở tầng
+  // server (trigger check_exam_assignment_window, migration_010) — nếu học
+  // sinh lách qua bước 1 bằng cách chỉnh giờ máy, insert dưới đây vẫn bị chặn.
+  useEffect(() => {
+    if (phase !== "taking" || !examId || !profile || attemptId) return;
     let cancelled = false;
     (async () => {
-      const [exQuestions, attempt, examRow] = await Promise.all([
-        api.getExamQuestions(examId),
-        api.startAttempt(examId, profile.id),
-        api.getExam(examId),
-      ]);
-      if (cancelled) return;
-      setItems(exQuestions);
-      setAttemptId(attempt.id);
-      attemptIdRef.current = attempt.id;
-      setExam(examRow);
-      if (examRow?.duration_minutes) {
-        const deadline =
-          new Date(attempt.started_at).getTime() + examRow.duration_minutes * 60_000;
-        setRemainingSeconds(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
+      try {
+        const [exQuestions, attempt] = await Promise.all([
+          api.getExamQuestions(examId),
+          api.startAttempt(examId, profile.id),
+        ]);
+        if (cancelled) return;
+        setItems(exQuestions);
+        setAttemptId(attempt.id);
+        attemptIdRef.current = attempt.id;
+        if (exam?.duration_minutes) {
+          const deadline =
+            new Date(attempt.started_at).getTime() + exam.duration_minutes * 60_000;
+          setRemainingSeconds(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
+        }
+        if (exam?.mode === "nghiem_tuc" && !document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {
+            /* trình duyệt có thể chặn — không quan trọng, bỏ qua */
+          });
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("exam_not_unlocked_yet")) setPhase("not_unlocked");
+        else if (msg.includes("exam_locked")) setPhase("locked");
+        else {
+          console.error(err);
+          alert("Có lỗi khi bắt đầu làm bài, vui lòng thử lại.");
+        }
       }
-      setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examId, profile?.id]);
+  }, [phase, examId, profile?.id, attemptId]);
 
   // Đếm ngược thời gian, tự động nộp bài khi hết giờ.
   useEffect(() => {
@@ -177,7 +242,7 @@ export function ExamTakingPage() {
   }
 
   async function handleSubmit() {
-    if (!attemptIdRef.current || !examId || submitting) return;
+    if (!attemptIdRef.current || !examId || submitting || invalidatedRef.current) return;
     const unanswered = items.filter((it) => answers[it.question.id] === undefined).length;
     if (unanswered > 0 && !autoSubmitted.current) {
       const ok = confirm(
@@ -197,6 +262,26 @@ export function ExamTakingPage() {
   }
   submitRef.current = handleSubmit;
 
+  /** Bài bị TỰ ĐỘNG huỷ vì rời trang quá số lần cho phép (chỉ áp dụng đề chế
+   * độ nghiêm túc) — nộp thẳng luôn, không hỏi xác nhận như handleSubmit. */
+  async function invalidateAndSubmit() {
+    if (!attemptIdRef.current || !examId || invalidatedRef.current) return;
+    invalidatedRef.current = true;
+    setSubmitting(true);
+    try {
+      await api.submitAttempt(
+        attemptIdRef.current,
+        examId,
+        profile?.id,
+        INVALIDATED_REASON_TOO_MANY_EXITS,
+      );
+    } catch (err) {
+      console.error("Không nộp được bài bị huỷ:", err);
+    } finally {
+      navigate(`/ket-qua/${attemptIdRef.current}`);
+    }
+  }
+
   function handleBack() {
     const ok = confirm("Thoát khỏi bài làm? Các câu đã trả lời vẫn được lưu, bạn có thể vào làm tiếp sau.");
     if (ok) navigate("/hoc-sinh");
@@ -212,16 +297,33 @@ export function ExamTakingPage() {
     }
   }
 
+  function handleConfirmStrictMode() {
+    setPhase("taking");
+  }
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  function showToast(text: string) {
+    setToast({ text, key: Date.now() });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  }
+
   // Giám sát trong lúc làm bài: ghi lại các dấu hiệu khả nghi (rời tab, thoát
   // toàn màn hình) cho giáo viên xem sau, đồng thời CHẶN hẳn việc sao chép đề
   // hoặc dán nội dung vào bài làm. Đây chỉ là công cụ giảm bớt gian lận dễ
   // dàng, không thể ngăn học sinh dùng thiết bị khác để tra cứu.
+  //
+  // Ở đề "nghiêm túc": mỗi lần rời tab/thoát fullscreen còn được đếm riêng —
+  // hiện ngay 1 thông báo nhỏ cho học sinh biết CHÍNH XÁC mình vừa bị ghi
+  // nhận (minh bạch, không hù doạ), và tự động huỷ + nộp bài nếu vượt quá số
+  // lần cho phép (xem src/lib/proctoring.ts). Đề "thoải mái" vẫn ghi log như
+  // cũ để giáo viên tham khảo nhưng KHÔNG đếm/không huỷ — giữ đúng tinh thần
+  // luyện tập nhẹ nhàng.
   useEffect(() => {
     if (!attemptId) return;
 
@@ -229,6 +331,15 @@ export function ExamTakingPage() {
       api
         .logProctoringEvent({ attempt_id: attemptIdRef.current!, event_type: type })
         .catch((err) => console.error("Không ghi được proctoring_event:", err));
+
+      if (isStrict && isAutoCancelEvent(type) && !invalidatedRef.current) {
+        violationCountRef.current += 1;
+        const count = violationCountRef.current;
+        showToast(violationToastMessage(count));
+        if (shouldAutoCancel(count)) {
+          void invalidateAndSubmit();
+        }
+      }
     }
 
     const onVisibilityChange = () => log(document.hidden ? "tab_hidden" : "tab_visible");
@@ -260,13 +371,69 @@ export function ExamTakingPage() {
       document.removeEventListener("copy", onCopy);
       document.removeEventListener("paste", onPaste);
     };
-  }, [attemptId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId, isStrict]);
 
   function scrollToQuestion(questionId: string) {
     questionRefs.current[questionId]?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  if (loading) return <div className="page-loading">Đang tải đề thi...</div>;
+  if (phase === "loading") return <div className="page-loading">Đang tải đề thi...</div>;
+
+  if (phase === "not_unlocked") {
+    return (
+      <div className="exam-gate">
+        <div className="exam-gate-icon">🔒</div>
+        <h2>Chưa đến giờ mở đề</h2>
+        <p className="empty-hint">
+          {exam?.title} sẽ mở khoá lúc{" "}
+          <strong>{exam?.assigned_unlock_at ? formatDateTime(exam.assigned_unlock_at) : ""}</strong>.
+          Quay lại đúng giờ để bắt đầu làm bài nhé.
+        </p>
+        <Link className="btn-secondary" to="/hoc-sinh">
+          ← Về trang chủ
+        </Link>
+      </div>
+    );
+  }
+
+  if (phase === "locked") {
+    return (
+      <div className="exam-gate">
+        <div className="exam-gate-icon">🔒</div>
+        <h2>Đề thi đã đóng</h2>
+        <p className="empty-hint">
+          {exam?.title} đã hết hạn làm bài
+          {exam?.assigned_lock_at ? ` lúc ${formatDateTime(exam.assigned_lock_at)}` : ""}. Liên hệ
+          giáo viên nếu bạn cần làm bù.
+        </p>
+        <Link className="btn-secondary" to="/hoc-sinh">
+          ← Về trang chủ
+        </Link>
+      </div>
+    );
+  }
+
+  if (phase === "confirm") {
+    return (
+      <div className="exam-gate exam-gate--strict">
+        <div className="exam-gate-icon">📋</div>
+        <h2>Phòng thi nghiêm túc</h2>
+        <p className="exam-gate-exam-title">{exam?.title}</p>
+        <ul className="exam-gate-rules">
+          <li>Bài làm cần được thực hiện ở chế độ toàn màn hình trong suốt thời gian thi.</li>
+          <li>Hệ thống ghi nhận thời điểm mỗi lần bạn rời tab hoặc thoát toàn màn hình.</li>
+          <li>Rời trang quá 2 lần, bài làm sẽ tự động bị huỷ (điểm không được công nhận).</li>
+          <li>Không thể sao chép đề hoặc dán nội dung vào bài làm.</li>
+        </ul>
+        <button className="btn-primary" onClick={handleConfirmStrictMode}>
+          Tôi đã hiểu, bắt đầu làm bài
+        </button>
+      </div>
+    );
+  }
+
+  if (!attemptId) return <div className="page-loading">Đang tải đề thi...</div>;
 
   const numberMap: Record<string, number> = {};
   items.forEach((it, i) => {
@@ -280,13 +447,22 @@ export function ExamTakingPage() {
   const answeredCount = Object.keys(answers).length;
 
   return (
-    <div className="exam-page">
+    <div className={`exam-page ${isStrict ? "exam-page--strict" : ""}`}>
+      {toast && (
+        <div key={toast.key} className="exam-violation-toast">
+          {toast.text}
+        </div>
+      )}
+
       <div className="exam-topbar">
         <button className="btn-link exam-back" onClick={handleBack}>
           ← Quay lại
         </button>
         <div className="exam-title-block">
-          <div className="exam-title">{exam?.title ?? "Bài kiểm tra"}</div>
+          <div className="exam-title">
+            {exam?.title ?? "Bài kiểm tra"}
+            {isStrict && <span className="exam-strict-badge">Nghiêm túc</span>}
+          </div>
           <div className="exam-progress">
             Đã trả lời {answeredCount}/{items.length} câu
           </div>
@@ -305,8 +481,9 @@ export function ExamTakingPage() {
       </div>
 
       <p className="exam-proctor-notice">
-        Hệ thống ghi nhận nếu bạn rời khỏi tab/cửa sổ làm bài hoặc thoát toàn màn hình, và không
-        cho phép sao chép/dán nội dung trong lúc thi. Nên bấm "Toàn màn hình" trước khi bắt đầu.
+        {isStrict
+          ? "Phòng thi nghiêm túc: hệ thống ghi nhận thời điểm mỗi lần bạn rời tab/thoát toàn màn hình. Rời trang quá 2 lần, bài làm sẽ tự động bị huỷ."
+          : "Hệ thống ghi nhận nếu bạn rời khỏi tab/cửa sổ làm bài hoặc thoát toàn màn hình, và không cho phép sao chép/dán nội dung trong lúc thi. Nên bấm \"Toàn màn hình\" trước khi bắt đầu."}
       </p>
 
       <div className="exam-body">

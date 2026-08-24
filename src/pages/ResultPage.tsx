@@ -85,6 +85,12 @@ export function ResultPage() {
   return (
     <div className="result-page result-page--wide">
       <h2>Kết quả bài làm</h2>
+      {attempt?.invalidated && (
+        <div className="result-invalidated-banner">
+          Bài làm này đã bị tự động huỷ do rời trang quá số lần cho phép ở chế độ thi nghiêm túc.
+          Điểm bên dưới chỉ để tham khảo, không được công nhận là kết quả hợp lệ.
+        </div>
+      )}
       <div className="score-total">{score.total_score.toFixed(2)} / 10</div>
       <div className="score-breakdown">
         <div className="score-row">

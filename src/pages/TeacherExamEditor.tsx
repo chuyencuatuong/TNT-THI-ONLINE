@@ -6,6 +6,14 @@ import { MathText } from "../components/MathText";
 import { TagPicker } from "../components/TagPicker";
 import type { ExamTag, QuestionRow, Topic } from "../lib/types";
 
+/** Chuyển 1 mốc ISO (lưu UTC trong CSDL) sang định dạng input datetime-local
+ * (theo GIỜ ĐỊA PHƯƠNG của trình duyệt) để hiện đúng giờ giáo viên đã chọn. */
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function TeacherExamEditor() {
   const { examId } = useParams<{ examId?: string }>();
   const isNew = !examId || examId === "moi";
@@ -20,6 +28,10 @@ export function TeacherExamEditor() {
   const [termId, setTermId] = useState<string | null>(null);
   const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(new Set());
   const [driveLink, setDriveLink] = useState("");
+  const [mode, setMode] = useState<"thoai_mai" | "nghiem_tuc">("thoai_mai");
+  const [assignEnabled, setAssignEnabled] = useState(false);
+  const [unlockAt, setUnlockAt] = useState("");
+  const [lockAt, setLockAt] = useState("");
   const [folders, setFolders] = useState<ExamTag[]>([]);
   const [terms, setTerms] = useState<ExamTag[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -61,6 +73,10 @@ export function TeacherExamEditor() {
           setFolderId(examRow.folder_id);
           setTermId(examRow.term_id);
           setDriveLink(examRow.drive_link ?? "");
+          setMode(examRow.mode);
+          setAssignEnabled(!!examRow.assigned_unlock_at || !!examRow.assigned_lock_at);
+          setUnlockAt(examRow.assigned_unlock_at ? toDatetimeLocalValue(examRow.assigned_unlock_at) : "");
+          setLockAt(examRow.assigned_lock_at ? toDatetimeLocalValue(examRow.assigned_lock_at) : "");
         }
       }
       setLoading(false);
@@ -95,6 +111,8 @@ export function TeacherExamEditor() {
     try {
       const duration = durationMinutes.trim() ? Number(durationMinutes) : null;
       const gradeValue = grade ? (Number(grade) as 10 | 11 | 12) : null;
+      const assignedUnlockAt = assignEnabled && unlockAt ? new Date(unlockAt).toISOString() : null;
+      const assignedLockAt = assignEnabled && lockAt ? new Date(lockAt).toISOString() : null;
       let examIdToUse = currentExamId;
       if (!examIdToUse) {
         const created = await api.createExam({
@@ -105,6 +123,9 @@ export function TeacherExamEditor() {
           folder_id: folderId,
           term_id: termId,
           drive_link: driveLink.trim() || null,
+          mode,
+          assigned_unlock_at: assignedUnlockAt,
+          assigned_lock_at: assignedLockAt,
           created_by: profile.id,
         });
         examIdToUse = created.id;
@@ -118,6 +139,9 @@ export function TeacherExamEditor() {
           folder_id: folderId,
           term_id: termId,
           drive_link: driveLink.trim() || null,
+          mode,
+          assigned_unlock_at: assignedUnlockAt,
+          assigned_lock_at: assignedLockAt,
         });
       }
 
@@ -231,6 +255,58 @@ export function TeacherExamEditor() {
           placeholder="https://drive.google.com/..."
         />
       </div>
+
+      <div className="form-row">
+        <label>Chế độ phòng thi</label>
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "thoai_mai" | "nghiem_tuc")}
+          style={{ maxWidth: 280 }}
+        >
+          <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
+          <option value="nghiem_tuc">
+            Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá 2 lần
+          </option>
+        </select>
+      </div>
+
+      <div className="form-row">
+        <label>
+          <input
+            type="checkbox"
+            checked={assignEnabled}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setAssignEnabled(checked);
+              // Mặc định chuyển sang nghiêm túc khi bật giao đề theo lịch —
+              // giáo viên vẫn có thể đổi lại ở ô chọn phía trên nếu muốn.
+              if (checked && mode === "thoai_mai") setMode("nghiem_tuc");
+            }}
+            style={{ marginRight: 8 }}
+          />
+          Giao đề theo lịch (mở khoá/khoá đúng giờ) — hiện nổi bật ở trang chủ học sinh
+        </label>
+      </div>
+      {assignEnabled && (
+        <div className="form-row" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <label>Mở khoá lúc</label>
+            <input
+              type="datetime-local"
+              value={unlockAt}
+              onChange={(e) => setUnlockAt(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Khoá lúc (không bắt buộc — để trống = không tự khoá)</label>
+            <input
+              type="datetime-local"
+              value={lockAt}
+              onChange={(e) => setLockAt(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
 
       <p className="exam-summary">
         Đã chọn: {summary[1]} câu Phần 1 · {summary[2]} câu Phần 2 · {summary[3]} câu Phần 3

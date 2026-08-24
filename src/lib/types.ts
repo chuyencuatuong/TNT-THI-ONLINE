@@ -106,6 +106,16 @@ export interface ExamRow {
   term_id: string | null;
   /** Link Google Drive chứa file đề gốc để học sinh tải về — không bắt buộc. */
   drive_link: string | null;
+  /** "thoai_mai" (mặc định, luyện tập bình thường) hoặc "nghiem_tuc" (bắt buộc
+   * toàn màn hình, cảnh báo trước, tự huỷ bài nếu rời trang quá số lần cho
+   * phép — xem src/lib/proctoring.ts). */
+  mode: "thoai_mai" | "nghiem_tuc";
+  /** Đề "được chỉ định" (giao đúng giờ) — null = đề mở tự do như bình thường.
+   * Trước giờ này, học sinh không bấm vào làm bài được (chặn cả ở client lẫn
+   * server — xem trigger check_exam_assignment_window trong migration_010). */
+  assigned_unlock_at: string | null;
+  /** Sau giờ này (nếu có) học sinh không thể bắt đầu lượt làm mới nữa. */
+  assigned_lock_at: string | null;
   created_by: string;
   created_at: string;
 }
@@ -161,6 +171,27 @@ export interface ExamAttemptRow {
   attempt_number: number;
   started_at: string;
   submitted_at: string | null;
+  /** true = bài đã bị tự động huỷ do vi phạm giám sát (rời trang/thoát toàn
+   * màn hình quá số lần cho phép ở đề chế độ "nghiêm túc") — điểm vẫn được
+   * chấm và lưu lại để giáo viên xem, chỉ đánh dấu để không coi là hợp lệ. */
+  invalidated: boolean;
+  invalidated_reason: string | null;
+}
+
+/** 1 dấu hiệu giám sát được ghi lại trong lúc học sinh làm bài — xem
+ * proctoring_events trong migration_004/010 và src/lib/proctoring.ts. */
+export interface ProctoringEventRow {
+  id: number;
+  attempt_id: string;
+  event_type:
+    | "tab_hidden"
+    | "tab_visible"
+    | "window_blur"
+    | "window_focus"
+    | "fullscreen_exit"
+    | "copy_attempt"
+    | "paste_attempt";
+  created_at: string;
 }
 
 export interface QuestionResponseRow {

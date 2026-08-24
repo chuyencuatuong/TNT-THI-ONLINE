@@ -7,7 +7,13 @@ import type { ExamRow, ExamTag } from "../lib/types";
 function ExamCard({ exam }: { exam: ExamRow }) {
   return (
     <div className="card">
-      <div className="card-title">{exam.title}</div>
+      <div className="card-title">
+        {exam.title}
+        {exam.mode === "nghiem_tuc" && <span className="tag tag--clay">Nghiêm túc</span>}
+        {(exam.assigned_unlock_at || exam.assigned_lock_at) && (
+          <span className="tag tag--accent">Được chỉ định</span>
+        )}
+      </div>
       {exam.description && <p className="card-desc">{exam.description}</p>}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Link className="btn-secondary" to={`/giao-vien/de-thi/${exam.id}`}>

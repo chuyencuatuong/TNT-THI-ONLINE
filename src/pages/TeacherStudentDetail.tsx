@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   BarChart,
@@ -14,7 +14,17 @@ import {
 import * as api from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
-import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile } from "../lib/types";
+import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile, ProctoringEventRow } from "../lib/types";
+
+const PROCTORING_EVENT_LABELS: Record<ProctoringEventRow["event_type"], string> = {
+  tab_hidden: "Rời tab/cửa sổ làm bài",
+  tab_visible: "Quay lại tab làm bài",
+  window_blur: "Cửa sổ mất tiêu điểm",
+  window_focus: "Cửa sổ lấy lại tiêu điểm",
+  fullscreen_exit: "Thoát toàn màn hình",
+  copy_attempt: "Cố sao chép đề (đã chặn)",
+  paste_attempt: "Cố dán nội dung (đã chặn)",
+};
 
 type ScoredAttempt = ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null };
 
@@ -59,6 +69,9 @@ export function TeacherStudentDetail() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [reportLink, setReportLink] = useState<string | null>(null);
+  const [openViolationsFor, setOpenViolationsFor] = useState<string | null>(null);
+  const [violationEvents, setViolationEvents] = useState<Record<string, ProctoringEventRow[]>>({});
+  const [loadingViolations, setLoadingViolations] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
@@ -124,6 +137,23 @@ export function TeacherStudentDetail() {
       setReportLink(`${window.location.origin}${import.meta.env.BASE_URL}bao-cao/${report.share_token}`);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function toggleViolations(attemptId: string) {
+    if (openViolationsFor === attemptId) {
+      setOpenViolationsFor(null);
+      return;
+    }
+    setOpenViolationsFor(attemptId);
+    if (!violationEvents[attemptId]) {
+      setLoadingViolations(true);
+      try {
+        const events = await api.getProctoringEvents(attemptId);
+        setViolationEvents((prev) => ({ ...prev, [attemptId]: events }));
+      } finally {
+        setLoadingViolations(false);
+      }
     }
   }
 
@@ -217,12 +247,15 @@ export function TeacherStudentDetail() {
                             ? null
                             : mins - prevMins;
                         const suspicion = suspicionLabel(proctoringCounts[a.id] ?? 0);
+                        const isOpen = openViolationsFor === a.id;
                         return (
-                          <tr key={a.id}>
+                          <Fragment key={a.id}>
+                          <tr>
                             <td>Lần {a.attempt_number}</td>
                             <td>{new Date(a.started_at).toLocaleDateString("vi-VN")}</td>
                             <td>
                               <strong>{score.toFixed(2)}</strong>
+                              {a.invalidated && <span className="badge badge-danger" style={{ marginLeft: 6 }}>Đã huỷ</span>}
                             </td>
                             <td>
                               {scoreVsFirst === null ? (
@@ -249,8 +282,41 @@ export function TeacherStudentDetail() {
                               <span className={`badge ${suspicion.className}`}>
                                 {suspicion.text}
                               </span>
+                              {(proctoringCounts[a.id] ?? 0) > 0 && (
+                                <button
+                                  type="button"
+                                  className="btn-link"
+                                  style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                  onClick={() => toggleViolations(a.id)}
+                                >
+                                  {isOpen ? "Ẩn chi tiết" : "Xem chi tiết"}
+                                </button>
+                              )}
                             </td>
                           </tr>
+                          {isOpen && (
+                            <tr>
+                              <td colSpan={9} className="proctoring-detail-cell">
+                                {loadingViolations && !violationEvents[a.id] ? (
+                                  <span className="empty-hint">Đang tải...</span>
+                                ) : (violationEvents[a.id] ?? []).length === 0 ? (
+                                  <span className="empty-hint">Chưa có dấu hiệu nào được ghi nhận.</span>
+                                ) : (
+                                  <ul className="proctoring-detail-list">
+                                    {(violationEvents[a.id] ?? []).map((ev) => (
+                                      <li key={ev.id}>
+                                        <span className="proctoring-detail-time">
+                                          {new Date(ev.created_at).toLocaleString("vi-VN")}
+                                        </span>
+                                        {PROCTORING_EVENT_LABELS[ev.event_type]}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                          </Fragment>
                         );
                       })}
                     </tbody>

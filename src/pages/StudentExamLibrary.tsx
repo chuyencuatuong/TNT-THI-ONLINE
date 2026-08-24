@@ -13,7 +13,10 @@ import type { ExamRow, ExamTag, ExamTopicRow, Topic } from "../lib/types";
 function ExamListCard({ exam }: { exam: ExamRow }) {
   return (
     <div className="card">
-      <div className="card-title">{exam.title}</div>
+      <div className="card-title">
+        {exam.title}
+        {exam.mode === "nghiem_tuc" && <span className="tag tag--clay">Nghiêm túc</span>}
+      </div>
       {exam.description && <p className="card-desc">{exam.description}</p>}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Link className="btn-primary" to={`/lam-bai/${exam.id}`}>

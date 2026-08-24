@@ -415,6 +415,94 @@ a {
   color: white;
   background: var(--color-danger);
 }
+.exam-strict-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-clay-text);
+  background: var(--color-clay-light);
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.exam-page--strict .exam-topbar {
+  border-color: var(--color-clay);
+  border-width: 1.5px;
+}
+.exam-page--strict .exam-proctor-notice {
+  background: var(--color-clay-light);
+  border-color: var(--color-clay);
+  color: var(--color-clay-text);
+}
+
+/* Toast minh bạch: hiện ngay khi ghi nhận rời trang, biến mất sau vài giây —
+   cố tình chỉ dùng chữ + màu rõ ràng, KHÔNG dùng hiệu ứng giật gân/âm thanh
+   (đã thống nhất: minh bạch + hậu quả thật, không hù doạ). */
+.exam-violation-toast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  background: var(--color-clay-text);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(31, 42, 51, 0.22);
+  max-width: 320px;
+  animation: exam-toast-in 0.25s ease;
+}
+@keyframes exam-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Màn hình "cửa vào" bài thi — chưa mở khoá / đã khoá / cần xác nhận trước
+   đề nghiêm túc. */
+.exam-gate {
+  max-width: 480px;
+  margin: 64px auto;
+  text-align: center;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.exam-gate-icon {
+  font-size: 36px;
+  line-height: 1;
+}
+.exam-gate--strict {
+  border-color: var(--color-clay);
+  border-width: 1.5px;
+}
+.exam-gate-exam-title {
+  font-weight: 700;
+  color: var(--color-text);
+  margin: -6px 0 4px;
+}
+.exam-gate-rules {
+  text-align: left;
+  color: var(--color-text);
+  font-size: 13.5px;
+  line-height: 1.7;
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
 .exam-body {
   display: flex;
   gap: 20px;
@@ -572,6 +660,18 @@ a {
   font-weight: 700;
   color: var(--color-primary);
   margin: 16px 0;
+}
+.result-invalidated-banner {
+  text-align: left;
+  background: var(--color-clay-light);
+  border: 1.5px solid var(--color-clay);
+  color: var(--color-clay-text);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  margin-top: 12px;
 }
 .score-breakdown {
   background: var(--color-card);
@@ -742,6 +842,18 @@ a {
   background: var(--color-subtle-bg);
   color: var(--color-text-muted);
 }
+.tag--clay {
+  background: var(--color-clay-light);
+  color: var(--color-clay-text);
+}
+.tag--accent {
+  background: var(--color-accent-light);
+  color: #7a5a19;
+}
+.card-title .tag {
+  margin-left: 8px;
+  vertical-align: middle;
+}
 .exam-summary {
   color: var(--color-text-muted);
   font-size: 14px;
@@ -814,6 +926,25 @@ a {
 .badge-danger {
   background: #fdecea;
   color: #b3261e;
+}
+.history-table td.proctoring-detail-cell {
+  background: var(--color-subtle-bg);
+  padding: 10px 16px;
+}
+.proctoring-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+.proctoring-detail-time {
+  color: var(--color-text-muted);
+  margin-right: 10px;
+  font-variant-numeric: tabular-nums;
 }
 .report-link-box {
   background: var(--color-accent-light);
@@ -1187,6 +1318,43 @@ a {
  * bố cục 2 cột, cụm "Công cụ học mỗi ngày": Pomodoro vườn cây, đếm ngược kỳ
  * thi, kế hoạch ôn tập sắp có).
  * ==========================================================================*/
+/* Thẻ "Đề thi được chỉ định" nổi bật trên trang chủ học sinh — đề giao theo
+   lịch (mở khoá/khoá đúng giờ), tiện bấm vào ngay khi tới giờ. */
+.featured-assigned-card {
+  background: linear-gradient(135deg, var(--color-clay-light), var(--color-card) 70%);
+  border: 1.5px solid var(--color-clay);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 14px 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.featured-assigned-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-clay-text);
+  flex-basis: 100%;
+}
+.featured-assigned-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  flex: 1;
+  min-width: 160px;
+}
+.featured-assigned-cta {
+  flex-shrink: 0;
+}
+.featured-assigned-note {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-clay-text);
+}
+
 .student-stat-strip {
   background: var(--color-card);
   border: 1px solid var(--color-border);

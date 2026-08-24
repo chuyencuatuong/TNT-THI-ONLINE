@@ -21,6 +21,7 @@ import type {
   Part2Answer,
   Part3Answer,
   PomodoroSessionRow,
+  ProctoringEventRow,
   Profile,
   QuestionRow,
   QuestionType,
@@ -223,6 +224,9 @@ export async function createExam(input: {
   folder_id?: string | null;
   term_id?: string | null;
   drive_link?: string | null;
+  mode?: "thoai_mai" | "nghiem_tuc";
+  assigned_unlock_at?: string | null;
+  assigned_lock_at?: string | null;
   created_by: string;
 }): Promise<ExamRow> {
   const { data, error } = await supabase
@@ -239,7 +243,16 @@ export async function updateExam(
   patch: Partial<
     Pick<
       ExamRow,
-      "title" | "description" | "duration_minutes" | "grade" | "folder_id" | "term_id" | "drive_link"
+      | "title"
+      | "description"
+      | "duration_minutes"
+      | "grade"
+      | "folder_id"
+      | "term_id"
+      | "drive_link"
+      | "mode"
+      | "assigned_unlock_at"
+      | "assigned_lock_at"
     >
   >,
 ): Promise<void> {
@@ -321,6 +334,14 @@ export async function getExamQuestions(
 // Làm bài: lượt làm bài, log sự kiện, chấm điểm
 // ---------------------------------------------------------------------------
 
+/**
+ * Bắt đầu 1 lượt làm bài mới. Với đề "được chỉ định" (assigned_unlock_at /
+ * assigned_lock_at), việc chặn ngoài khung giờ được thực hiện ở TẦNG SERVER
+ * bằng trigger check_exam_assignment_window (migration_010, dùng đồng hồ
+ * Postgres) — nếu ngoài khung giờ, lệnh insert bên dưới sẽ ném lỗi với message
+ * "exam_not_unlocked_yet" hoặc "exam_locked", ExamTakingPage.tsx bắt lỗi này
+ * để hiện đúng màn hình thông báo cho học sinh.
+ */
 export async function startAttempt(
   examId: string,
   studentId: string,
@@ -422,6 +443,19 @@ export async function getProctoringCounts(
   return counts;
 }
 
+/** Toàn bộ dấu hiệu giám sát của 1 lượt làm bài, theo đúng thứ tự thời gian —
+ * dùng cho "Xem chi tiết vi phạm" ở trang chi tiết học sinh (biên bản đầy đủ
+ * cho giáo viên, thay vì chỉ 1 con số nghi ngờ). */
+export async function getProctoringEvents(attemptId: string): Promise<ProctoringEventRow[]> {
+  const { data, error } = await supabase
+    .from("proctoring_events")
+    .select("*")
+    .eq("attempt_id", attemptId)
+    .order("created_at");
+  if (error) throw error;
+  return data as ProctoringEventRow[];
+}
+
 /** Điểm tối đa của 1 câu, dùng cả để chấm và để biết câu đó có "làm sai/chưa
  * trọn điểm" hay không (ghi vào nhật ký câu sai) — tách hàm để dùng chung
  * với getAttemptReview và màn hình ôn tập câu sai, tránh lặp lại đúng 1 công
@@ -464,11 +498,17 @@ async function recordWrongAnswersFromExam(
  * ghi vào question_responses + attempt_scores, rồi đánh dấu đã nộp bài.
  * `studentId` (không bắt buộc) dùng để tự động ghi câu sai vào nhật ký ôn
  * tập của học sinh đó — truyền vào từ trang làm bài (đã có sẵn qua useAuth).
+ *
+ * `invalidatedReason` (không bắt buộc): truyền vào khi bài bị TỰ ĐỘNG huỷ do
+ * vi phạm giám sát (xem src/lib/proctoring.ts) — điểm vẫn được chấm và lưu
+ * bình thường như mọi lượt khác, chỉ đánh dấu `invalidated=true` để giáo viên
+ * biết đây không phải kết quả hợp lệ.
  */
 export async function submitAttempt(
   attemptId: string,
   examId: string,
   studentId?: string,
+  invalidatedReason?: string,
 ): Promise<AttemptScoreRow> {
   const examQuestions = await getExamQuestions(examId);
   const [{ data: events, error: evErr }, { data: viewEvents, error: veErr }] =
@@ -601,7 +641,10 @@ export async function submitAttempt(
 
   await supabase
     .from("exam_attempts")
-    .update({ submitted_at: new Date().toISOString() })
+    .update({
+      submitted_at: new Date().toISOString(),
+      ...(invalidatedReason ? { invalidated: true, invalidated_reason: invalidatedReason } : {}),
+    })
     .eq("id", attemptId);
 
   if (studentId) {
