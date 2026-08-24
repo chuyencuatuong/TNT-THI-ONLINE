@@ -55,7 +55,12 @@ a {
 
 .app-header {
   position: relative;
-  z-index: 1;
+  /* Cao hơn .app-main (z-index: 1) một cách CHỦ ĐÍCH: menu "Góc âm nhạc" khi mở
+     tràn xuống dưới mép header 68px, đè lên nội dung trang bên dưới (thẻ thống
+     kê, danh sách...). Nếu 2 z-index bằng nhau, .app-main đứng sau trong DOM
+     nên sẽ thắng và "ăn đè" lên phần menu tràn ra — đúng lỗi menu bị chồng lấp
+     lộn xộn quan sát thấy ở zoom 100%. */
+  z-index: 30;
   background: var(--color-card);
   border-bottom: 1px solid var(--color-border);
   padding: 0 24px;
@@ -1106,19 +1111,40 @@ a {
   width: 100%;
   text-align: left;
   border: 1px solid var(--color-border);
-  background: var(--color-subtle-bg);
+  background: var(--color-card);
   border-radius: var(--radius);
   padding: 8px 12px;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
   font: inherit;
   color: var(--color-text);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.student-picker-item:hover {
+  background: var(--color-subtle-bg);
 }
 .student-picker-item--active {
   border-color: var(--color-primary);
   background: var(--color-accent-light);
+}
+.student-picker-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.student-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 .student-picker-detail-link {
   display: block;
@@ -1126,6 +1152,25 @@ a {
   text-align: right;
   margin: 2px 4px 4px;
   color: var(--color-primary-dark);
+}
+
+.teacher-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.teacher-chart-badge {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+.teacher-chart-badge-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 1080px) {

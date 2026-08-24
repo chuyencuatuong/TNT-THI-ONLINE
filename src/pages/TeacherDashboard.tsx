@@ -21,6 +21,24 @@ interface StudentSummary {
   lastScore: number | null;
 }
 
+/** Màu vòng tròn viết tắt tên học sinh, xoay vòng theo thứ tự danh sách (không
+ * gắn với trạng thái đang chọn) — chỉ để dễ phân biệt các dòng, không mang ý
+ * nghĩa xếp hạng hay đánh giá. */
+const AVATAR_PALETTE = [
+  { bg: "var(--color-subtle-bg)", text: "var(--color-text)" },
+  { bg: "var(--color-accent-light)", text: "#7a5a19" },
+  { bg: "var(--color-pine-light)", text: "var(--color-pine-text)" },
+  { bg: "var(--color-clay-light)", text: "var(--color-clay-text)" },
+];
+
+/** "Nguyễn An" → "NA" — chữ đầu của từ đầu + chữ đầu của từ cuối trong tên. */
+function initialsOf(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 /**
  * Dashboard tổng quan giáo viên — 3 cột (mục 19.4 tài liệu đề xuất, Đợt 3):
  * (1) danh sách học sinh (bấm để chọn), (2) biểu đồ năng lực theo CHƯƠNG của
@@ -38,6 +56,11 @@ interface StudentSummary {
  * chương của MỌI học sinh được tải 1 lần khi vào trang (song song từng học
  * sinh), lưu vào 1 map — chọn học sinh chỉ là tra map cục bộ, không gọi mạng
  * thêm lần nào.
+ *
+ * Dải thống kê đầu trang CỐ TÌNH chỉ dùng 3 số liệu tính được thật từ dữ liệu
+ * đã có (số học sinh, tổng lượt làm bài, điểm TB lớp) — không thêm "buổi ôn
+ * tập tuần này" hay "học sinh cần chú ý" như bản phác thảo thiết kế, vì 2 ô đó
+ * cần 1 quy tắc nghiệp vụ (thế nào là "cần chú ý"?) chưa được thầy Tường chốt.
  */
 export function TeacherDashboard() {
   const [summaries, setSummaries] = useState<StudentSummary[]>([]);
@@ -46,6 +69,7 @@ export function TeacherDashboard() {
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadedAt] = useState(() => new Date());
 
   useEffect(() => {
     (async () => {
@@ -89,16 +113,55 @@ export function TeacherDashboard() {
       .map((s) => ({ topic_name: s.topic_name, accuracy: accuracyPercent(s) ?? 0 }));
   }, [selectedStats, classStats]);
 
+  const chapterAverage =
+    chapterChartData.length > 0
+      ? Math.round(
+          chapterChartData.reduce((sum, c) => sum + c.accuracy, 0) / chapterChartData.length,
+        )
+      : null;
+
   const comparisonData = useMemo(
     () => buildComparisonRows(classStats, selectedStats),
     [classStats, selectedStats],
   );
 
+  const totalAttempts = summaries.reduce((sum, s) => sum + s.attemptCount, 0);
+  const classAverageScore = useMemo(() => {
+    const scored = summaries.filter((s) => s.averageScore !== null);
+    if (scored.length === 0) return null;
+    return scored.reduce((sum, s) => sum + s.averageScore!, 0) / scored.length;
+  }, [summaries]);
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   return (
     <div className="teacher-page">
-      <h2>Tổng quan lớp</h2>
+      <div className="page-header-row">
+        <div>
+          <h2 style={{ marginBottom: 4 }}>Tổng quan lớp</h2>
+          <div className="empty-hint" style={{ padding: 0 }}>
+            Cập nhật lúc {loadedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })},{" "}
+            {loadedAt.toLocaleDateString("vi-VN")}
+          </div>
+        </div>
+      </div>
+
+      <div className="student-stat-strip">
+        <div className="student-stat-cell">
+          <div className="student-stat-cell-label">Học sinh đang theo dõi</div>
+          <div className="student-stat-cell-value">{summaries.length}</div>
+        </div>
+        <div className="student-stat-cell">
+          <div className="student-stat-cell-label">Tổng lượt làm bài</div>
+          <div className="student-stat-cell-value">{totalAttempts}</div>
+        </div>
+        <div className="student-stat-cell">
+          <div className="student-stat-cell-label">Điểm trung bình lớp</div>
+          <div className="student-stat-cell-value student-stat-cell-value--muted">
+            {classAverageScore === null ? "—" : classAverageScore.toFixed(2)}
+          </div>
+        </div>
+      </div>
 
       <div className="teacher-dashboard-3col">
         <section className="dashboard-col dashboard-col--students hover-card">
@@ -115,35 +178,58 @@ export function TeacherDashboard() {
                   className={`student-picker-item ${selectedId === null ? "student-picker-item--active" : ""}`}
                   onClick={() => setSelectedId(null)}
                 >
-                  <strong>Tổng quan cả lớp</strong>
-                  <span className="empty-hint">{summaries.length} học sinh</span>
+                  <span className="student-picker-item-text">
+                    <strong>Tổng quan cả lớp</strong>
+                    <span className="empty-hint" style={{ padding: 0 }}>{summaries.length} học sinh</span>
+                  </span>
                 </button>
               </li>
-              {summaries.map((s) => (
-                <li key={s.profile.id}>
-                  <button
-                    className={`student-picker-item ${selectedId === s.profile.id ? "student-picker-item--active" : ""}`}
-                    onClick={() => setSelectedId(s.profile.id)}
-                  >
-                    <strong>{s.profile.full_name}</strong>
-                    <span className="empty-hint">
-                      {s.attemptCount} lượt làm · TB {s.averageScore?.toFixed(2) ?? "—"}
-                    </span>
-                  </button>
-                  <Link className="student-picker-detail-link" to={`/giao-vien/hoc-sinh/${s.profile.id}`}>
-                    Xem chi tiết →
-                  </Link>
-                </li>
-              ))}
+              {summaries.map((s, i) => {
+                const palette = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                return (
+                  <li key={s.profile.id}>
+                    <button
+                      className={`student-picker-item ${selectedId === s.profile.id ? "student-picker-item--active" : ""}`}
+                      onClick={() => setSelectedId(s.profile.id)}
+                    >
+                      <span
+                        className="student-avatar"
+                        style={{ background: palette.bg, color: palette.text }}
+                      >
+                        {initialsOf(s.profile.full_name)}
+                      </span>
+                      <span className="student-picker-item-text">
+                        <strong>{s.profile.full_name}</strong>
+                        <span className="empty-hint" style={{ padding: 0 }}>
+                          {s.attemptCount} lượt · TB {s.averageScore?.toFixed(2) ?? "—"}
+                        </span>
+                      </span>
+                    </button>
+                    <Link className="student-picker-detail-link" to={`/giao-vien/hoc-sinh/${s.profile.id}`}>
+                      Xem chi tiết →
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
 
         <section className="dashboard-col hover-card">
-          <h3>
-            Năng lực theo chương
-            {selectedSummary ? ` — ${selectedSummary.profile.full_name}` : " — cả lớp"}
-          </h3>
+          <div className="teacher-chart-header">
+            <div>
+              <h3 style={{ marginBottom: 2 }}>Năng lực theo chương</h3>
+              <div className="empty-hint" style={{ padding: 0 }}>
+                {selectedSummary ? selectedSummary.profile.full_name : "Cả lớp"}
+              </div>
+            </div>
+            {chapterAverage !== null && (
+              <div className="teacher-chart-badge">
+                {chapterAverage}
+                <span className="teacher-chart-badge-unit">%</span>
+              </div>
+            )}
+          </div>
           {chapterChartData.length === 0 ? (
             <p className="empty-hint">
               Chưa có dữ liệu chương nào — cần học sinh làm ít nhất 1 đề có câu đã được gán chương
@@ -163,7 +249,16 @@ export function TeacherDashboard() {
         </section>
 
         <section className="dashboard-col hover-card">
-          <h3>{selectedSummary ? "So với trung bình cả lớp" : "Trung bình cả lớp theo chương"}</h3>
+          <div className="teacher-chart-header">
+            <div>
+              <h3 style={{ marginBottom: 2 }}>
+                {selectedSummary ? "So với trung bình cả lớp" : "Trung bình cả lớp theo chương"}
+              </h3>
+              {selectedSummary && (
+                <div className="empty-hint" style={{ padding: 0 }}>{selectedSummary.profile.full_name}</div>
+              )}
+            </div>
+          </div>
           {comparisonData.length === 0 ? (
             <p className="empty-hint">Chưa có dữ liệu chương nào để so sánh.</p>
           ) : (
@@ -182,7 +277,7 @@ export function TeacherDashboard() {
                     radius={[0, 4, 4, 0]}
                   />
                 )}
-                <Bar dataKey="classAccuracy" name="Cả lớp" fill="#c9973f" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="classAccuracy" name="Cả lớp" fill="#3e6259" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

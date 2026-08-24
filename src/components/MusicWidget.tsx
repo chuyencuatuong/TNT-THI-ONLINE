@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import * as api from "../lib/api";
-import { extractYoutubePlaylistId, youtubePlaylistEmbedUrl } from "../lib/youtube";
+import { parseYoutubeLink, youtubeEmbedUrl } from "../lib/youtube";
 import type { StudentPlaylistRow } from "../lib/types";
 
 const MAX_PLAYLISTS = 3;
 
 /**
  * "Góc âm nhạc" — nút gọn trên thanh trên cùng (góc phải), bấm mở bảng nhỏ để
- * chọn 1 trong tối đa 3 playlist YouTube yêu thích và phát ngay trong trang
- * (nhúng iframe embed, không cần API key YouTube — xem src/lib/youtube.ts).
+ * chọn 1 trong tối đa 3 link nhạc YouTube yêu thích (video lẻ HOẶC playlist —
+ * không bắt buộc phải là playlist) và phát ngay trong trang (nhúng iframe
+ * embed, không cần API key YouTube — xem src/lib/youtube.ts).
  *
  * Đặt ở đây (không phải trong nội dung dashboard) vì học sinh thường bật nhạc
  * TRƯỚC khi bắt đầu học, nên cần thấy/bấm được ngay từ mọi trang, không chỉ ở
@@ -50,23 +51,23 @@ export function MusicWidget({ studentId }: { studentId: string }) {
   }, [open]);
 
   const active = playlists.find((p) => p.id === activeId) ?? null;
-  const activePlaylistId = active ? extractYoutubePlaylistId(active.url) : null;
+  const activeEmbed = active ? parseYoutubeLink(active.url) : null;
 
   async function handleAddPlaylist(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const playlistId = extractYoutubePlaylistId(url);
-    if (!playlistId) {
-      setError("Link này không phải playlist YouTube hợp lệ (thiếu tham số ?list=...).");
+    const embed = parseYoutubeLink(url);
+    if (!embed) {
+      setError("Link này không phải link YouTube hợp lệ (dán link video hoặc playlist).");
       return;
     }
     if (!label.trim()) {
-      setError("Đặt tên ngắn cho playlist để dễ nhận ra nhé.");
+      setError("Đặt tên ngắn để dễ nhận ra nhé.");
       return;
     }
     const nextPosition = playlists.length as 0 | 1 | 2;
     if (nextPosition > 2) {
-      setError(`Đã đủ tối đa ${MAX_PLAYLISTS} playlist.`);
+      setError(`Đã đủ tối đa ${MAX_PLAYLISTS} mục nhạc.`);
       return;
     }
     setSaving(true);
@@ -83,7 +84,7 @@ export function MusicWidget({ studentId }: { studentId: string }) {
       setUrl("");
       setShowAddForm(false);
     } catch {
-      setError("Không lưu được playlist, thử lại nhé.");
+      setError("Không lưu được, thử lại nhé.");
     } finally {
       setSaving(false);
     }
@@ -122,7 +123,7 @@ export function MusicWidget({ studentId }: { studentId: string }) {
         <span className="music-pill-text">
           <span className="music-pill-title">{active ? active.label : "Góc âm nhạc"}</span>
           <span className={`music-pill-status ${active ? "music-pill-status--playing" : ""}`}>
-            {active ? "Đang phát" : "Chưa có playlist"}
+            {active ? "Đang phát" : "Chưa có nhạc"}
           </span>
         </span>
         <svg
@@ -144,53 +145,60 @@ export function MusicWidget({ studentId }: { studentId: string }) {
         <div className="music-dropdown">
           <div className="music-dropdown-header">
             <strong>Góc âm nhạc</strong>
-            <span className="empty-hint">{playlists.length}/{MAX_PLAYLISTS} playlist</span>
+            <span className="empty-hint">{playlists.length}/{MAX_PLAYLISTS} mục nhạc</span>
           </div>
 
-          {playlists.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`music-row ${p.id === activeId ? "music-row--active" : ""}`}
-              onClick={() => setActiveId(p.id)}
-            >
-              <span className={`music-row-icon ${p.id === activeId ? "music-row-icon--active" : ""}`}>
-                {p.id === activeId ? (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="5" width="4" height="14" />
-                    <rect x="14" y="5" width="4" height="14" />
-                  </svg>
-                ) : (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                )}
-              </span>
-              <span className="music-row-text">
-                <span className="music-row-title">{p.label}</span>
-                <span className={`music-row-sub ${p.id === activeId ? "music-row-sub--active" : ""}`}>
-                  {p.id === activeId ? "Đang phát" : "Playlist YouTube"}
-                </span>
-              </span>
-              <span
-                className="music-row-remove"
-                onClick={(e) => handleRemove(p.id, e)}
-                role="button"
-                aria-label="Bỏ playlist này"
+          {playlists.map((p) => {
+            const kind = parseYoutubeLink(p.url)?.kind;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`music-row ${p.id === activeId ? "music-row--active" : ""}`}
+                onClick={() => setActiveId(p.id)}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 6l12 12M18 6 6 18" />
-                </svg>
-              </span>
-            </button>
-          ))}
+                <span className={`music-row-icon ${p.id === activeId ? "music-row-icon--active" : ""}`}>
+                  {p.id === activeId ? (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="5" width="4" height="14" />
+                      <rect x="14" y="5" width="4" height="14" />
+                    </svg>
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </span>
+                <span className="music-row-text">
+                  <span className="music-row-title">{p.label}</span>
+                  <span className={`music-row-sub ${p.id === activeId ? "music-row-sub--active" : ""}`}>
+                    {p.id === activeId
+                      ? "Đang phát"
+                      : kind === "playlist"
+                        ? "Playlist YouTube"
+                        : "Video YouTube"}
+                  </span>
+                </span>
+                <span
+                  className="music-row-remove"
+                  onClick={(e) => handleRemove(p.id, e)}
+                  role="button"
+                  aria-label="Bỏ mục nhạc này"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </span>
+              </button>
+            );
+          })}
 
-          {active && activePlaylistId && (
+          {active && activeEmbed && (
             <iframe
-              key={activePlaylistId}
+              key={`${activeEmbed.kind}-${activeEmbed.id}`}
               className="music-player-frame"
-              src={youtubePlaylistEmbedUrl(activePlaylistId)}
-              title={`Phát playlist ${active.label}`}
+              src={youtubeEmbedUrl(activeEmbed)}
+              title={`Phát ${active.label}`}
               allow="autoplay; encrypted-media"
               allowFullScreen
             />
@@ -201,21 +209,21 @@ export function MusicWidget({ studentId }: { studentId: string }) {
               <form className="music-add-form" onSubmit={handleAddPlaylist}>
                 <input
                   type="text"
-                  placeholder="Tên playlist (vd: Lo-fi tập trung)"
+                  placeholder="Đặt tên (vd: Lo-fi tập trung)"
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   maxLength={60}
                 />
                 <input
                   type="text"
-                  placeholder="Dán link playlist YouTube..."
+                  placeholder="Dán link YouTube (video hoặc playlist)..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
                 {error && <div className="music-error">{error}</div>}
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="submit" className="btn-primary" disabled={saving} style={{ flex: 1, padding: "8px 12px", fontSize: 13 }}>
-                    {saving ? "Đang lưu..." : "Lưu playlist"}
+                    {saving ? "Đang lưu..." : "Lưu lại"}
                   </button>
                   <button
                     type="button"
@@ -242,7 +250,7 @@ export function MusicWidget({ studentId }: { studentId: string }) {
                   </svg>
                 </span>
                 <span className="music-row-text">
-                  <span className="music-row-title">Dán thêm liên kết playlist</span>
+                  <span className="music-row-title">Dán thêm liên kết nhạc</span>
                 </span>
               </button>
             ))}
