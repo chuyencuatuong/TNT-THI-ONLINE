@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import * as api from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
+import { accuracyPercent } from "../lib/chapterStats";
 import { BLANK_REASON_LABELS, type BlankQuestionSummary } from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile, ProctoringEventRow } from "../lib/types";
@@ -63,8 +64,14 @@ export function TeacherStudentDetail() {
   const [attempts, setAttempts] = useState<
     (ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null })[]
   >([]);
-  const [topicStats, setTopicStats] = useState<
-    { type_name: string; accuracyPercent: number }[]
+  // ĐỔI 24/08/2026 (audit "check full"): trước đây gọi api.getStudentTopicStats
+  // (gộp theo "dạng bài" question_type_id) — nhưng field đó chưa được giáo
+  // viên gán cho câu hỏi nào nên biểu đồ này luôn hiện "Chưa có dữ liệu" một
+  // cách âm thầm, không ai để ý vì không có lỗi nào hiện ra. Đổi sang
+  // getStudentChapterStats (gộp theo CHƯƠNG/topic_id, đã có dữ liệu thật) —
+  // đúng hướng TeacherDashboard.tsx đã áp dụng trước đó cho lý do y hệt.
+  const [chapterStats, setChapterStats] = useState<
+    { chapter_name: string; accuracyPercent: number }[]
   >([]);
   const [proctoringCounts, setProctoringCounts] = useState<Record<string, number>>({});
   const [blankCounts, setBlankCounts] = useState<Record<string, BlankQuestionSummary>>({});
@@ -80,14 +87,14 @@ export function TeacherStudentDetail() {
     (async () => {
       const [attemptsData, stats] = await Promise.all([
         api.listStudentAttempts(studentId),
-        api.getStudentTopicStats(studentId),
+        api.getStudentChapterStats(studentId),
       ]);
       const scoredAttempts = attemptsData.filter((a) => a.score);
       setAttempts(scoredAttempts);
-      setTopicStats(
+      setChapterStats(
         stats.map((s) => ({
-          type_name: s.type_name,
-          accuracyPercent: s.maxScore > 0 ? (s.correctScore / s.maxScore) * 100 : 0,
+          chapter_name: s.topic_name,
+          accuracyPercent: accuracyPercent(s) ?? 0,
         })),
       );
       const studentProfile = await api.getProfile(studentId);
@@ -127,7 +134,7 @@ export function TeacherStudentDetail() {
         totalAttempts: attempts.length,
         averageScore,
         scoreTrend,
-        topicStats,
+        chapterStats,
       });
 
       const report = await api.createReport({
@@ -137,7 +144,7 @@ export function TeacherStudentDetail() {
           : new Date().toISOString().slice(0, 10),
         period_end: new Date().toISOString().slice(0, 10),
         summary_text: summary,
-        chart_data: { topicStats },
+        chart_data: { chapterStats },
       });
 
       setReportLink(`${window.location.origin}${import.meta.env.BASE_URL}bao-cao/${report.share_token}`);
@@ -351,15 +358,15 @@ export function TeacherStudentDetail() {
       </section>
 
       <section>
-        <h3>Tỉ lệ đúng theo dạng bài</h3>
-        {topicStats.length === 0 ? (
+        <h3>Tỉ lệ đúng theo chương</h3>
+        {chapterStats.length === 0 ? (
           <p className="empty-hint">Chưa có dữ liệu.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={Math.max(200, topicStats.length * 40)}>
-            <BarChart data={topicStats} layout="vertical" margin={{ left: 40, right: 20 }}>
+          <ResponsiveContainer width="100%" height={Math.max(200, chapterStats.length * 40)}>
+            <BarChart data={chapterStats} layout="vertical" margin={{ left: 40, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" domain={[0, 100]} unit="%" />
-              <YAxis type="category" dataKey="type_name" width={160} />
+              <YAxis type="category" dataKey="chapter_name" width={160} />
               <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
               <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>

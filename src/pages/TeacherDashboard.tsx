@@ -57,10 +57,12 @@ function initialsOf(fullName: string): string {
  * sinh), lưu vào 1 map — chọn học sinh chỉ là tra map cục bộ, không gọi mạng
  * thêm lần nào.
  *
- * Dải thống kê đầu trang CỐ TÌNH chỉ dùng 3 số liệu tính được thật từ dữ liệu
- * đã có (số học sinh, tổng lượt làm bài, điểm TB lớp) — không thêm "buổi ôn
- * tập tuần này" hay "học sinh cần chú ý" như bản phác thảo thiết kế, vì 2 ô đó
- * cần 1 quy tắc nghiệp vụ (thế nào là "cần chú ý"?) chưa được thầy Tường chốt.
+ * Dải thống kê đầu trang: 3 số liệu gốc (số học sinh, tổng lượt làm bài, điểm
+ * TB lớp) + "buổi ôn tập tuần này" (bổ sung 24/08/2026, audit "check full" —
+ * review_sessions vốn đã được ghi nhận nhưng chưa hề hiển thị ở đâu cho giáo
+ * viên xem). CỐ TÌNH VẪN CHƯA thêm "học sinh cần chú ý" như bản phác thảo
+ * thiết kế — ô đó cần 1 quy tắc nghiệp vụ (thế nào là "cần chú ý"?) chưa được
+ * thầy Tường chốt, khác với số đếm buổi ôn tập không cần quy tắc gì cả.
  */
 export function TeacherDashboard() {
   const [summaries, setSummaries] = useState<StudentSummary[]>([]);
@@ -70,10 +72,12 @@ export function TeacherDashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadedAt] = useState(() => new Date());
+  const [reviewSessionsThisWeek, setReviewSessionsThisWeek] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       const students = await api.listStudents();
+      const sevenDaysAgo = new Date(loadedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const [summaryResults, chapterResults] = await Promise.all([
         Promise.all(
           students.map(async (s) => {
@@ -95,9 +99,13 @@ export function TeacherDashboard() {
       const map = new Map<string, ChapterStat[]>();
       students.forEach((s, i) => map.set(s.id, chapterResults[i]));
       setChapterStatsByStudent(map);
+      api
+        .getReviewSessionCountSince(sevenDaysAgo)
+        .then(setReviewSessionsThisWeek)
+        .catch((err) => console.error("Không lấy được số buổi ôn tập:", err));
       setLoading(false);
     })();
-  }, []);
+  }, [loadedAt]);
 
   const classStats = useMemo(
     () => mergeChapterStats(Array.from(chapterStatsByStudent.values())),
@@ -159,6 +167,12 @@ export function TeacherDashboard() {
           <div className="student-stat-cell-label">Điểm trung bình lớp</div>
           <div className="student-stat-cell-value student-stat-cell-value--muted">
             {classAverageScore === null ? "—" : classAverageScore.toFixed(2)}
+          </div>
+        </div>
+        <div className="student-stat-cell">
+          <div className="student-stat-cell-label">Buổi ôn tập tuần này</div>
+          <div className="student-stat-cell-value student-stat-cell-value--muted">
+            {reviewSessionsThisWeek === null ? "—" : reviewSessionsThisWeek}
           </div>
         </div>
       </div>

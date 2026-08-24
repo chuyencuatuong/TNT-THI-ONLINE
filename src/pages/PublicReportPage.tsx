@@ -16,7 +16,13 @@ interface ReportData {
   period_start: string;
   period_end: string;
   summary_text: string | null;
-  chart_data: { topicStats?: { type_name: string; accuracyPercent: number }[] } | null;
+  chart_data: {
+    chapterStats?: { chapter_name: string; accuracyPercent: number }[];
+    /** Tên cũ trước 24/08/2026 (gộp theo "dạng bài", hầu như luôn rỗng do lỗi
+     * đã sửa — xem TeacherStudentDetail.tsx) — giữ lại để báo cáo đã tạo
+     * trước đó (link đã gửi phụ huynh) không bị vỡ giao diện. */
+    topicStats?: { type_name: string; accuracyPercent: number }[];
+  } | null;
   generated_at: string;
 }
 
@@ -41,6 +47,19 @@ export function PublicReportPage() {
   if (notFound || !report)
     return <div className="page-loading">Không tìm thấy báo cáo này.</div>;
 
+  // Ưu tiên chapterStats (dữ liệu thật, theo chương) — chỉ dùng topicStats
+  // (tên cũ, theo "dạng bài") nếu đây là báo cáo tạo TRƯỚC 24/08/2026.
+  const chartRows =
+    report.chart_data?.chapterStats?.map((c) => ({
+      name: c.chapter_name,
+      accuracyPercent: c.accuracyPercent,
+    })) ??
+    report.chart_data?.topicStats?.map((t) => ({
+      name: t.type_name,
+      accuracyPercent: t.accuracyPercent,
+    })) ??
+    [];
+
   return (
     <div className="report-page">
       <h1>Báo cáo học tập</h1>
@@ -53,18 +72,14 @@ export function PublicReportPage() {
         <div className="report-summary">{report.summary_text}</div>
       )}
 
-      {report.chart_data?.topicStats && report.chart_data.topicStats.length > 0 && (
+      {chartRows.length > 0 && (
         <div className="report-chart">
-          <h3>Tỉ lệ đúng theo dạng bài</h3>
-          <ResponsiveContainer width="100%" height={Math.max(200, report.chart_data.topicStats.length * 40)}>
-            <BarChart
-              data={report.chart_data.topicStats}
-              layout="vertical"
-              margin={{ left: 40, right: 20 }}
-            >
+          <h3>Tỉ lệ đúng theo chương</h3>
+          <ResponsiveContainer width="100%" height={Math.max(200, chartRows.length * 40)}>
+            <BarChart data={chartRows} layout="vertical" margin={{ left: 40, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" domain={[0, 100]} unit="%" />
-              <YAxis type="category" dataKey="type_name" width={160} />
+              <YAxis type="category" dataKey="name" width={160} />
               <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
               <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>

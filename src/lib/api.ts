@@ -775,7 +775,16 @@ export async function listStudents(): Promise<Profile[]> {
   return data as Profile[];
 }
 
-/** Thống kê đúng/sai theo dạng bài cho 1 học sinh, dùng cho báo cáo & dashboard GV. */
+/**
+ * Thống kê đúng/sai theo DẠNG BÀI (question_type_id) cho 1 học sinh.
+ *
+ * KHÔNG CÒN ĐƯỢC GỌI Ở ĐÂU (audit 24/08/2026) — trước đây dùng cho báo cáo
+ * phụ huynh + dashboard GV, nhưng vì question_type_id chưa được giáo viên
+ * gán cho câu hỏi nào nên kết quả luôn gần như rỗng; đã đổi 2 nơi đó sang
+ * getStudentChapterStats (theo CHƯƠNG, có dữ liệu thật). Giữ lại hàm này
+ * (không xoá) vì vẫn đúng và sẽ hữu ích lại ngay khi dạng bài được gán thật
+ * (xem dự án "Learning Lab" — tạm hoãn, không phải bị bỏ).
+ */
 export async function getStudentTopicStats(studentId: string): Promise<
   { question_type_id: string; type_name: string; total: number; correctScore: number; maxScore: number }[]
 > {
@@ -889,8 +898,11 @@ export interface AttemptQuestionDetail {
   part: 1 | 2 | 3;
   order_index: number;
   content_latex: string;
-  question_type_id: string | null;
-  type_name: string | null;
+  /** ĐỔI 24/08/2026: trước đây là question_type_id/type_name (dạng bài, luôn
+   * null trong thực tế) — xem ghi chú đầy đủ tại TopicOutcomeGroup trong
+   * diagnosis.ts. Đổi sang CHƯƠNG (topic_id), có dữ liệu thật. */
+  topic_id: string | null;
+  topic_name: string | null;
   score: number;
   maxScore: number;
   scoreRatio: number;
@@ -909,9 +921,9 @@ export interface AttemptDiagnostics {
 
 /**
  * Dữ liệu chi tiết cho dashboard hiển thị ngay sau khi học sinh nộp bài:
- * điểm/thời gian/số lần đổi đáp án từng câu, và chẩn đoán theo dạng bài
- * (chỉ dựa trên lượt làm bài NÀY — xem getStudentTopicStats nếu cần gộp
- * nhiều lượt làm bài để chẩn đoán chính xác hơn).
+ * điểm/thời gian/số lần đổi đáp án từng câu, và chẩn đoán theo CHƯƠNG (chỉ
+ * dựa trên lượt làm bài NÀY — xem getStudentChapterStats nếu cần gộp nhiều
+ * lượt làm bài để chẩn đoán chính xác hơn).
  */
 export async function getAttemptDiagnostics(
   attemptId: string,
@@ -923,7 +935,7 @@ export async function getAttemptDiagnostics(
       supabase
         .from("question_responses")
         .select(
-          "question_id, final_answer, score, time_spent_seconds, change_count, question:questions(question_type_id, question_type:question_types!questions_question_type_id_fkey(name))",
+          "question_id, final_answer, score, time_spent_seconds, change_count, question:questions(topic_id, topic:topics!questions_topic_id_fkey(name))",
         )
         .eq("attempt_id", attemptId),
       // Chỉ cần sự kiện "enter" để biết học sinh có từng mở câu hỏi ra xem hay
@@ -944,8 +956,8 @@ export async function getAttemptDiagnostics(
     time_spent_seconds: number;
     change_count: number;
     question: {
-      question_type_id: string | null;
-      question_type: { name: string } | null;
+      topic_id: string | null;
+      topic: { name: string } | null;
     } | null;
   };
   const responseMap = new Map<string, ResponseRow>(
@@ -966,8 +978,8 @@ export async function getAttemptDiagnostics(
       part: q.part,
       order_index: eq.order_index,
       content_latex: q.content_latex,
-      question_type_id: resp?.question?.question_type_id ?? q.question_type_id,
-      type_name: resp?.question?.question_type?.name ?? null,
+      topic_id: resp?.question?.topic_id ?? q.topic_id,
+      topic_name: resp?.question?.topic?.name ?? null,
       score,
       maxScore,
       scoreRatio: maxScore > 0 ? Math.min(1, score / maxScore) : 0,
@@ -984,11 +996,11 @@ export async function getAttemptDiagnostics(
 
   const groupMap = new Map<string, TopicOutcomeGroup>();
   for (const pq of perQuestion) {
-    if (!pq.question_type_id) continue;
-    const key = pq.question_type_id;
+    if (!pq.topic_id) continue;
+    const key = pq.topic_id;
     const existing = groupMap.get(key) ?? {
-      question_type_id: key,
-      type_name: pq.type_name ?? "(chưa gán dạng bài)",
+      topic_id: key,
+      topic_name: pq.topic_name ?? "(chưa gán chương)",
       outcomes: [],
     };
     existing.outcomes.push({
@@ -1129,6 +1141,23 @@ export async function finishReviewSession(sessionId: string): Promise<void> {
     .update({ finished_at: new Date().toISOString() })
     .eq("id", sessionId);
   if (error) throw error;
+}
+
+/**
+ * Đếm số buổi ôn tập (review_sessions, CẢ LỚP) bắt đầu từ mốc thời gian
+ * `sinceIso` trở đi — dùng cho dải thống kê dashboard GV (audit 24/08/2026,
+ * bổ sung "Buổi ôn tập tuần này" mà TeacherDashboard.tsx đã cố tình để trống
+ * trước đây; chỉ riêng "học sinh cần chú ý" mới cần quy tắc nghiệp vụ chưa
+ * chốt, còn số đếm thuần này không cần quy tắc gì cả nên bổ sung được ngay).
+ * RLS cho phép giáo viên đọc review_sessions của mọi học sinh.
+ */
+export async function getReviewSessionCountSince(sinceIso: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("review_sessions")
+    .select("*", { count: "exact", head: true })
+    .gte("started_at", sinceIso);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 /**

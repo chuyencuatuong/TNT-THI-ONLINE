@@ -18,8 +18,15 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
 // — hữu ích vì tên model Gemini đổi khá thường xuyên (bản mặc định bên dưới
 // chỉ chính xác tại thời điểm viết, nên kiểm tra lại tên model khả dụng cho
 // API key của bạn tại Google AI Studio nếu gặp lỗi 404 khi gọi AI).
+// ĐỔI 24/08/2026: từng dùng "gemini-3.7-flash" nhưng gói miễn phí model này chỉ
+// cho 20 lượt gọi/NGÀY (đã gặp lỗi 429 RESOURCE_EXHAUSTED thật khi thử — xem
+// quotaId "GenerateRequestsPerDayPerProjectPerModel-FreeTier") — không đủ dùng
+// cho 1 buổi làm việc bình thường (mỗi tài liệu/đề nhiều trang đã tốn vài lượt
+// do phải chia đợt). Đổi sang bản đã ổn định hơn, hạn mức miễn phí cao hơn hẳn.
+// Vẫn nên tự kiểm tra hạn mức thật của tài khoản tại aistudio.google.com/rate-limit
+// nếu vẫn gặp lỗi 429 — hạn mức có thể đổi theo thời gian/theo tài khoản.
 const GEMINI_MODEL =
-  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-3.7-flash";
+  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-2.5-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 type GeminiPart =
@@ -363,15 +370,25 @@ export interface StudentStatsForAI {
   totalAttempts: number;
   averageScore: number | null;
   scoreTrend: { examTitle: string; date: string; score: number }[];
-  topicStats: { type_name: string; accuracyPercent: number }[];
+  /**
+   * ĐỔI 24/08/2026 (audit "check full"): trước đây gọi là `topicStats`, gộp
+   * theo "dạng bài" (question_type_id) — nhưng field này hầu như LUÔN RỖNG
+   * trong thực tế vì question_type_id chưa được giáo viên gán cho câu hỏi
+   * nào cả (xem lý do đầy đủ ở chapterStats.ts/TeacherDashboard.tsx). Hệ quả
+   * là mọi báo cáo phụ huynh tạo ra trước đây đều thiếu hẳn phần "dạng bài
+   * mạnh/cần luyện" mà không ai để ý vì không có lỗi nào hiện ra. Đổi sang
+   * gộp theo CHƯƠNG (topic_id) — đã có dữ liệu thật vì được gán khi nhập đề
+   * — và đổi luôn tên field để không ai nhầm lại lần nữa.
+   */
+  chapterStats: { chapter_name: string; accuracyPercent: number }[];
 }
 
 /** Sinh đoạn nhận xét ngắn cho báo cáo định kỳ, dựa trên số liệu đã tính sẵn. */
 export async function generateReportSummary(
   stats: StudentStatsForAI,
 ): Promise<string> {
-  const topicLines = stats.topicStats
-    .map((t) => `- ${t.type_name}: đúng ${t.accuracyPercent.toFixed(0)}%`)
+  const chapterLines = stats.chapterStats
+    .map((c) => `- ${c.chapter_name}: đúng ${c.accuracyPercent.toFixed(0)}%`)
     .join("\n");
   const trendLines = stats.scoreTrend
     .map((s) => `- ${s.date} (${s.examTitle}): ${s.score.toFixed(2)} điểm`)
@@ -384,11 +401,11 @@ Số liệu:
 - Điểm trung bình: ${stats.averageScore?.toFixed(2) ?? "chưa có dữ liệu"}
 - Điểm qua các lần kiểm tra:
 ${trendLines || "(chưa có)"}
-- Tỉ lệ đúng theo dạng bài:
-${topicLines || "(chưa có)"}
+- Tỉ lệ đúng theo chương:
+${chapterLines || "(chưa có)"}
 
 Viết 1 đoạn nhận xét (3-5 câu) bằng tiếng Việt, giọng văn thân thiện, chuyên nghiệp,
-nêu rõ: xu hướng điểm số (tiến bộ/đi ngang/giảm), dạng bài đang mạnh, dạng bài cần
+nêu rõ: xu hướng điểm số (tiến bộ/đi ngang/giảm), chương đang mạnh, chương cần
 luyện thêm. CHỈ dựa vào số liệu ở trên, không suy diễn thêm thông tin không có.
 Không dùng markdown, không dùng emoji.`;
 

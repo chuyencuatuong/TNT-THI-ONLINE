@@ -1,7 +1,17 @@
 # Lộ trình nâng cấp TNT Thi Online — 4 đợt
 
-**Trạng thái:** Chờ bạn duyệt.
+**Trạng thái: TẠM HOÃN (24/08/2026)** — bạn quyết định dừng lại, chưa rõ thời điểm quay lại. Không phải do kế hoạch có vấn đề — lý do gần nhất là gặp lỗi quota AI (đã sửa xong, xem mục "Tình trạng Đợt 1" bên dưới). Khi nào muốn tiếp tục, đọc lại mục đó là đủ, không cần làm lại từ đầu.
 **Ngày:** 24/08/2026
+
+## Tình trạng Đợt 1 (đã code, đã dừng ở đây)
+
+- Backend (`ai.ts`): hàm trích taxonomy dạng bài từ PDF/Word — đã xong, build + test sạch (182/182).
+- Trang "Nạp dạng bài" (giáo viên) — đã xong, đã nối route + menu.
+- Đã thử với 2 file mẫu thật, gặp lỗi quota Gemini free-tier (`gemini-3.7-flash` chỉ 20 lượt/ngày) — đã sửa: đổi model mặc định sang `gemini-2.5-flash` (hạn mức cao hơn hẳn).
+- **Chưa xác nhận được:** bản đổi model mới đã chạy thử thành công trên tài liệu mẫu thật hay chưa (dừng lại đúng lúc chuẩn bị thử lại).
+- Đợt 2, 3, 4: chưa code gì.
+
+Muốn tiếp tục: chỉ cần thử lại trang "Nạp dạng bài" với model mới, báo kết quả, rồi làm tiếp Đợt 2.
 
 Tổng hợp lại toàn bộ quyết định đã chốt trong các trao đổi trước (chi tiết lý do/căn cứ kỹ thuật xem file `quyet-dinh-nang-cap-learning-lab-v1.md`). File này chỉ tập trung vào: **làm gì, đợt nào, giao diện đổi ra sao, nghiệm thu bằng cách nào.**
 

@@ -72,22 +72,22 @@ describe("diagnoseTopic", () => {
 });
 
 describe("diagnoseAllTopics", () => {
-  it("chẩn đoán độc lập cho từng nhóm dạng bài", () => {
+  it("chẩn đoán độc lập cho từng nhóm chương", () => {
     const groups = [
       {
-        question_type_id: "t1",
-        type_name: "Dạng A",
+        topic_id: "t1",
+        topic_name: "Chương A",
         outcomes: [part1(1, 60), part1(1, 70)],
       },
       {
-        question_type_id: "t2",
-        type_name: "Dạng B",
+        topic_id: "t2",
+        topic_name: "Chương B",
         outcomes: [part1(0, 90), part1(0, 90)],
       },
     ];
     const result = diagnoseAllTopics(groups);
-    expect(result.find((r) => r.question_type_id === "t1")?.label).toBe("vung");
-    expect(result.find((r) => r.question_type_id === "t2")?.label).toBe("mat_goc");
+    expect(result.find((r) => r.topic_id === "t1")?.label).toBe("vung");
+    expect(result.find((r) => r.topic_id === "t2")?.label).toBe("mat_goc");
   });
 });
 

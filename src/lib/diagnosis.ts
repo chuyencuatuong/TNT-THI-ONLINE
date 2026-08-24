@@ -1,5 +1,6 @@
 /**
- * Chẩn đoán mức độ nắm vững kiến thức theo từng dạng bài, dựa trên:
+ * Chẩn đoán mức độ nắm vững kiến thức theo từng CHƯƠNG (không phải "dạng bài"
+ * — xem ghi chú tại TopicOutcomeGroup bên dưới về lý do đổi), dựa trên:
  *  - Độ chính xác (điểm đạt được / điểm tối đa của các câu thuộc dạng đó)
  *  - Thời gian làm bài so với mức "kỳ vọng" cho từng phần
  *  - Số lần đổi đáp án
@@ -125,20 +126,30 @@ export function diagnoseTopic(
   };
 }
 
+/**
+ * ĐỔI 24/08/2026 (audit "check full"): field trước đây tên `question_type_id`
+ * /`type_name`, nhóm theo "dạng bài" (question_type_id) — nhưng cột đó chưa
+ * được giáo viên gán cho câu hỏi nào cả (nhập đề luôn để trống), nên nhóm
+ * theo dạng bài khiến `byTopic` LUÔN RỖNG trong thực tế, làm cả mục "Chẩn
+ * đoán theo dạng bài" trên ResultPage.tsx (giao diện học sinh xem ngay sau
+ * khi nộp bài) im lặng không hiện ra — không ai để ý vì không có lỗi nào cả.
+ * Đổi sang nhóm theo CHƯƠNG (topic_id) — đã có dữ liệu thật vì được gán khi
+ * nhập đề — và đổi tên field cho khớp, tránh nhầm lại lần nữa.
+ */
 export interface TopicOutcomeGroup {
-  question_type_id: string;
-  type_name: string;
+  topic_id: string;
+  topic_name: string;
   outcomes: QuestionOutcome[];
 }
 
-/** Chạy diagnoseTopic cho nhiều dạng bài cùng lúc. */
+/** Chạy diagnoseTopic cho nhiều chương cùng lúc. */
 export function diagnoseAllTopics(
   groups: TopicOutcomeGroup[],
   expectedTime: Record<1 | 2 | 3, number> = DEFAULT_EXPECTED_TIME_SECONDS,
-): (TopicDiagnosis & { question_type_id: string; type_name: string })[] {
+): (TopicDiagnosis & { topic_id: string; topic_name: string })[] {
   return groups.map((g) => ({
-    question_type_id: g.question_type_id,
-    type_name: g.type_name,
+    topic_id: g.topic_id,
+    topic_name: g.topic_name,
     ...diagnoseTopic(g.outcomes, expectedTime),
   }));
 }

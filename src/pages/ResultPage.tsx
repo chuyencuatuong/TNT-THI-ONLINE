@@ -85,7 +85,7 @@ export function ResultPage() {
 
   const topicChartData = (diagnostics?.byTopic ?? [])
     .filter((t) => t.label !== "chua_du_du_lieu")
-    .map((t) => ({ name: t.type_name, accuracyPercent: t.avgScoreRatio * 100 }));
+    .map((t) => ({ name: t.topic_name, accuracyPercent: t.avgScoreRatio * 100 }));
 
   return (
     <div className="result-page result-page--wide">
@@ -134,7 +134,7 @@ export function ResultPage() {
 
       {topicChartData.length > 0 && (
         <section className="result-section">
-          <h3>Độ chính xác theo dạng bài</h3>
+          <h3>Độ chính xác theo chương</h3>
           <ResponsiveContainer width="100%" height={Math.max(180, topicChartData.length * 40)}>
             <BarChart data={topicChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -149,16 +149,16 @@ export function ResultPage() {
 
       {diagnostics && diagnostics.byTopic.length > 0 && (
         <section className="result-section">
-          <h3>Chẩn đoán theo dạng bài</h3>
+          <h3>Chẩn đoán theo chương</h3>
           <p className="empty-hint">
             Đây là gợi ý dựa trên quy tắc đơn giản (độ chính xác, thời gian, số lần đổi đáp án),
             không phải kết luận chắc chắn — dùng để gợi ý hướng ôn tập.
           </p>
           <div className="diagnosis-list">
             {diagnostics.byTopic.map((t) => (
-              <div key={t.question_type_id} className="diagnosis-card">
+              <div key={t.topic_id} className="diagnosis-card">
                 <div className="diagnosis-card-header">
-                  <span>{t.type_name}</span>
+                  <span>{t.topic_name}</span>
                   <span
                     className="diagnosis-badge"
                     style={{ background: MASTERY_COLOR[t.label] }}
