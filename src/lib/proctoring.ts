@@ -16,8 +16,17 @@ export const AUTO_CANCEL_EVENT_TYPES: readonly AutoCancelEventType[] = [
   "fullscreen_exit",
 ];
 
-/** Quá 2 lần (tức là vi phạm lần thứ 3) thì huỷ bài — đúng như đã thống nhất. */
-export const AUTO_CANCEL_THRESHOLD = 2;
+/** Quá 3 lần (tức là vi phạm lần thứ 4) thì huỷ bài. */
+export const AUTO_CANCEL_THRESHOLD = 3;
+
+/**
+ * Rời trang dưới ngưỡng này (mili-giây) thì KHÔNG tính là vi phạm — vẫn ghi
+ * lại sự kiện thô vào proctoring_events như bình thường (để giáo viên xem
+ * nếu cần), chỉ là không cộng vào bộ đếm để huỷ bài. Lý do: đôi khi máy học
+ * sinh phát sinh lỗi/giật lag/thông báo hệ thống bật lên rồi tắt ngay, chưa
+ * chắc là học sinh cố tình rời trang — cho 1 khoảng đệm ngắn để công bằng.
+ */
+export const VIOLATION_GRACE_PERIOD_MS = 3000;
 
 export function isAutoCancelEvent(eventType: string): eventType is AutoCancelEventType {
   return (AUTO_CANCEL_EVENT_TYPES as readonly string[]).includes(eventType);
@@ -36,15 +45,32 @@ export function shouldAutoCancel(violationCount: number): boolean {
 export const INVALIDATED_REASON_TOO_MANY_EXITS = "roi_trang_qua_so_lan_cho_phep";
 
 /**
- * Dựng nội dung thông báo hiện NGAY khi học sinh vừa rời trang (minh bạch:
- * biết chắc mình đang bị theo dõi, biết chắc còn bao nhiêu lần) — không dùng
- * hiệu ứng giật gân, chỉ nêu sự thật rõ ràng.
+ * Mức độ nghiêm trọng của lần cảnh báo — dùng để đổi màu sắc hiển thị (nhẹ ->
+ * nặng dần theo từng lần), KHÔNG dùng để gây hoảng loạn, chỉ để học sinh thấy
+ * rõ mức độ đang ở đâu. null nếu vượt ngưỡng (lúc này bài đã bị huỷ, không
+ * còn "cảnh báo" nữa).
  */
-export function violationToastMessage(violationCount: number): string {
-  if (violationCount > AUTO_CANCEL_THRESHOLD) {
-    return "Bài làm đã bị huỷ do rời trang quá số lần cho phép.";
+export type ViolationSeverity = 1 | 2 | 3;
+
+export function violationSeverity(violationCount: number): ViolationSeverity | null {
+  if (violationCount <= 0 || violationCount > AUTO_CANCEL_THRESHOLD) return null;
+  return Math.min(violationCount, 3) as ViolationSeverity;
+}
+
+/** Tiêu đề ngắn hiện giữa màn hình — vd "Cảnh báo 2/3". */
+export function violationModalTitle(violationCount: number): string {
+  return `Cảnh báo ${violationCount}/${AUTO_CANCEL_THRESHOLD}`;
+}
+
+/** Nội dung đầy đủ hiện giữa màn hình khi phát hiện 1 lần rời trang (đã qua
+ * khoảng đệm VIOLATION_GRACE_PERIOD_MS) — nêu sự thật rõ ràng, không giật
+ * gân, để học sinh biết chính xác mình đang ở mức nào. */
+export function violationModalMessage(violationCount: number): string {
+  const graceSeconds = VIOLATION_GRACE_PERIOD_MS / 1000;
+  const base = `Hệ thống ghi nhận bạn vừa rời trang làm bài quá ${graceSeconds} giây.`;
+  const remaining = AUTO_CANCEL_THRESHOLD - violationCount;
+  if (remaining <= 0) {
+    return `${base} Đây là cảnh báo cuối cùng — vi phạm thêm 1 lần nữa, bài làm sẽ tự động bị huỷ.`;
   }
-  const isLastWarning = violationCount === AUTO_CANCEL_THRESHOLD;
-  const base = `Đã ghi nhận rời trang — cảnh báo ${violationCount}/${AUTO_CANCEL_THRESHOLD}.`;
-  return isLastWarning ? `${base} Lần sau bài sẽ bị huỷ.` : base;
+  return `${base} Còn ${remaining} lần cảnh báo nữa trước khi bài làm bị huỷ.`;
 }

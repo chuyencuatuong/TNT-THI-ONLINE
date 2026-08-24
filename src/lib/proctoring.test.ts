@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUTO_CANCEL_THRESHOLD,
   countAutoCancelViolations,
   isAutoCancelEvent,
   shouldAutoCancel,
-  violationToastMessage,
+  violationModalMessage,
+  violationModalTitle,
+  violationSeverity,
 } from "./proctoring";
 
 describe("isAutoCancelEvent", () => {
@@ -39,30 +42,54 @@ describe("countAutoCancelViolations", () => {
 });
 
 describe("shouldAutoCancel", () => {
-  it("chưa huỷ ở lần 1 và lần 2", () => {
+  it("chưa huỷ ở lần 1, 2, 3", () => {
     expect(shouldAutoCancel(0)).toBe(false);
     expect(shouldAutoCancel(1)).toBe(false);
     expect(shouldAutoCancel(2)).toBe(false);
+    expect(shouldAutoCancel(3)).toBe(false);
   });
 
-  it("huỷ từ lần thứ 3 trở đi", () => {
-    expect(shouldAutoCancel(3)).toBe(true);
+  it("huỷ từ lần thứ 4 trở đi", () => {
     expect(shouldAutoCancel(4)).toBe(true);
+    expect(shouldAutoCancel(5)).toBe(true);
+  });
+
+  it("ngưỡng đúng bằng 3", () => {
+    expect(AUTO_CANCEL_THRESHOLD).toBe(3);
   });
 });
 
-describe("violationToastMessage", () => {
-  it("cảnh báo 1/2 ở lần đầu", () => {
-    expect(violationToastMessage(1)).toBe("Đã ghi nhận rời trang — cảnh báo 1/2.");
+describe("violationSeverity", () => {
+  it("trả về đúng mức 1/2/3 tương ứng số lần vi phạm", () => {
+    expect(violationSeverity(1)).toBe(1);
+    expect(violationSeverity(2)).toBe(2);
+    expect(violationSeverity(3)).toBe(3);
   });
 
-  it("cảnh báo 2/2 kèm câu báo trước sẽ huỷ", () => {
-    expect(violationToastMessage(2)).toBe(
-      "Đã ghi nhận rời trang — cảnh báo 2/2. Lần sau bài sẽ bị huỷ.",
+  it("trả về null khi 0 hoặc vượt ngưỡng (đã bị huỷ)", () => {
+    expect(violationSeverity(0)).toBeNull();
+    expect(violationSeverity(4)).toBeNull();
+  });
+});
+
+describe("violationModalTitle", () => {
+  it("hiện đúng dạng x/3", () => {
+    expect(violationModalTitle(1)).toBe("Cảnh báo 1/3");
+    expect(violationModalTitle(2)).toBe("Cảnh báo 2/3");
+    expect(violationModalTitle(3)).toBe("Cảnh báo 3/3");
+  });
+});
+
+describe("violationModalMessage", () => {
+  it("còn nhiều lần cảnh báo ở lần đầu", () => {
+    expect(violationModalMessage(1)).toBe(
+      "Hệ thống ghi nhận bạn vừa rời trang làm bài quá 3 giây. Còn 2 lần cảnh báo nữa trước khi bài làm bị huỷ.",
     );
   });
 
-  it("thông báo đã huỷ khi vượt ngưỡng", () => {
-    expect(violationToastMessage(3)).toBe("Bài làm đã bị huỷ do rời trang quá số lần cho phép.");
+  it("cảnh báo cuối cùng ở lần thứ 3", () => {
+    expect(violationModalMessage(3)).toBe(
+      "Hệ thống ghi nhận bạn vừa rời trang làm bài quá 3 giây. Đây là cảnh báo cuối cùng — vi phạm thêm 1 lần nữa, bài làm sẽ tự động bị huỷ.",
+    );
   });
 });

@@ -438,32 +438,85 @@ a {
   color: var(--color-clay-text);
 }
 
-/* Toast minh bạch: hiện ngay khi ghi nhận rời trang, biến mất sau vài giây —
+/* Cảnh báo vi phạm — hiện GIỮA màn hình để học sinh chắc chắn chú ý (thay vì
+   toast góc màn hình, dễ bị bỏ qua), bắt buộc bấm "cam kết" mới đóng được —
    cố tình chỉ dùng chữ + màu rõ ràng, KHÔNG dùng hiệu ứng giật gân/âm thanh
-   (đã thống nhất: minh bạch + hậu quả thật, không hù doạ). */
-.exam-violation-toast {
+   (đã thống nhất: minh bạch + hậu quả thật, không hù doạ). Mỗi mức cảnh báo
+   (1/2/3) có 1 màu riêng, đậm dần theo mức độ nghiêm trọng. */
+.exam-violation-backdrop {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 50;
-  background: var(--color-clay-text);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 12px 18px;
-  border-radius: 10px;
-  box-shadow: 0 12px 28px rgba(31, 42, 51, 0.22);
-  max-width: 320px;
-  animation: exam-toast-in 0.25s ease;
+  inset: 0;
+  z-index: 60;
+  background: rgba(31, 20, 16, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: exam-modal-fade-in 0.2s ease;
 }
-@keyframes exam-toast-in {
+.exam-violation-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 28px 26px 24px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(31, 20, 16, 0.35);
+  border-top: 6px solid var(--color-accent);
+  animation: exam-modal-in 0.25s ease;
+}
+.exam-violation-modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.exam-violation-modal-message {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--color-text-muted, #5a5a5a);
+  margin-bottom: 22px;
+}
+.exam-violation-modal-btn {
+  width: 100%;
+}
+
+.exam-violation-modal--level-1 {
+  border-top-color: var(--color-accent);
+}
+.exam-violation-modal--level-1 .exam-violation-modal-title {
+  color: var(--color-accent-dark, #8a6a25);
+}
+
+.exam-violation-modal--level-2 {
+  border-top-color: var(--color-clay);
+}
+.exam-violation-modal--level-2 .exam-violation-modal-title {
+  color: var(--color-clay-text);
+}
+
+.exam-violation-modal--level-3 {
+  border-top-color: var(--color-danger);
+}
+.exam-violation-modal--level-3 .exam-violation-modal-title {
+  color: var(--color-danger);
+}
+
+@keyframes exam-modal-fade-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+  }
+}
+@keyframes exam-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

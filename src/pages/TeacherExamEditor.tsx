@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { MathText } from "../components/MathText";
 import { TagPicker } from "../components/TagPicker";
+import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
 import type { ExamTag, QuestionRow, Topic } from "../lib/types";
 
 /** Chuyển 1 mốc ISO (lưu UTC trong CSDL) sang định dạng input datetime-local
@@ -265,7 +266,7 @@ export function TeacherExamEditor() {
         >
           <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
           <option value="nghiem_tuc">
-            Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá 2 lần
+            Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá {AUTO_CANCEL_THRESHOLD} lần
           </option>
         </select>
       </div>

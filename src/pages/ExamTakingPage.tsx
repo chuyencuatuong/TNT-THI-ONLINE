@@ -4,10 +4,13 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { getAssignmentStatus } from "../lib/examAssignment";
 import {
+  AUTO_CANCEL_THRESHOLD,
   INVALIDATED_REASON_TOO_MANY_EXITS,
-  isAutoCancelEvent,
+  VIOLATION_GRACE_PERIOD_MS,
   shouldAutoCancel,
-  violationToastMessage,
+  violationModalMessage,
+  violationModalTitle,
+  violationSeverity,
 } from "../lib/proctoring";
 import type {
   ExamQuestionRow,
@@ -66,7 +69,7 @@ export function ExamTakingPage() {
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
+  const [violationModal, setViolationModal] = useState<{ count: number } | null>(null);
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -76,7 +79,9 @@ export function ExamTakingPage() {
   const invalidatedRef = useRef(false);
   const violationCountRef = useRef(0);
   const submitRef = useRef<() => void>(() => {});
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Đếm ngược "khoảng đệm" (VIOLATION_GRACE_PERIOD_MS) cho mỗi lần rời trang
+  // — chỉ tính là vi phạm thật sự nếu vẫn còn rời trang khi hết khoảng đệm.
+  const awayTimers = useRef<Partial<Record<"tab_hidden" | "fullscreen_exit", ReturnType<typeof setTimeout>>>>({});
 
   const isStrict = exam?.mode === "nghiem_tuc";
 
@@ -307,10 +312,34 @@ export function ExamTakingPage() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  function showToast(text: string) {
-    setToast({ text, key: Date.now() });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  /** Đăng ký 1 lần vi phạm THẬT SỰ (đã qua khoảng đệm) — hiện cảnh báo giữa
+   * màn hình, hoặc huỷ + nộp bài luôn nếu đã vượt ngưỡng cho phép. */
+  function registerViolation() {
+    if (invalidatedRef.current) return;
+    violationCountRef.current += 1;
+    const count = violationCountRef.current;
+    if (shouldAutoCancel(count)) {
+      setViolationModal(null);
+      void invalidateAndSubmit();
+    } else {
+      setViolationModal({ count });
+    }
+  }
+
+  function clearAwayTimer(kind: "tab_hidden" | "fullscreen_exit") {
+    const timer = awayTimers.current[kind];
+    if (timer) {
+      clearTimeout(timer);
+      delete awayTimers.current[kind];
+    }
+  }
+
+  function startAwayTimer(kind: "tab_hidden" | "fullscreen_exit") {
+    clearAwayTimer(kind);
+    awayTimers.current[kind] = setTimeout(() => {
+      delete awayTimers.current[kind];
+      registerViolation();
+    }, VIOLATION_GRACE_PERIOD_MS);
   }
 
   // Giám sát trong lúc làm bài: ghi lại các dấu hiệu khả nghi (rời tab, thoát
@@ -318,43 +347,48 @@ export function ExamTakingPage() {
   // hoặc dán nội dung vào bài làm. Đây chỉ là công cụ giảm bớt gian lận dễ
   // dàng, không thể ngăn học sinh dùng thiết bị khác để tra cứu.
   //
-  // Ở đề "nghiêm túc": mỗi lần rời tab/thoát fullscreen còn được đếm riêng —
-  // hiện ngay 1 thông báo nhỏ cho học sinh biết CHÍNH XÁC mình vừa bị ghi
-  // nhận (minh bạch, không hù doạ), và tự động huỷ + nộp bài nếu vượt quá số
-  // lần cho phép (xem src/lib/proctoring.ts). Đề "thoải mái" vẫn ghi log như
-  // cũ để giáo viên tham khảo nhưng KHÔNG đếm/không huỷ — giữ đúng tinh thần
-  // luyện tập nhẹ nhàng.
+  // Ở đề "nghiêm túc": mỗi lần rời tab/thoát fullscreen ĐÃ QUÁ khoảng đệm
+  // VIOLATION_GRACE_PERIOD_MS (rời dưới ngưỡng này vẫn ghi log như bình
+  // thường nhưng KHÔNG tính vi phạm — tránh oan vì lỗi máy/thông báo hệ
+  // thống thoáng qua) mới hiện cảnh báo giữa màn hình và cộng vào bộ đếm huỷ
+  // bài (xem src/lib/proctoring.ts). Đề "thoải mái" vẫn ghi log như cũ để
+  // giáo viên tham khảo nhưng KHÔNG đếm/không huỷ — giữ đúng tinh thần luyện
+  // tập nhẹ nhàng.
   useEffect(() => {
     if (!attemptId) return;
 
-    function log(type: api.ProctoringEventType) {
+    function logRaw(type: api.ProctoringEventType) {
       api
         .logProctoringEvent({ attempt_id: attemptIdRef.current!, event_type: type })
         .catch((err) => console.error("Không ghi được proctoring_event:", err));
-
-      if (isStrict && isAutoCancelEvent(type) && !invalidatedRef.current) {
-        violationCountRef.current += 1;
-        const count = violationCountRef.current;
-        showToast(violationToastMessage(count));
-        if (shouldAutoCancel(count)) {
-          void invalidateAndSubmit();
-        }
-      }
     }
 
-    const onVisibilityChange = () => log(document.hidden ? "tab_hidden" : "tab_visible");
-    const onBlur = () => log("window_blur");
-    const onFocus = () => log("window_focus");
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        logRaw("tab_hidden");
+        if (isStrict) startAwayTimer("tab_hidden");
+      } else {
+        logRaw("tab_visible");
+        clearAwayTimer("tab_hidden");
+      }
+    };
+    const onBlur = () => logRaw("window_blur");
+    const onFocus = () => logRaw("window_focus");
     const onFullscreenChange = () => {
-      if (!document.fullscreenElement) log("fullscreen_exit");
+      if (!document.fullscreenElement) {
+        logRaw("fullscreen_exit");
+        if (isStrict) startAwayTimer("fullscreen_exit");
+      } else {
+        clearAwayTimer("fullscreen_exit");
+      }
     };
     const onCopy = (e: ClipboardEvent) => {
       e.preventDefault();
-      log("copy_attempt");
+      logRaw("copy_attempt");
     };
     const onPaste = (e: ClipboardEvent) => {
       e.preventDefault();
-      log("paste_attempt");
+      logRaw("paste_attempt");
     };
 
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -370,6 +404,8 @@ export function ExamTakingPage() {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
       document.removeEventListener("copy", onCopy);
       document.removeEventListener("paste", onPaste);
+      clearAwayTimer("tab_hidden");
+      clearAwayTimer("fullscreen_exit");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId, isStrict]);
@@ -423,7 +459,11 @@ export function ExamTakingPage() {
         <ul className="exam-gate-rules">
           <li>Bài làm cần được thực hiện ở chế độ toàn màn hình trong suốt thời gian thi.</li>
           <li>Hệ thống ghi nhận thời điểm mỗi lần bạn rời tab hoặc thoát toàn màn hình.</li>
-          <li>Rời trang quá 2 lần, bài làm sẽ tự động bị huỷ (điểm không được công nhận).</li>
+          <li>
+            Rời trang quá {AUTO_CANCEL_THRESHOLD} lần, bài làm sẽ tự động bị huỷ (điểm không được
+            công nhận). Rời trang dưới 3 giây (ví dụ lỗi phát sinh trên máy) sẽ không bị tính vào
+            số lần vi phạm.
+          </li>
           <li>Không thể sao chép đề hoặc dán nội dung vào bài làm.</li>
         </ul>
         <button className="btn-primary" onClick={handleConfirmStrictMode}>
@@ -448,9 +488,24 @@ export function ExamTakingPage() {
 
   return (
     <div className={`exam-page ${isStrict ? "exam-page--strict" : ""}`}>
-      {toast && (
-        <div key={toast.key} className="exam-violation-toast">
-          {toast.text}
+      {violationModal && (
+        <div className="exam-violation-backdrop">
+          <div
+            className={`exam-violation-modal exam-violation-modal--level-${
+              violationSeverity(violationModal.count) ?? 3
+            }`}
+            role="alertdialog"
+            aria-modal="true"
+          >
+            <div className="exam-violation-modal-title">{violationModalTitle(violationModal.count)}</div>
+            <p className="exam-violation-modal-message">{violationModalMessage(violationModal.count)}</p>
+            <button
+              className="btn-primary exam-violation-modal-btn"
+              onClick={() => setViolationModal(null)}
+            >
+              Tôi cam kết làm bài nghiêm túc
+            </button>
+          </div>
         </div>
       )}
 
@@ -482,7 +537,7 @@ export function ExamTakingPage() {
 
       <p className="exam-proctor-notice">
         {isStrict
-          ? "Phòng thi nghiêm túc: hệ thống ghi nhận thời điểm mỗi lần bạn rời tab/thoát toàn màn hình. Rời trang quá 2 lần, bài làm sẽ tự động bị huỷ."
+          ? `Phòng thi nghiêm túc: hệ thống ghi nhận thời điểm mỗi lần bạn rời tab/thoát toàn màn hình. Rời trang quá ${AUTO_CANCEL_THRESHOLD} lần, bài làm sẽ tự động bị huỷ.`
           : "Hệ thống ghi nhận nếu bạn rời khỏi tab/cửa sổ làm bài hoặc thoát toàn màn hình, và không cho phép sao chép/dán nội dung trong lúc thi. Nên bấm \"Toàn màn hình\" trước khi bắt đầu."}
       </p>
 
