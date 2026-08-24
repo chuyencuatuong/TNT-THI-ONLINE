@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   extractJsonBlock,
   matchTopicByName,
+  mergeExtractedTaxonomies,
   mergeParsedExams,
   sanitizeJsonEscapes,
+  type ExtractedTaxonomy,
   type ParsedExam,
 } from "./ai";
 import type { Topic } from "./types";
@@ -96,6 +98,38 @@ describe("mergeParsedExams", () => {
     expect(merged.part2).toHaveLength(1);
     expect(merged.part3).toHaveLength(0);
     expect(merged.warnings).toEqual(["đợt 1 có 1 câu mờ"]);
+  });
+});
+
+describe("mergeExtractedTaxonomies", () => {
+  const empty: ExtractedTaxonomy = { candidates: [], warnings: [] };
+
+  it("trả về taxonomy rỗng khi không có kết quả nào", () => {
+    expect(mergeExtractedTaxonomies([])).toEqual(empty);
+  });
+
+  it("gộp nhiều đợt theo đúng thứ tự, cộng dồn candidates và warnings, không tự khử trùng lặp", () => {
+    const chunk1: ExtractedTaxonomy = {
+      candidates: [
+        { name: "Dạng 1: Tìm khoảng đơn điệu", description: "...", example_summary: null },
+      ],
+      warnings: ["đợt 1 có 1 trang mờ"],
+    };
+    const chunk2: ExtractedTaxonomy = {
+      candidates: [
+        { name: "Dạng 1: Tìm khoảng đơn điệu", description: "trùng tên với đợt 1", example_summary: null },
+        { name: "Dạng 2: Cực trị hàm số", description: "...", example_summary: "vd 1" },
+      ],
+      warnings: [],
+    };
+    const merged = mergeExtractedTaxonomies([chunk1, chunk2]);
+    expect(merged.candidates).toHaveLength(3); // không khử trùng — để giáo viên tự xử lý ở bước duyệt
+    expect(merged.candidates.map((c) => c.name)).toEqual([
+      "Dạng 1: Tìm khoảng đơn điệu",
+      "Dạng 1: Tìm khoảng đơn điệu",
+      "Dạng 2: Cực trị hàm số",
+    ]);
+    expect(merged.warnings).toEqual(["đợt 1 có 1 trang mờ"]);
   });
 });
 

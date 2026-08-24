@@ -20,6 +20,12 @@ import { TeacherStudentDetail } from "./pages/TeacherStudentDetail";
 const TeacherExamImport = lazy(() =>
   import("./pages/TeacherExamImport").then((m) => ({ default: m.TeacherExamImport })),
 );
+// Cùng lý do — trang này cũng đọc PDF/.docx (pdf.js/mammoth.js), chỉ giáo viên cần.
+const TeacherQuestionTypeImport = lazy(() =>
+  import("./pages/TeacherQuestionTypeImport").then((m) => ({
+    default: m.TeacherQuestionTypeImport,
+  })),
+);
 
 function RequireRole({
   role,
@@ -133,6 +139,16 @@ export default function App() {
             <RequireRole role="teacher">
               <Suspense fallback={<div className="page-loading">Đang tải...</div>}>
                 <TeacherExamImport />
+              </Suspense>
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/nap-dang-bai"
+          element={
+            <RequireRole role="teacher">
+              <Suspense fallback={<div className="page-loading">Đang tải...</div>}>
+                <TeacherQuestionTypeImport />
               </Suspense>
             </RequireRole>
           }

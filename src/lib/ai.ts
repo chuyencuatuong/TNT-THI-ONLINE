@@ -710,3 +710,205 @@ export async function parseExamFromPdfPages(
   }
   return { parsed: merged, failedChunks, totalChunks: imageChunks.length, chunkErrors };
 }
+
+// ---------------------------------------------------------------------------
+// Bước A (Learning Lab, chốt 24/08/2026) — xây taxonomy "dạng bài" từ tài liệu
+// tham khảo giáo viên tự soạn ("tài liệu dạng bài tập") — KHÁC hẳn đề thi ở
+// trên: tài liệu này thường trình bày lý thuyết rồi đến mục phân loại với các
+// tiêu đề "Dạng 1: ...", "Dạng 2: ..." kèm phương pháp giải + bài tập ví dụ đã
+// có lời giải, còn đề thi thật (upload ở TeacherExamImport) thì KHÔNG mang
+// thông tin dạng bài. AI ở đây chỉ TRÍCH XUẤT danh sách dạng đã có sẵn trong
+// tài liệu (không tự bịa dạng mới) — giáo viên luôn xem lại/sửa/xoá từng dạng
+// trước khi ghi vào question_types (đúng nguyên tắc "AI gợi ý, giáo viên
+// duyệt" xuyên suốt hệ thống, giống hệt cách xác nhận chương ở
+// TeacherQuestionBank.tsx). Dùng lại đúng cơ chế 2 nguồn dữ liệu song song
+// (văn bản thật từ pdf.js + ảnh từng trang) và cách chia đợt/báo lỗi theo đợt
+// như parseExamFromImages ở trên, vì đây cũng là nội dung Toán có công thức/
+// bảng biến thiên cần đọc từ ảnh, và tài liệu có thể dài nhiều trang.
+// ---------------------------------------------------------------------------
+
+export interface ExtractedQuestionTypeCandidate {
+  name: string;
+  description: string;
+  /** Tóm tắt cực ngắn 1 ví dụ tiêu biểu của dạng này trong tài liệu (không phải lời giải đầy đủ) — giúp giáo viên nhận ra ngay dạng khi duyệt. null nếu tài liệu không có ví dụ rõ ràng. */
+  example_summary: string | null;
+}
+
+export interface ExtractedTaxonomy {
+  candidates: ExtractedQuestionTypeCandidate[];
+  warnings: string[];
+}
+
+function buildQuestionTypeExtractionPrompt(topicName: string | null): string {
+  return `Bạn là trợ lý biên tập tài liệu Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu từng trang của 1 tài liệu "dạng bài tập" do giáo viên tự soạn${topicName ? ` cho chương "${topicName}"` : ""} — KHÁC với đề thi, tài liệu này thường trình bày: phần lý thuyết, rồi đến phần phân loại theo "Dạng 1: ...", "Dạng 2: ..." kèm phương pháp giải và bài tập ví dụ đã có lời giải.
+
+Mỗi trang gồm 2 phần: văn bản thật trích từ lớp text của PDF (tin tưởng hoàn toàn phần chữ), và ảnh chụp cả trang ngay sau đó (chỉ dùng để đọc công thức/bảng biến thiên đã thành hình và phần văn bản bị thiếu).
+
+NHIỆM VỤ: liệt kê TOÀN BỘ các "dạng bài" xuất hiện trong tài liệu này. Với mỗi dạng:
+1. "name": tên dạng — LẤY NGUYÊN VĂN nếu tài liệu có ghi rõ tiêu đề kiểu "Dạng N: ..." (bỏ phần số thứ tự "Dạng N:", chỉ giữ tên). Nếu tài liệu KHÔNG có tiêu đề "Dạng..." rõ ràng, tự nhóm các bài tập có chung cách giải/phương pháp thành 1 dạng rồi đặt tên ngắn gọn, đúng cách gọi thường dùng khi dạy.
+2. "description": mô tả ngắn gọn (1-2 câu) đặc điểm nhận diện dạng này — dựa theo phần "phương pháp giải" nếu tài liệu có ghi, không tự bịa phương pháp không có trong tài liệu.
+3. "example_summary": tóm tắt CỰC NGẮN (1 câu) 1 bài tập ví dụ tiêu biểu của dạng này trong tài liệu (không cần chép lại đề đầy đủ hay lời giải) — hoặc null nếu tài liệu không có ví dụ rõ ràng cho dạng đó.
+
+QUAN TRỌNG: chỉ liệt kê dạng bài THẬT SỰ CÓ trong tài liệu này — không suy diễn thêm dạng không xuất hiện. Nếu tài liệu chỉ có 1 dạng duy nhất (thường gặp khi file được đặt tên kiểu "Bài X_Dạng Y..."), trả về đúng 1 phần tử trong "candidates".
+
+Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) bất kỳ điều gì không chắc chắn: tài liệu trình bày không rõ ranh giới giữa các dạng, thiếu phần phương pháp giải, trang bị thiếu/mờ, v.v.
+
+QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: dấu chéo ngược '\' của LaTeX (nếu xuất hiện trong description/example_summary) PHẢI viết thành HAI dấu chéo ngược liên tiếp '\\' để là JSON hợp lệ. Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
+{
+  "candidates": [{"name": "...", "description": "...", "example_summary": "..." | null}],
+  "warnings": ["..."]
+}`;
+}
+
+/** Trích taxonomy dạng bài từ 1 đợt trang PDF (đã trong giới hạn cho phép) — cùng cách báo lỗi-theo-đợt như parseExamFromImages, để 1 đợt lỗi không làm mất trắng các đợt còn lại. */
+export async function extractQuestionTypesFromImages(
+  pageImages: PageImageInput[],
+  topicName: string | null = null,
+  pageNumbers?: number[],
+): Promise<ExtractedTaxonomy> {
+  const parts: GeminiPart[] = [{ text: buildQuestionTypeExtractionPrompt(topicName) }];
+  pageImages.forEach((img, i) => {
+    const label = pageNumbers?.[i] ?? i + 1;
+    const textBlock = img.pageText?.trim()
+      ? img.pageText.trim()
+      : "(trang này không trích được văn bản — đọc hoàn toàn từ ảnh)";
+    parts.push({
+      text: `\nVăn bản trang ${label} (đã trích chính xác 100%, dùng làm CƠ SỞ):\n"""\n${textBlock}\n"""\nẢnh chụp trang ${label}:`,
+    });
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
+  });
+
+  const rangeLabel = pageNumbers?.length
+    ? pageNumbers.length === 1
+      ? `Trang ${pageNumbers[0]}`
+      : `Trang ${pageNumbers[0]}-${pageNumbers[pageNumbers.length - 1]}`
+    : "1 đợt";
+
+  const { text: raw, errorMessage } = await callGeminiPartsDetailed(parts, 4096);
+  if (!raw) {
+    return {
+      candidates: [],
+      warnings: [`${CHUNK_ERROR_PREFIX} ${rangeLabel}: ${errorMessage ?? "AI không trả lời."}`],
+    };
+  }
+
+  try {
+    const parsed = extractJsonBlock(raw) as Partial<ExtractedTaxonomy>;
+    return {
+      candidates: Array.isArray(parsed.candidates) ? parsed.candidates : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+    };
+  } catch (err) {
+    console.error("Không đọc được JSON từ AI khi trích taxonomy dạng bài:", err, raw);
+    return {
+      candidates: [],
+      warnings: [
+        `${CHUNK_ERROR_PREFIX} ${rangeLabel}: AI trả lời nhưng không đúng định dạng JSON mong đợi.`,
+      ],
+    };
+  }
+}
+
+/** Gộp nhiều kết quả trích taxonomy (nhiều đợt gửi) thành 1 danh sách duy nhất, giữ đúng thứ tự đợt — KHÔNG tự khử trùng lặp ở đây, việc gộp/loại trùng tên dạng do giáo viên quyết định ở bước duyệt trên UI. */
+export function mergeExtractedTaxonomies(results: ExtractedTaxonomy[]): ExtractedTaxonomy {
+  return results.reduce<ExtractedTaxonomy>(
+    (acc, r) => ({
+      candidates: [...acc.candidates, ...r.candidates],
+      warnings: [...acc.warnings, ...r.warnings],
+    }),
+    { candidates: [], warnings: [] },
+  );
+}
+
+export interface ExtractQuestionTypesResult {
+  /** null CHỈ khi không đợt nào thành công (0 dạng nào đọc được) — xem "chunkErrors" để biết lý do cụ thể từng đợt. */
+  taxonomy: ExtractedTaxonomy | null;
+  failedChunks: number;
+  totalChunks: number;
+  chunkErrors: string[];
+}
+
+/**
+ * Trích taxonomy dạng bài từ toàn bộ tài liệu (nhiều trang PDF), tự chia đợt
+ * giống hệt parseExamFromPdfPages. Tài liệu dạng bài tập thường ngắn hơn hẳn 1
+ * đề thi (mỗi file thường ứng với 1 dạng) nên phần lớn chỉ cần 1 đợt duy nhất,
+ * nhưng vẫn chia đợt để an toàn với tài liệu dài hơn (nhiều dạng gộp 1 file).
+ */
+export async function extractQuestionTypesFromPdfPages(
+  pageImages: PageImageInput[],
+  topicName: string | null = null,
+  chunkSize = 10,
+  onProgress?: (done: number, total: number) => void,
+): Promise<ExtractQuestionTypesResult> {
+  const pageNumberChunks = chunkArray(
+    pageImages.map((_, i) => i + 1),
+    chunkSize,
+  );
+  const imageChunks = chunkArray(pageImages, chunkSize);
+
+  const results: ExtractedTaxonomy[] = [];
+  for (let i = 0; i < imageChunks.length; i++) {
+    const r = await extractQuestionTypesFromImages(imageChunks[i], topicName, pageNumberChunks[i]);
+    results.push(r);
+    onProgress?.(i + 1, imageChunks.length);
+  }
+
+  const chunkErrors = results
+    .flatMap((r) => r.warnings)
+    .filter((w) => w.startsWith(CHUNK_ERROR_PREFIX))
+    .map((w) => w.slice(CHUNK_ERROR_PREFIX.length).trim());
+  const failedChunks = chunkErrors.length;
+
+  const merged = mergeExtractedTaxonomies(results);
+  merged.warnings = merged.warnings.filter((w) => !w.startsWith(CHUNK_ERROR_PREFIX));
+
+  if (merged.candidates.length === 0 && failedChunks > 0) {
+    return { taxonomy: null, failedChunks, totalChunks: imageChunks.length, chunkErrors };
+  }
+  if (failedChunks > 0) {
+    merged.warnings = [
+      `${failedChunks}/${imageChunks.length} đợt gọi AI bị lỗi — kiểm tra lại danh sách dạng trước khi lưu: ${chunkErrors.join(" | ")}`,
+      ...merged.warnings,
+    ];
+  }
+  return { taxonomy: merged, failedChunks, totalChunks: imageChunks.length, chunkErrors };
+}
+
+/** Đường dự phòng đọc từ .docx (mammoth.js) — cùng nguyên tắc như parseExamFromDocument, ưu tiên dùng đường PDF ở trên khi có thể vì chính xác hơn với công thức/bảng biến thiên. */
+export async function extractQuestionTypesFromDocument(
+  plainText: string,
+  images: ExtractedImage[],
+  topicName: string | null = null,
+): Promise<ExtractedTaxonomy> {
+  const parts: GeminiPart[] = [
+    {
+      text:
+        buildQuestionTypeExtractionPrompt(topicName) +
+        `\n\nVăn bản tài liệu (in đậm được đánh dấu bằng **...**):\n"""\n` +
+        plainText +
+        '\n"""',
+    },
+  ];
+  for (const img of images) {
+    parts.push({ text: `\nHình ảnh cho placeholder ${img.placeholder}:` });
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
+  }
+
+  const { text: raw, errorMessage } = await callGeminiPartsDetailed(parts, 4096);
+  if (!raw) {
+    return { candidates: [], warnings: [errorMessage ?? "AI không trả lời."] };
+  }
+  try {
+    const parsed = extractJsonBlock(raw) as Partial<ExtractedTaxonomy>;
+    return {
+      candidates: Array.isArray(parsed.candidates) ? parsed.candidates : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+    };
+  } catch (err) {
+    console.error("Không đọc được JSON từ AI khi trích taxonomy dạng bài (docx):", err, raw);
+    return {
+      candidates: [],
+      warnings: ["AI trả lời nhưng không đúng định dạng JSON mong đợi."],
+    };
+  }
+}

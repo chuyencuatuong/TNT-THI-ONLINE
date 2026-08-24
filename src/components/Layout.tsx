@@ -47,6 +47,9 @@ export function Layout() {
                   <NavLink to="/giao-vien/ngan-hang-cau-hoi" className={navLinkClass}>
                     Ngân hàng câu hỏi
                   </NavLink>
+                  <NavLink to="/giao-vien/nap-dang-bai" className={navLinkClass}>
+                    Nạp dạng bài
+                  </NavLink>
                 </>
               ) : (
                 <>
