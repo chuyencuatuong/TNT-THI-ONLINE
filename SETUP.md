@@ -8,7 +8,42 @@ hình. Khoảng 10 phút.
 
 ## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 1 việc để cập nhật
 
-**Bản cập nhật mới nhất (23/08/2026 — Đợt 3: xáo đáp án ôn tập, chia đợt ôn
+**Bản cập nhật mới nhất (25/08/2026 — làm mới giao diện toàn bộ + thẻ chia
+sẻ + chuẩn bị đi vào vận hành thật)** gộp chung mấy đợt gần đây, thêm:
+
+- **Giao diện responsive trên điện thoại** (menu hamburger, không còn tràn
+  màn hình), **làm mới thị giác** (khoảng cách/đổ bóng đồng nhất, khối "Công
+  cụ học mỗi ngày" thu gọn mặc định).
+- **Trang kết quả thi chia 3 tab** (Tổng quan / Chẩn đoán / Xem lại bài làm)
+  + nút **"Tải phiếu kết quả"** (in ra bản gọn, học sinh lưu thành PDF được).
+- **Chế độ tối** (nút bật/tắt cạnh nút đăng xuất), nhớ lựa chọn giữa các lần
+  vào lại.
+- **Hồ sơ học sinh mở rộng**: lần đầu đăng nhập, học sinh điền thêm ngày
+  sinh, SĐT, trường, giới tính, tỉnh/TP — giáo viên xem được ở trang chi
+  tiết từng học sinh. **Cần chạy 1 file SQL mới, xem mục bên dưới.**
+- **Thẻ chia sẻ** (trang chủ học sinh): khi điểm cải thiện so với lần làm
+  gần nhất, hoặc chuỗi ôn tập đạt từ 3 ngày liên tiếp, học sinh thấy nút
+  "Chia sẻ tiến bộ" / "Chia sẻ chuỗi ôn tập" — bấm vào xem trước thẻ ảnh
+  vuông (thương hiệu TNT), tải PNG về tự đăng lên Locket/story nếu muốn.
+  Chỉ so học sinh với chính họ ở quá khứ, không xếp hạng/so với bạn khác.
+  Không cần SQL gì thêm cho mục này (dùng lại dữ liệu đã có sẵn).
+
+**Trước khi cho học sinh thật dùng, làm thêm 2 việc sau (chỉ 1 lần):**
+
+1. **Chạy migration hồ sơ học sinh** (nếu chưa chạy): Supabase Dashboard >
+   SQL Editor > New query > mở file
+   `supabase/migration_011_ho_so_hoc_sinh.sql` trong bản zip, copy dán, Run.
+2. **Dọn dữ liệu thử nghiệm**: mở file
+   `supabase/don_dep_du_lieu_thu_nghiem.sql` trong bản zip — đọc kỹ hướng dẫn
+   trong file (chạy PHẦN xem trước rồi mới đến PHẦN xoá), dùng để xoá sạch
+   tài khoản/đề thi/câu hỏi/lượt làm bài đã tạo lúc thử nghiệm, chỉ giữ lại
+   tài khoản giáo viên của bạn. **Đây là xoá vĩnh viễn, không khôi phục
+   được** — đọc kỹ trước khi chạy phần xoá.
+
+<details>
+<summary>Bản cập nhật trước đó (23/08/2026 — Đợt 3: xáo đáp án ôn tập, chia đợt ôn tập, dashboard giáo viên 3 cột)</summary>
+
+**Bản cập nhật (23/08/2026 — Đợt 3: xáo đáp án ôn tập, chia đợt ôn
 tập, dashboard giáo viên 3 cột)** thêm:
 
 - **Xáo ngẫu nhiên vị trí đáp án ở màn hình Ôn tập câu sai**: mỗi lần 1 câu
