@@ -20,7 +20,14 @@ import {
 } from "../lib/examAssignment";
 import { PomodoroGarden } from "../components/PomodoroGarden";
 import { ExamCountdown } from "../components/ExamCountdown";
+import { ShareCardModal } from "../components/ShareCard";
+import type { ShareCardData } from "../lib/renderShareCard";
+import { computeStudyStreak, levelLabelForStreak } from "../lib/streak";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
+
+/** Từ bao nhiêu ngày ôn tập liên tiếp trở lên thì mới đáng để khoe — dưới
+ * mức này chưa đủ "thành tích" để mời chia sẻ (đợt bổ sung 25/08/2026). */
+const STREAK_SHARE_MIN_DAYS = 3;
 
 export function StudentDashboard() {
   const { profile } = useAuth();
@@ -30,8 +37,11 @@ export function StudentDashboard() {
   >([]);
   const [wrongCount, setWrongCount] = useState(0);
   const [chapterStats, setChapterStats] = useState<ChapterStat[]>([]);
+  const [activityDates, setActivityDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  // Thẻ chia sẻ đang mở (null = không mở modal nào) — đợt bổ sung 25/08/2026.
+  const [shareCard, setShareCard] = useState<ShareCardData | null>(null);
   // Khối "Công cụ hỗ trợ" (Pomodoro/đếm ngược/sắp ra mắt) thu gọn mặc định —
   // giảm chiều dài cuộn ban đầu, đây là nội dung phụ chứ không phải quyết
   // định cốt lõi khi HS mở trang chủ (đợt làm mới thị giác 24/08/2026).
@@ -51,11 +61,13 @@ export function StudentDashboard() {
       api.listStudentAttempts(profile.id),
       api.getWrongAnswerJournalCount(profile.id),
       api.getStudentChapterStats(profile.id),
-    ]).then(([e, a, wc, cs]) => {
+      api.getStudentActivityDates(profile.id),
+    ]).then(([e, a, wc, cs, ad]) => {
       setExams(e);
       setAttempts(a);
       setWrongCount(wc);
       setChapterStats(cs);
+      setActivityDates(ad);
       setLoading(false);
     });
   }, [profile]);
@@ -94,6 +106,25 @@ export function StudentDashboard() {
     name: `Lần ${i + 1}`,
     score: a.score!.total_score,
   }));
+
+  // Thẻ chia sẻ (đợt bổ sung 25/08/2026) — CHỈ so sánh HS với chính họ ở quá
+  // khứ (điểm lần này so lần trước, số ngày ôn tập liên tiếp), không xếp
+  // hạng/so với bạn khác, đúng nguyên tắc chung của toàn bộ app. Học sinh chủ
+  // động bấm mới mở thẻ ra xem, không tự động hiện/nhắc nhở.
+  const streak = computeStudyStreak(activityDates, new Date());
+  const progressCardData: ShareCardData | null =
+    improvement !== null && improvement > 0.001 && latest
+      ? {
+          kind: "progress",
+          deltaText: formatScoreDelta(improvement).text,
+          examTitle: latest.exam.title,
+          sparkline: trendData.slice(-5).map((d) => d.score),
+        }
+      : null;
+  const streakCardData: ShareCardData | null =
+    streak >= STREAK_SHARE_MIN_DAYS
+      ? { kind: "streak", days: streak, levelLabel: levelLabelForStreak(streak) }
+      : null;
 
   // Chương ưu tiên ôn tập — chương có độ chính xác THẤP NHẤT trong số các
   // chương đã có ít nhất 1 câu (maxScore > 0), tránh gợi ý chương chưa từng
@@ -189,6 +220,29 @@ export function StudentDashboard() {
                   <Line type="monotone" dataKey="score" stroke="#9c1420" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {(progressCardData || streakCardData) && (
+            <div className="share-card-trigger-row">
+              {progressCardData && (
+                <button
+                  type="button"
+                  className="share-card-trigger"
+                  onClick={() => setShareCard(progressCardData)}
+                >
+                  Chia sẻ tiến bộ
+                </button>
+              )}
+              {streakCardData && (
+                <button
+                  type="button"
+                  className="share-card-trigger"
+                  onClick={() => setShareCard(streakCardData)}
+                >
+                  Chia sẻ chuỗi ôn tập
+                </button>
+              )}
             </div>
           )}
         </>
@@ -347,6 +401,8 @@ export function StudentDashboard() {
           </div>
         </div>
       )}
+
+      {shareCard && <ShareCardModal data={shareCard} onClose={() => setShareCard(null)} />}
     </div>
   );
 }

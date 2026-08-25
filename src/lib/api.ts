@@ -1300,3 +1300,22 @@ export async function deleteStudentPlaylist(id: string): Promise<void> {
   const { error } = await supabase.from("student_playlists").delete().eq("id", id);
   if (error) throw error;
 }
+
+/**
+ * Mốc thời gian (ISO string) của mọi hoạt động học của 1 học sinh — gộp cả
+ * lượt làm bài (exam_attempts) lẫn buổi ôn tập câu sai (review_sessions) —
+ * dùng để tính "chuỗi ôn tập" cho thẻ chia sẻ (xem src/lib/streak.ts). Chỉ
+ * lấy đúng 1 cột thời điểm ở mỗi bảng, không join gì thêm, nên nhẹ.
+ */
+export async function getStudentActivityDates(studentId: string): Promise<string[]> {
+  const [{ data: attempts, error: e1 }, { data: sessions, error: e2 }] = await Promise.all([
+    supabase.from("exam_attempts").select("started_at").eq("student_id", studentId),
+    supabase.from("review_sessions").select("started_at").eq("student_id", studentId),
+  ]);
+  if (e1) throw e1;
+  if (e2) throw e2;
+  return [
+    ...(attempts ?? []).map((r) => r.started_at as string),
+    ...(sessions ?? []).map((r) => r.started_at as string),
+  ];
+}

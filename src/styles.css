@@ -631,7 +631,11 @@ a {
 }
 .exam-proctor-notice {
   font-size: 12.5px;
-  color: var(--color-text-muted);
+  /* Nền vàng nhạt cố định, không đổi theo theme (giống các badge trạng thái
+     khác) — nên màu chữ cũng cố định theo, KHÔNG dùng var(--color-text-muted)
+     vì biến đó đổi thành màu sáng ở chế độ tối, mất tương phản trên nền vàng
+     nhạt vẫn giữ nguyên (cùng lỗi đã vá ở .choice-item--correct-answer). */
+  color: #6b5417;
   background: #fff8e6;
   border: 1px solid #ffe6a3;
   border-radius: 8px;
@@ -765,6 +769,102 @@ a {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* Thẻ chia sẻ (share card) — modal xem trước + tải ảnh PNG, đợt bổ sung
+   25/08/2026. Canvas 1080x1080 được co giãn vừa khung bằng CSS, kích thước
+   thật giữ nguyên khi vẽ (xem src/lib/renderShareCard.ts) nên tải về vẫn nét. */
+.share-card-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(13, 7, 5, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: exam-modal-fade-in 0.2s ease;
+}
+.share-card-modal {
+  background: var(--color-card);
+  border-radius: 20px;
+  max-width: 420px;
+  width: 100%;
+  padding: 20px 20px 24px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(13, 7, 5, 0.4);
+  position: relative;
+  animation: exam-modal-in 0.25s ease;
+}
+.share-card-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-subtle-bg, #f2ede4);
+  color: var(--color-text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.share-card-canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0a0302;
+  margin-top: 8px;
+}
+.share-card-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.share-card-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f6ecd8;
+  font-size: 14px;
+}
+.share-card-hint {
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  margin: 14px 0 16px;
+  line-height: 1.5;
+}
+.share-card-download-btn {
+  width: 100%;
+}
+
+/* Nút vào từng loại thẻ chia sẻ (dashboard học sinh) */
+.share-card-trigger-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -6px 0 18px;
+}
+.share-card-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent-dark, #8a6a25);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.share-card-trigger:hover {
+  filter: brightness(0.97);
 }
 
 /* Màn hình "cửa vào" bài thi — chưa mở khoá / đã khoá / cần xác nhận trước
@@ -1613,13 +1713,23 @@ a {
 .choice-item--readonly {
   cursor: default;
 }
+/* VÁ 24/08/2026 (phát hiện qua ảnh chụp chế độ tối do user gửi): 2 khối này
+   dùng nền màu SÁNG cố định (không đổi theo theme, đúng ý — xanh/hồng nhạt
+   giữ nguyên ý nghĩa "đúng/sai" ở mọi theme) nhưng lại KHÔNG có màu chữ riêng
+   — chữ bên trong (đáp án, MathText) trước đó rơi theo var(--color-text)
+   mặc định, mà biến này đổi thành màu SÁNG ở chế độ tối, nên chữ gần như
+   biến mất trên nền xanh/hồng nhạt vẫn còn sáng. Cố định thêm màu chữ TỐI ở
+   đây — không phụ thuộc theme — vì nền của 2 khối này vốn cũng không đổi
+   theo theme. */
 .choice-item--correct-answer {
   border-color: var(--color-success);
   background: #eaf6ec;
+  color: #1c3326;
 }
 .choice-item--wrong-answer {
   border-color: var(--color-danger);
   background: #fdecea;
+  color: #5c231d;
 }
 .choice-tag {
   margin-left: auto;
@@ -1637,9 +1747,11 @@ a {
 }
 .truefalse-table--review .truefalse-row--correct {
   background: #eaf6ec;
+  color: #1c3326;
 }
 .truefalse-table--review .truefalse-row--wrong {
   background: #fdecea;
+  color: #5c231d;
 }
 .short-answer-review p {
   margin: 4px 0;
