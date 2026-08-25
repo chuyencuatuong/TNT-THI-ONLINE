@@ -104,6 +104,16 @@ interface GeminiCallResult {
   text: string | null;
   /** Lý do cụ thể khi text là null — để hiện cho giáo viên biết chính xác chuyện gì xảy ra thay vì chỉ nói chung chung "có lỗi". */
   errorMessage: string | null;
+  /**
+   * THÊM 25/08/2026: true khi Gemini dừng sinh chữ giữa chừng vì chạm giới hạn
+   * "maxOutputTokens" (finishReason "MAX_TOKENS") — text vẫn có thể khác rỗng
+   * (chỉ là JSON bị cắt cụt, không đóng ngoặc), khiến bước JSON.parse() ở nơi
+   * gọi hàm này thất bại. Gắn cờ riêng để nơi gọi báo đúng lý do "bị cắt do
+   * vượt giới hạn độ dài" thay vì lẫn vào thông báo chung "AI trả lời sai định
+   * dạng JSON" — 2 nguyên nhân cần xử lý khác nhau (cắt ngang thì cần đợt nhỏ
+   * hơn hoặc tăng maxOutputTokens, còn sai định dạng thường do AI quên escape).
+   */
+  truncated?: boolean;
 }
 
 /**
@@ -140,18 +150,24 @@ async function callGeminiPartsDetailed(
     if (!res.ok) {
       const bodyText = await res.text();
       console.error(`Gemini API lỗi (model ${model}):`, res.status, bodyText);
-      // 503/429/5xx đều là lỗi CÓ THỂ tạm thời (quá tải hoặc hết hạn mức riêng
-      // của model này — hạn mức free tier tính RIÊNG theo từng model, nên
-      // model dự phòng còn nguyên hạn mức). Thử lại vài lần cùng model trước,
-      // hết lượt mới cân nhắc đổi hẳn sang model dự phòng.
-      const overloadedOrQuota = res.status === 503 || res.status === 429 || res.status >= 500;
-      const retriableSameModel = overloadedOrQuota && attempt < maxAttemptsForModel;
+      // 503/5xx là quá tải TẠM THỜI phía Google — đáng thử lại cùng model vài
+      // giây sau, thường sẽ qua.
+      // 429 (RESOURCE_EXHAUSTED) THỰC TẾ gặp 25/08/2026 lại là hết hạn mức
+      // THEO NGÀY (quotaId "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+      // response còn kèm "retryDelay" ~30-45s) — đợi 3s/8s tại chỗ rồi gọi lại
+      // CÙNG model gần như chắc chắn vẫn lỗi (chỉ tốn thêm thời gian chờ vô
+      // ích), nên KHÔNG thử lại cùng model khi gặp 429, chuyển thẳng sang
+      // model dự phòng (hạn mức free tier tính RIÊNG theo từng model, nên còn
+      // nguyên 20 lượt/ngày).
+      const serverOverload = res.status === 503 || res.status >= 500;
+      const quotaExhausted = res.status === 429;
+      const retriableSameModel = serverOverload && attempt < maxAttemptsForModel;
       if (retriableSameModel) {
         await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] ?? 8000);
         return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
       }
-      if (!isFallback && overloadedOrQuota && model !== GEMINI_FALLBACK_MODEL) {
-        console.warn(`Model "${model}" quá tải/hết hạn mức sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
+      if (!isFallback && (serverOverload || quotaExhausted) && model !== GEMINI_FALLBACK_MODEL) {
+        console.warn(`Model "${model}" ${quotaExhausted ? "hết hạn mức/ngày" : "quá tải"} sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
         return callGeminiPartsDetailed(
           parts,
           maxOutputTokens,
@@ -170,13 +186,22 @@ async function callGeminiPartsDetailed(
       };
     }
     const json = await res.json();
-    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text as
-      | string
-      | undefined;
+    const candidate = json?.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text as string | undefined;
+    // "MAX_TOKENS" = Gemini dừng sinh chữ giữa chừng vì chạm giới hạn
+    // maxOutputTokens gửi lên — xem GeminiCallResult.truncated ở trên.
+    const truncated = candidate?.finishReason === "MAX_TOKENS";
     if (!text?.trim()) {
+      if (truncated) {
+        return {
+          text: null,
+          errorMessage: "AI bị dừng ngang do vượt giới hạn độ dài phản hồi (MAX_TOKENS) trước khi viết được nội dung nào — đợt này có thể quá dài, thử lại sau hoặc chia nhỏ hơn.",
+          truncated: true,
+        };
+      }
       return { text: null, errorMessage: "AI trả lời rỗng, không có nội dung để đọc." };
     }
-    return { text: text.trim(), errorMessage: null };
+    return { text: text.trim(), errorMessage: null, truncated };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       if (attempt < maxAttemptsForModel) {
@@ -586,7 +611,9 @@ export async function parseExamFromDocument(
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
   }
 
-  const raw = await callGeminiParts(parts, 8192);
+  // Nâng lên 16384 cùng lý do với parseExamFromImages (đợt dài dễ bị Google
+  // cắt ngang giữa chừng do chạm giới hạn maxOutputTokens cũ 8192).
+  const raw = await callGeminiParts(parts, 16384);
   if (!raw) return null;
 
   try {
@@ -704,7 +731,13 @@ export async function parseExamFromImages(
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
   });
 
-  const { text: raw, errorMessage } = await callGeminiPartsDetailed(parts, 8192);
+  // THÊM 25/08/2026: nâng từ 8192 lên 16384 — gặp thật trường hợp 1 đợt 6
+  // trang đề (nhiều câu Phần 1/2/3 + lời giải LaTeX) vượt quá 8192 token, bị
+  // Google cắt ngang giữa chừng (finishReason "MAX_TOKENS") làm JSON hỏng,
+  // mất trắng cả đợt dù nội dung AI đọc được thực ra đúng. Cả 2 model đều hỗ
+  // trợ tới 65536 token/lượt trả lời nên còn nhiều dư địa để nâng thêm nếu
+  // vẫn gặp lại.
+  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 16384);
   if (!raw) {
     return emptyParsedExamWithError(pageNumbers, errorMessage ?? "AI không trả lời.");
   }
@@ -719,7 +752,12 @@ export async function parseExamFromImages(
     };
   } catch (err) {
     console.error("Không đọc được JSON từ AI khi phân tích ảnh trang PDF:", err, raw);
-    return emptyParsedExamWithError(pageNumbers, "AI trả lời nhưng không đúng định dạng JSON mong đợi.");
+    return emptyParsedExamWithError(
+      pageNumbers,
+      truncated
+        ? "AI bị cắt ngang do vượt giới hạn độ dài phản hồi (đợt này có quá nhiều câu/công thức dài) — thử lại, hoặc báo lại nếu vẫn lặp lại nhiều lần."
+        : "AI trả lời nhưng không đúng định dạng JSON mong đợi.",
+    );
   }
 }
 
@@ -874,7 +912,10 @@ export async function extractQuestionTypesFromImages(
       : `Trang ${pageNumbers[0]}-${pageNumbers[pageNumbers.length - 1]}`
     : "1 đợt";
 
-  const { text: raw, errorMessage } = await callGeminiPartsDetailed(parts, 4096);
+  // Nâng từ 4096 lên 8192 cùng lý do với parseExamFromImages (đợt dài dễ bị
+  // cắt ngang do chạm giới hạn maxOutputTokens) — tài liệu dạng bài thường
+  // ngắn hơn đề thi nhưng vẫn có thể dài nếu gộp nhiều dạng/ví dụ trong 1 file.
+  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 8192);
   if (!raw) {
     return {
       candidates: [],
@@ -893,7 +934,11 @@ export async function extractQuestionTypesFromImages(
     return {
       candidates: [],
       warnings: [
-        `${CHUNK_ERROR_PREFIX} ${rangeLabel}: AI trả lời nhưng không đúng định dạng JSON mong đợi.`,
+        `${CHUNK_ERROR_PREFIX} ${rangeLabel}: ${
+          truncated
+            ? "AI bị cắt ngang do vượt giới hạn độ dài phản hồi."
+            : "AI trả lời nhưng không đúng định dạng JSON mong đợi."
+        }`,
       ],
     };
   }
@@ -984,7 +1029,7 @@ export async function extractQuestionTypesFromDocument(
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
   }
 
-  const { text: raw, errorMessage } = await callGeminiPartsDetailed(parts, 4096);
+  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 8192);
   if (!raw) {
     return { candidates: [], warnings: [errorMessage ?? "AI không trả lời."] };
   }
@@ -998,7 +1043,11 @@ export async function extractQuestionTypesFromDocument(
     console.error("Không đọc được JSON từ AI khi trích taxonomy dạng bài (docx):", err, raw);
     return {
       candidates: [],
-      warnings: ["AI trả lời nhưng không đúng định dạng JSON mong đợi."],
+      warnings: [
+        truncated
+          ? "AI bị cắt ngang do vượt giới hạn độ dài phản hồi."
+          : "AI trả lời nhưng không đúng định dạng JSON mong đợi.",
+      ],
     };
   }
 }

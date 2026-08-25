@@ -209,7 +209,7 @@ export function TeacherExamImport() {
     setFileName(file.name);
     setStage("analyzing");
     try {
-      const { plainText, images } = await extractDocx(file);
+      const { plainText, images, unsupportedImageCount } = await extractDocx(file);
       if (!plainText.trim() && images.length === 0) {
         setError("Không đọc được nội dung nào từ file này. Hãy thử lưu lại file .docx rồi tải lên lại.");
         setStage("upload");
@@ -223,7 +223,18 @@ export function TeacherExamImport() {
         setStage("upload");
         return;
       }
-      loadParsed(parsed, file.name.replace(/\.docx$/i, ""));
+      // THÊM 25/08/2026: báo cho giáo viên biết có ảnh (thường là bản vẽ OLE
+      // dạng EMF/WMF — Visio, Excel, "Paste Special > Enhanced Metafile") đã
+      // bị bỏ qua vì Gemini không đọc được định dạng này — xem wordImport.ts.
+      // Không báo thì giáo viên không biết vì sao thiếu hình ở 1 vài câu.
+      const warningsWithSkippedImages =
+        unsupportedImageCount > 0
+          ? [
+              `Có ${unsupportedImageCount} hình ảnh (thường là bản vẽ/đồ thị dạng EMF/WMF, hay gặp khi dán từ Visio/Excel) không đọc tự động được — tìm dòng ghi chú "(có hình ảnh định dạng... không đọc tự động được)" ở bước xem trước để dán tay lại bằng Ctrl+V.`,
+              ...parsed.warnings,
+            ]
+          : parsed.warnings;
+      loadParsed({ ...parsed, warnings: warningsWithSkippedImages }, file.name.replace(/\.docx$/i, ""));
     } catch (err) {
       console.error(err);
       setError("Có lỗi khi đọc file .docx. Hãy chắc chắn đây là file Word hợp lệ (.docx, không phải .doc cũ).");

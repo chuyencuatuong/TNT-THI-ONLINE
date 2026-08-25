@@ -49,4 +49,33 @@ describe("extractFromHtml", () => {
     const { plainText } = extractFromHtml(html);
     expect(plainText).not.toMatch(/\n{3,}/);
   });
+
+  // THÊM 25/08/2026: lỗi thật gặp phải — ảnh nhúng dạng EMF/WMF (OLE từ
+  // Visio/Excel) bị gửi thẳng cho Gemini làm lỗi 400 "Request contains an
+  // invalid argument" trên CẢ 2 model, hỏng nguyên lượt phân tích dù phần
+  // còn lại đọc tốt. Phải lọc bỏ TRƯỚC khi gửi, không phải để AI tự xử lý.
+  it("lọc bỏ ảnh định dạng Gemini không đọc được (EMF/WMF), không đưa vào images gửi cho AI", () => {
+    const html = '<p>Câu 1. <img src="data:image/x-emf;base64,QUJD" alt=""> là bảng xét dấu.</p>';
+    const { plainText, images, unsupportedImageCount } = extractFromHtml(html);
+    expect(images).toHaveLength(0);
+    expect(unsupportedImageCount).toBe(1);
+    expect(plainText).not.toContain("base64");
+    expect(plainText).not.toContain("[HINH_1]");
+    expect(plainText).toContain("không đọc tự động được");
+  });
+
+  it("vẫn đánh số [HINH_n] đúng cho ảnh hợp lệ dù có xen lẫn ảnh không đọc được", () => {
+    const html =
+      '<img src="data:image/png;base64,AAA"><p>giữa</p><img src="data:image/x-emf;base64,BBB"><p>giữa 2</p><img src="data:image/jpeg;base64,CCC">';
+    const { images, unsupportedImageCount } = extractFromHtml(html);
+    expect(images.map((i) => i.placeholder)).toEqual(["[HINH_1]", "[HINH_2]"]);
+    expect(images.map((i) => i.mimeType)).toEqual(["image/png", "image/jpeg"]);
+    expect(unsupportedImageCount).toBe(1);
+  });
+
+  it("unsupportedImageCount = 0 khi mọi ảnh đều đọc được", () => {
+    const html = '<img src="data:image/png;base64,AAA">';
+    const { unsupportedImageCount } = extractFromHtml(html);
+    expect(unsupportedImageCount).toBe(0);
+  });
 });

@@ -116,14 +116,26 @@ export function TeacherQuestionTypeImport() {
     setFileName(file.name);
     setStage("analyzing");
     try {
-      const { plainText, images } = await extractDocx(file);
+      const { plainText, images, unsupportedImageCount } = await extractDocx(file);
       if (!plainText.trim() && images.length === 0) {
         setError("Không đọc được nội dung nào từ file này. Hãy thử lưu lại file .docx rồi tải lên lại.");
         setStage("upload");
         return;
       }
       const taxonomy = await extractQuestionTypesFromDocument(plainText, images, selectedTopic?.name ?? null);
-      withIds(taxonomy);
+      // Xem chú thích ở TeacherExamImport.tsx — cùng lý do: báo cho giáo viên
+      // biết có ảnh (thường EMF/WMF từ Visio/Excel) không đọc tự động được.
+      withIds(
+        unsupportedImageCount > 0
+          ? {
+              ...taxonomy,
+              warnings: [
+                `Có ${unsupportedImageCount} hình ảnh (thường là bản vẽ/đồ thị dạng EMF/WMF, hay gặp khi dán từ Visio/Excel) không đọc tự động được — tìm dòng ghi chú "(có hình ảnh định dạng... không đọc tự động được)" ở bước xem trước để dán tay lại bằng Ctrl+V.`,
+                ...taxonomy.warnings,
+              ],
+            }
+          : taxonomy,
+      );
     } catch (err) {
       console.error(err);
       setError("Có lỗi khi đọc file .docx. Hãy chắc chắn đây là file Word hợp lệ (.docx, không phải .doc cũ).");
