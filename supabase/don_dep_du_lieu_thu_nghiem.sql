@@ -11,6 +11,13 @@
 -- khôi phục. Bắt buộc đọc kỹ PHẦN 0 (xem trước) trước khi chạy bất kỳ lệnh
 -- DELETE nào bên dưới. Nếu chưa chắc, chụp lại kết quả PHẦN 0 rồi hỏi lại
 -- trước khi tiếp tục.
+--
+-- LƯU Ý VỀ CÁCH CHẠY: mỗi PHẦN là 1 lượt bôi đen (select) + Run RIÊNG, KHÔNG
+-- dán nguyên cả file rồi Run 1 lần. Supabase SQL Editor chạy nội dung 1 lần
+-- Run như 1 transaction — nếu PHẦN sau bị lỗi (như PHẦN 5 dưới), toàn bộ
+-- PHẦN trước đó trong CÙNG 1 lần Run sẽ bị cuộn ngược lại (rollback), coi
+-- như chưa xoá gì cả, dù nhìn tưởng đã chạy xong. Chạy tách riêng từng PHẦN
+-- vừa an toàn hơn, vừa dễ biết chính xác PHẦN nào đã thực sự xoá.
 -- ============================================================================
 
 
@@ -115,13 +122,19 @@ union all select 'storage.objects (question-images)', count(*) from storage.obje
 -- PHẦN 5 — ẢNH MINH HOẠ CÂU HỎI ĐÃ UPLOAD LÚC TEST (Storage) — TUỲ CHỌN
 --
 -- Xoá bảng `questions` ở PHẦN 2 KHÔNG tự xoá file ảnh thật trong Storage
--- (question_images.image_url chỉ là link text). Nếu muốn dọn sạch luôn ảnh
--- test đã tải lên, bỏ comment dòng dưới. Nếu không chắc ảnh nào là ảnh thật
--- muốn giữ, có thể bỏ qua phần này và tự xoá tay trong Dashboard > Storage >
--- question-images (xem trước từng ảnh trước khi xoá):
+-- (question_images.image_url chỉ là link text).
+--
+-- KHÔNG xoá bằng SQL được — Supabase chặn thẳng lệnh DELETE trên
+-- storage.objects (lỗi 42501 "Direct deletion from storage tables is not
+-- allowed. Use the Storage API instead", đây là tính năng an toàn của
+-- Supabase, không phải lỗi ở file này) để tránh còn file rác mồ côi ở tầng
+-- lưu trữ thật khi xoá thẳng dòng trong bảng. Muốn dọn ảnh test, làm THỦ
+-- CÔNG qua giao diện thay vì SQL:
+--   Supabase Dashboard > Storage > bucket "question-images" > chọn hết ảnh
+--   (hoặc từng ảnh nếu muốn xem lại trước) > Delete.
+-- Việc này đi qua đúng Storage API nên không bị chặn. Có thể bỏ qua bước
+-- này nếu ảnh test không đáng kể / không gấp.
 -- ============================================================================
-
--- delete from storage.objects where bucket_id = 'question-images';
 
 
 -- ============================================================================

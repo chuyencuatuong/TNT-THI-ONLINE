@@ -20,13 +20,21 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
 // API key của bạn tại Google AI Studio nếu gặp lỗi 404 khi gọi AI).
 // ĐỔI 24/08/2026: từng dùng "gemini-3.7-flash" nhưng gói miễn phí model này chỉ
 // cho 20 lượt gọi/NGÀY (đã gặp lỗi 429 RESOURCE_EXHAUSTED thật khi thử — xem
-// quotaId "GenerateRequestsPerDayPerProjectPerModel-FreeTier") — không đủ dùng
-// cho 1 buổi làm việc bình thường (mỗi tài liệu/đề nhiều trang đã tốn vài lượt
-// do phải chia đợt). Đổi sang bản đã ổn định hơn, hạn mức miễn phí cao hơn hẳn.
-// Vẫn nên tự kiểm tra hạn mức thật của tài khoản tại aistudio.google.com/rate-limit
-// nếu vẫn gặp lỗi 429 — hạn mức có thể đổi theo thời gian/theo tài khoản.
+// quotaId "GenerateRequestsPerDayPerProjectPerModel-FreeTier"). Đổi sang
+// "gemini-2.5-flash" lúc đó vì ổn định hơn.
+// ĐỔI TIẾP 25/08/2026: "gemini-2.5-flash" bị Google NGƯNG cấp cho API key mới
+// (lỗi 404 thật khi gọi: "model gemini-2.5-flash is no longer available to
+// new users"). Đổi sang "gemini-3.6-flash" — đúng model Google khuyến nghị
+// thay thế trong chính thông báo lỗi đó.
+// ĐỔI TIẾP LẠI 25/08/2026: quay về "gemini-3.7-flash" theo quyết định của
+// Thầy — 20 lượt gọi/ngày (free tier) là đủ dùng cho nhu cầu thực tế, không
+// cần đổi model chỉ để né hạn mức. Nếu sau này thấy thiếu lượt (lỗi 429
+// RESOURCE_EXHAUSTED), có 2 hướng: (a) vào aistudio.google.com/rate-limit xem
+// hạn mức/giá nâng cấp thật, hoặc (b) đổi tạm qua biến môi trường
+// VITE_GEMINI_MODEL sang model khác (vd. "gemini-3.6-flash") mà không cần
+// sửa code.
 const GEMINI_MODEL =
-  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-2.5-flash";
+  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-3.7-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 type GeminiPart =
