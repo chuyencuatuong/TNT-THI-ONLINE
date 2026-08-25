@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useTheme } from "../lib/useTheme";
 import logoMark from "../assets/logo-mark.png";
 import { MusicWidget } from "./MusicWidget";
 
@@ -10,6 +11,7 @@ function navLinkClass({ isActive }: { isActive: boolean }) {
 
 export function Layout() {
   const { profile, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [tinted, setTinted] = useState(false);
   // Menu di động (hamburger) — đóng mặc định, chỉ có hiệu lực hiển thị dưới
@@ -99,6 +101,24 @@ export function Layout() {
               </div>
               <div className="app-user-block">
                 {profile.role === "student" && <MusicWidget studentId={profile.id} />}
+                <button
+                  type="button"
+                  className="theme-toggle"
+                  aria-label={theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
+                  title={theme === "dark" ? "Giao diện sáng" : "Giao diện tối"}
+                  onClick={toggleTheme}
+                >
+                  {theme === "dark" ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="4" />
+                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                  )}
+                </button>
                 <span className="app-user">{profile.full_name}</span>
                 <button className="btn-link" onClick={signOut}>
                   Đăng xuất

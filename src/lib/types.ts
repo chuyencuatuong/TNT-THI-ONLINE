@@ -1,10 +1,26 @@
 export type Role = "teacher" | "student";
 
+export type Gender = "nam" | "nu" | "khac";
+
+export const GENDER_LABELS: Record<Gender, string> = {
+  nam: "Nam",
+  nu: "Nữ",
+  khac: "Khác",
+};
+
 export interface Profile {
   id: string;
   role: Role;
   full_name: string;
   student_class: string | null;
+  /** Thêm 24/08/2026 (migration_011) — thu thập lần đầu đăng nhập, chỉ áp
+   * dụng cho học sinh (xem LoginPage.tsx "Hoàn tất hồ sơ"). Đều nullable vì
+   * hồ sơ tạo trước migration này không có các trường này. */
+  date_of_birth: string | null;
+  phone: string | null;
+  school_name: string | null;
+  gender: Gender | null;
+  province: string | null;
   created_at: string;
 }
 

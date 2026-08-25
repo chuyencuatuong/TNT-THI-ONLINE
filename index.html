@@ -11,6 +11,27 @@
       href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <!-- Chế độ tối (24/08/2026) — gắn data-theme lên <html> TRƯỚC KHI React
+         mount, dựa trên lựa chọn đã lưu (localStorage) hoặc prefers-color-scheme
+         của hệ điều hành nếu chưa từng chọn. Chạy sớm ở đây (thay vì trong React,
+         xem src/lib/useTheme.ts) để tránh nháy sáng rồi mới đổi tối ngay khi tải
+         trang. Bọc try/catch vì localStorage có thể bị chặn (chế độ riêng tư...). -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("theme");
+          var theme =
+            saved === "dark" || saved === "light"
+              ? saved
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          // Mặc định sáng nếu không đọc được localStorage/matchMedia.
+        }
+      })();
+    </script>
     <!-- Khôi phục lại path ban đầu sau khi 404.html redirect về đây (xem 404.html) -->
     <script>
       (function (l) {

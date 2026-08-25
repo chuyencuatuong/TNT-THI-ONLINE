@@ -32,6 +32,10 @@ export function StudentDashboard() {
   const [chapterStats, setChapterStats] = useState<ChapterStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  // Khối "Công cụ hỗ trợ" (Pomodoro/đếm ngược/sắp ra mắt) thu gọn mặc định —
+  // giảm chiều dài cuộn ban đầu, đây là nội dung phụ chứ không phải quyết
+  // định cốt lõi khi HS mở trang chủ (đợt làm mới thị giác 24/08/2026).
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   // Chỉ cần cập nhật mỗi phút là đủ để đếm ngược mở khoá/khoá đề được chỉ
   // định tự nhảy đúng lúc, không cần theo giây.
@@ -301,26 +305,48 @@ export function StudentDashboard() {
         </div>
       </div>
 
-      <div className="daily-tools-heading">Công cụ học mỗi ngày</div>
-      <div className="daily-tools-row">
-        {profile && <PomodoroGarden studentId={profile.id} />}
-        <ExamCountdown />
-        <div className="coming-soon-tile">
-          <div className="coming-soon-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9c1420" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="17" rx="2" />
-              <path d="M3 9h18M8 2v4M16 2v4" />
-            </svg>
-          </div>
-          <div>
-            <div className="coming-soon-label">Kế hoạch ôn tập</div>
-            <div className="priority-chapter-meta">
-              Tự lập chiến lược ôn theo ngày thi — đang phát triển.
+      <button
+        type="button"
+        className="daily-tools-toggle"
+        aria-expanded={toolsOpen}
+        onClick={() => setToolsOpen((open) => !open)}
+      >
+        <svg
+          className="daily-tools-toggle-chevron"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+        Công cụ học mỗi ngày
+      </button>
+      {toolsOpen && (
+        <div className="daily-tools-row">
+          {profile && <PomodoroGarden studentId={profile.id} />}
+          <ExamCountdown />
+          <div className="coming-soon-tile">
+            <div className="coming-soon-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9c1420" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="17" rx="2" />
+                <path d="M3 9h18M8 2v4M16 2v4" />
+              </svg>
             </div>
+            <div>
+              <div className="coming-soon-label">Kế hoạch ôn tập</div>
+              <div className="priority-chapter-meta">
+                Tự lập chiến lược ôn theo ngày thi — đang phát triển.
+              </div>
+            </div>
+            <div className="coming-soon-chip">Sắp có</div>
           </div>
-          <div className="coming-soon-chip">Sắp có</div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -16,7 +16,14 @@ import { generateReportSummary } from "../lib/ai";
 import { accuracyPercent } from "../lib/chapterStats";
 import { BLANK_REASON_LABELS, type BlankQuestionSummary } from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
-import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile, ProctoringEventRow } from "../lib/types";
+import {
+  GENDER_LABELS,
+  type AttemptScoreRow,
+  type ExamAttemptRow,
+  type ExamRow,
+  type Profile,
+  type ProctoringEventRow,
+} from "../lib/types";
 
 const PROCTORING_EVENT_LABELS: Record<ProctoringEventRow["event_type"], string> = {
   tab_hidden: "Rời tab/cửa sổ làm bài",
@@ -185,9 +192,39 @@ export function TeacherStudentDetail() {
     .reverse()
     .map((a, i) => ({ name: `Lần ${i + 1}`, score: a.score!.total_score }));
 
+  // Dải thông tin hồ sơ đọc-only (24/08/2026, migration_011) — gồm cả
+  // student_class vốn đã tồn tại trong schema từ trước nhưng CHƯA TỪNG được
+  // hiển thị ở đâu trong toàn bộ ứng dụng (đã grep xác nhận lúc audit "check
+  // full"); tiện tay hiển thị luôn ở đây cùng các trường hồ sơ mới. Chỉ hiện
+  // từng dòng khi có dữ liệu — hồ sơ tạo trước migration này sẽ thiếu phần lớn,
+  // không có gì bắt buộc phải điền lại.
+  const profileFields = profile
+    ? [
+        profile.student_class && { label: "Lớp", value: profile.student_class },
+        profile.date_of_birth && {
+          label: "Ngày sinh",
+          value: new Date(profile.date_of_birth).toLocaleDateString("vi-VN"),
+        },
+        profile.gender && { label: "Giới tính", value: GENDER_LABELS[profile.gender] },
+        profile.phone && { label: "SĐT", value: profile.phone },
+        profile.school_name && { label: "Trường", value: profile.school_name },
+        profile.province && { label: "Tỉnh/Thành", value: profile.province },
+      ].filter((f): f is { label: string; value: string } => Boolean(f))
+    : [];
+
   return (
     <div className="teacher-page">
       <h2>{profile?.full_name}</h2>
+      {profileFields.length > 0 && (
+        <div className="student-profile-strip">
+          {profileFields.map((f) => (
+            <div key={f.label} className="student-profile-strip-item">
+              <span className="student-profile-strip-label">{f.label}</span>
+              <span>{f.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <section>
         <h3>Xu hướng điểm số</h3>

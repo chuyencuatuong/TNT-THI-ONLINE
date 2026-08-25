@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { GENDER_LABELS, type Gender } from "../lib/types";
+import { VIETNAM_PROVINCES } from "../lib/vietnamProvinces";
 import logoFull from "../assets/logo-full.png";
 
 function translateError(raw: string): string {
@@ -31,6 +33,14 @@ export function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"teacher" | "student">("student");
   const [saving, setSaving] = useState(false);
+  // Hồ sơ mở rộng (24/08/2026, migration_011) — CHỈ áp dụng cho học sinh, hiện
+  // dần ngay sau khi chọn vai trò "Học sinh" trong form "Hoàn tất hồ sơ" bên
+  // dưới. GV giữ nguyên form ngắn (chỉ họ tên + vai trò) như trước.
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [phone, setPhone] = useState("");
+  const [schoolName, setSchoolName] = useState("");
+  const [gender, setGender] = useState<Gender | "">("");
+  const [province, setProvince] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +61,19 @@ export function LoginPage() {
   async function handleCreateProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const { error } = await createProfile(fullName, role);
+    const { error } = await createProfile(
+      fullName,
+      role,
+      role === "student"
+        ? {
+            dateOfBirth: dateOfBirth || undefined,
+            phone: phone || undefined,
+            schoolName: schoolName || undefined,
+            gender: gender || undefined,
+            province: province || undefined,
+          }
+        : undefined,
+    );
     if (error) setError(error);
     setSaving(false);
   }
@@ -104,6 +126,63 @@ export function LoginPage() {
               Giáo viên
             </label>
           </div>
+
+          {/* Chỉ hiện khi chọn "Học sinh" — GV không cần điền các trường này
+              (24/08/2026, migration_011). Không có trường nào bắt buộc, để
+              không chặn HS hoàn tất đăng ký nếu chưa muốn điền hết ngay. */}
+          {role === "student" && (
+            <div className="student-profile-fields">
+              <label className="field-label">
+                Ngày sinh
+                <input
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Số điện thoại
+                <input
+                  type="tel"
+                  placeholder="VD: 0912345678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Trường đang học
+                <input
+                  type="text"
+                  placeholder="VD: THPT Chuyên Lê Quý Đôn"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Giới tính
+                <select value={gender} onChange={(e) => setGender(e.target.value as Gender | "")}>
+                  <option value="">— Chọn —</option>
+                  {(Object.keys(GENDER_LABELS) as Gender[]).map((g) => (
+                    <option key={g} value={g}>
+                      {GENDER_LABELS[g]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-label">
+                Tỉnh/Thành phố
+                <select value={province} onChange={(e) => setProvince(e.target.value)}>
+                  <option value="">— Chọn —</option>
+                  {VIETNAM_PROVINCES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
           <button className="btn-primary" type="submit" disabled={saving}>
             {saving ? "Đang lưu..." : "Bắt đầu"}
           </button>

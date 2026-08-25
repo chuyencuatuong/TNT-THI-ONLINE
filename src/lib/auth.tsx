@@ -26,10 +26,20 @@ interface AuthState {
   /** Đổi mật khẩu khi đã đăng nhập (không cần email). */
   changePassword: (newPassword: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  /** Gọi sau khi người dùng mới đăng nhập lần đầu, chưa có hồ sơ. */
+  /** Gọi sau khi người dùng mới đăng nhập lần đầu, chưa có hồ sơ.
+   * `extra` (thêm 24/08/2026, migration_011) chỉ có ý nghĩa khi role="student"
+   * — LoginPage.tsx chỉ hiện các trường này khi chọn vai trò học sinh. Mọi
+   * trường trong `extra` đều tuỳ chọn, chỉ ghi khi có giá trị. */
   createProfile: (
     fullName: string,
     role: "teacher" | "student",
+    extra?: {
+      dateOfBirth?: string;
+      phone?: string;
+      schoolName?: string;
+      gender?: Profile["gender"];
+      province?: string;
+    },
   ) => Promise<{ error: string | null }>;
 }
 
@@ -100,12 +110,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
-  async function createProfile(fullName: string, role: "teacher" | "student") {
+  async function createProfile(
+    fullName: string,
+    role: "teacher" | "student",
+    extra?: {
+      dateOfBirth?: string;
+      phone?: string;
+      schoolName?: string;
+      gender?: Profile["gender"];
+      province?: string;
+    },
+  ) {
     if (!session) return { error: "Chưa đăng nhập." };
     const { error } = await supabase.from("profiles").insert({
       id: session.user.id,
       full_name: fullName,
       role,
+      // Chỉ ghi các trường hồ sơ mở rộng (migration_011) khi thực sự có giá
+      // trị — undefined -> Postgres tự lưu null, không ghi đè gì bất thường.
+      date_of_birth: extra?.dateOfBirth || null,
+      phone: extra?.phone || null,
+      school_name: extra?.schoolName || null,
+      gender: extra?.gender || null,
+      province: extra?.province || null,
     });
     if (!error) await loadProfile(session.user.id);
     return { error: error?.message ?? null };

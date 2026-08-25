@@ -19,12 +19,27 @@ import {
   type MasteryLabel,
 } from "../lib/diagnosis";
 import { QuestionReview } from "../components/QuestionReview";
+import { ResultSlip } from "../components/ResultSlip";
+import { useAuth } from "../lib/auth";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 
 const PART_LABELS: Record<1 | 2 | 3, string> = {
   1: "Phần 1. Trắc nghiệm 4 phương án",
   2: "Phần 2. Đúng - Sai",
   3: "Phần 3. Trả lời ngắn",
+};
+
+// ĐỔI 24/08/2026 (đợt làm mới trang kết quả): trang này trước đây xếp
+// TOÀN BỘ các mục (biểu đồ thời gian, biểu đồ theo chương, chẩn đoán, câu bỏ
+// trống, xem lại từng câu) chồng liên tục — rất dài và rối, đặc biệt khi đề
+// có nhiều câu. Chia thành 3 tab để HS xem theo nhu cầu; MỌI điều kiện hiện/
+// ẩn (.length > 0 &&...) giữ NGUYÊN Y HỆT như trước, chỉ dời vào từng tab.
+type ResultTab = "tong-quan" | "chan-doan" | "xem-lai";
+
+const TAB_LABELS: Record<ResultTab, string> = {
+  "tong-quan": "Tổng quan",
+  "chan-doan": "Chẩn đoán",
+  "xem-lai": "Xem lại bài làm",
 };
 
 const MASTERY_COLOR: Record<MasteryLabel, string> = {
@@ -48,12 +63,14 @@ const MASTERY_NOTE: Record<MasteryLabel, string> = {
 };
 
 export function ResultPage() {
+  const { profile } = useAuth();
   const { attemptId } = useParams<{ attemptId: string }>();
   const [attempt, setAttempt] = useState<(ExamAttemptRow & { exam: ExamRow }) | null>(null);
   const [score, setScore] = useState<AttemptScoreRow | null>(null);
   const [diagnostics, setDiagnostics] = useState<AttemptDiagnostics | null>(null);
   const [review, setReview] = useState<AttemptReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<ResultTab>("tong-quan");
 
   useEffect(() => {
     if (!attemptId) return;
@@ -97,142 +114,191 @@ export function ResultPage() {
         </div>
       )}
       <div className="score-total">{score.total_score.toFixed(2)} / 10</div>
-      <div className="score-breakdown">
-        <div className="score-row">
-          <span>Phần 1 (trắc nghiệm)</span>
-          <strong>{score.part1_score.toFixed(2)} điểm</strong>
-        </div>
-        <div className="score-row">
-          <span>Phần 2 (đúng - sai)</span>
-          <strong>{score.part2_score.toFixed(2)} điểm</strong>
-        </div>
-        <div className="score-row">
-          <span>Phần 3 (trả lời ngắn)</span>
-          <strong>{score.part3_score.toFixed(2)} điểm</strong>
-        </div>
+
+      <div className="result-actions">
+        <button type="button" className="btn-secondary" onClick={() => window.print()}>
+          Tải phiếu kết quả
+        </button>
       </div>
 
-      {timeChartData.length > 0 && (
-        <section className="result-section">
-          <h3>Thời gian làm từng câu</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={timeChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={11} />
-              <YAxis unit="s" fontSize={11} />
-              <Tooltip formatter={(v: number) => `${v}s`} />
-              <Bar dataKey="seconds" radius={[4, 4, 0, 0]}>
-                {timeChartData.map((d, i) => (
-                  <Cell key={i} fill={d.correct ? "#2e7d32" : "#c0392b"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="empty-hint">Xanh: câu làm đúng · Đỏ: câu làm sai hoặc chưa đúng hoàn toàn.</p>
-        </section>
-      )}
+      <div className="result-tabs" role="tablist">
+        {(Object.keys(TAB_LABELS) as ResultTab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            className={`result-tab ${tab === t ? "result-tab--active" : ""}`}
+            onClick={() => setTab(t)}
+          >
+            {TAB_LABELS[t]}
+          </button>
+        ))}
+      </div>
 
-      {topicChartData.length > 0 && (
-        <section className="result-section">
-          <h3>Độ chính xác theo chương</h3>
-          <ResponsiveContainer width="100%" height={Math.max(180, topicChartData.length * 40)}>
-            <BarChart data={topicChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" domain={[0, 100]} unit="%" />
-              <YAxis type="category" dataKey="name" width={160} fontSize={12} />
-              <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-              <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </section>
-      )}
-
-      {diagnostics && diagnostics.byTopic.length > 0 && (
-        <section className="result-section">
-          <h3>Chẩn đoán theo chương</h3>
-          <p className="empty-hint">
-            Đây là gợi ý dựa trên quy tắc đơn giản (độ chính xác, thời gian, số lần đổi đáp án),
-            không phải kết luận chắc chắn — dùng để gợi ý hướng ôn tập.
-          </p>
-          <div className="diagnosis-list">
-            {diagnostics.byTopic.map((t) => (
-              <div key={t.topic_id} className="diagnosis-card">
-                <div className="diagnosis-card-header">
-                  <span>{t.topic_name}</span>
-                  <span
-                    className="diagnosis-badge"
-                    style={{ background: MASTERY_COLOR[t.label] }}
-                  >
-                    {MASTERY_LABELS[t.label]}
-                  </span>
-                </div>
-                <p className="diagnosis-note">{MASTERY_NOTE[t.label]}</p>
-                {t.label !== "chua_du_du_lieu" && (
-                  <p className="diagnosis-meta">
-                    {t.sampleCount} câu · đúng {(t.avgScoreRatio * 100).toFixed(0)}%
-                    {t.possiblyRushed && " · làm khá nhanh so với mức thông thường"}
-                  </p>
-                )}
-              </div>
-            ))}
+      {tab === "tong-quan" && (
+        <div className="result-tab-panel">
+          <div className="score-breakdown">
+            <div className="score-row">
+              <span>Phần 1 (trắc nghiệm)</span>
+              <strong>{score.part1_score.toFixed(2)} điểm</strong>
+            </div>
+            <div className="score-row">
+              <span>Phần 2 (đúng - sai)</span>
+              <strong>{score.part2_score.toFixed(2)} điểm</strong>
+            </div>
+            <div className="score-row">
+              <span>Phần 3 (trả lời ngắn)</span>
+              <strong>{score.part3_score.toFixed(2)} điểm</strong>
+            </div>
           </div>
-        </section>
+
+          {timeChartData.length > 0 && (
+            <section className="result-section">
+              <h3>Thời gian làm từng câu</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={timeChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={11} />
+                  <YAxis unit="s" fontSize={11} />
+                  <Tooltip formatter={(v: number) => `${v}s`} />
+                  <Bar dataKey="seconds" radius={[4, 4, 0, 0]}>
+                    {timeChartData.map((d, i) => (
+                      <Cell key={i} fill={d.correct ? "#2e7d32" : "#c0392b"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="empty-hint">
+                Xanh: câu làm đúng · Đỏ: câu làm sai hoặc chưa đúng hoàn toàn.
+              </p>
+            </section>
+          )}
+
+          {topicChartData.length > 0 && (
+            <section className="result-section">
+              <h3>Độ chính xác theo chương</h3>
+              <ResponsiveContainer width="100%" height={Math.max(180, topicChartData.length * 40)}>
+                <BarChart data={topicChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[0, 100]} unit="%" />
+                  <YAxis type="category" dataKey="name" width={160} fontSize={12} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
+                  <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </section>
+          )}
+        </div>
       )}
 
-      {diagnostics && diagnostics.blankQuestions.totalBlank > 0 && (
-        <section className="result-section">
-          <h3>Câu bỏ trống</h3>
-          <p className="empty-hint">{blankQuestionAdvice(diagnostics.blankQuestions)}</p>
-          <ul className="blank-question-list">
-            {diagnostics.blankQuestions.items.map((item) => {
-              const order =
-                diagnostics.perQuestion.findIndex((pq) => pq.question_id === item.question_id) +
-                1;
+      {tab === "chan-doan" && (
+        <div className="result-tab-panel">
+          {diagnostics && diagnostics.byTopic.length > 0 && (
+            <section className="result-section">
+              <h3>Chẩn đoán theo chương</h3>
+              <p className="empty-hint">
+                Đây là gợi ý dựa trên quy tắc đơn giản (độ chính xác, thời gian, số lần đổi đáp
+                án), không phải kết luận chắc chắn — dùng để gợi ý hướng ôn tập.
+              </p>
+              <div className="diagnosis-list">
+                {diagnostics.byTopic.map((t) => (
+                  <div key={t.topic_id} className="diagnosis-card">
+                    <div className="diagnosis-card-header">
+                      <span>{t.topic_name}</span>
+                      <span
+                        className="diagnosis-badge"
+                        style={{ background: MASTERY_COLOR[t.label] }}
+                      >
+                        {MASTERY_LABELS[t.label]}
+                      </span>
+                    </div>
+                    <p className="diagnosis-note">{MASTERY_NOTE[t.label]}</p>
+                    {t.label !== "chua_du_du_lieu" && (
+                      <p className="diagnosis-meta">
+                        {t.sampleCount} câu · đúng {(t.avgScoreRatio * 100).toFixed(0)}%
+                        {t.possiblyRushed && " · làm khá nhanh so với mức thông thường"}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {diagnostics && diagnostics.blankQuestions.totalBlank > 0 && (
+            <section className="result-section">
+              <h3>Câu bỏ trống</h3>
+              <p className="empty-hint">{blankQuestionAdvice(diagnostics.blankQuestions)}</p>
+              <ul className="blank-question-list">
+                {diagnostics.blankQuestions.items.map((item) => {
+                  const order =
+                    diagnostics.perQuestion.findIndex(
+                      (pq) => pq.question_id === item.question_id,
+                    ) + 1;
+                  return (
+                    <li key={item.question_id}>
+                      <span className={`blank-question-tag blank-question-tag--${item.reason}`}>
+                        {BLANK_REASON_LABELS[item.reason]}
+                      </span>
+                      {order > 0 ? `Câu ${order}` : ""}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
+
+      {tab === "xem-lai" && review.length > 0 && (
+        <div className="result-tab-panel">
+          <section className="result-section result-section--review">
+            <h3>Xem lại bài làm</h3>
+            <p className="empty-hint">
+              Đối chiếu đáp án đã chọn với đáp án đúng, và xem lời giải chi tiết (nếu có) cho từng
+              câu.
+            </p>
+            {([1, 2, 3] as const).map((part) => {
+              const itemsInPart = review.filter((r) => r.part === part);
+              if (itemsInPart.length === 0) return null;
               return (
-                <li key={item.question_id}>
-                  <span className={`blank-question-tag blank-question-tag--${item.reason}`}>
-                    {BLANK_REASON_LABELS[item.reason]}
-                  </span>
-                  {order > 0 ? `Câu ${order}` : ""}
-                </li>
+                <div key={part}>
+                  <h4 className="part-title">{PART_LABELS[part]}</h4>
+                  {itemsInPart.map((r, i) => (
+                    <QuestionReview
+                      key={r.question_id}
+                      number={i + 1}
+                      question={r.question}
+                      finalAnswer={r.finalAnswer}
+                      score={r.score}
+                      maxScore={r.maxScore}
+                    />
+                  ))}
+                </div>
               );
             })}
-          </ul>
-        </section>
-      )}
-
-      {review.length > 0 && (
-        <section className="result-section result-section--review">
-          <h3>Xem lại bài làm</h3>
-          <p className="empty-hint">
-            Đối chiếu đáp án đã chọn với đáp án đúng, và xem lời giải chi tiết (nếu có) cho từng
-            câu.
-          </p>
-          {([1, 2, 3] as const).map((part) => {
-            const itemsInPart = review.filter((r) => r.part === part);
-            if (itemsInPart.length === 0) return null;
-            return (
-              <div key={part}>
-                <h4 className="part-title">{PART_LABELS[part]}</h4>
-                {itemsInPart.map((r, i) => (
-                  <QuestionReview
-                    key={r.question_id}
-                    number={i + 1}
-                    question={r.question}
-                    finalAnswer={r.finalAnswer}
-                    score={r.score}
-                    maxScore={r.maxScore}
-                  />
-                ))}
-              </div>
-            );
-          })}
-        </section>
+          </section>
+        </div>
       )}
 
       <Link className="btn-primary" to="/hoc-sinh">
         Về trang chủ
       </Link>
+
+      {/* Bản in riêng — ẩn khỏi màn hình bình thường, chỉ hiện khi in/lưu PDF
+          (xem @media print trong styles.css và ghi chú ở đầu ResultSlip.tsx). */}
+      {attempt && (
+        <ResultSlip
+          studentName={profile?.full_name ?? "—"}
+          studentClass={profile?.student_class}
+          examTitle={attempt.exam.title}
+          attemptDateLabel={new Date(attempt.started_at).toLocaleDateString("vi-VN")}
+          score={score}
+          diagnostics={diagnostics}
+          generatedAtLabel={new Date().toLocaleDateString("vi-VN")}
+        />
+      )}
     </div>
   );
 }
