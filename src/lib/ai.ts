@@ -35,7 +35,25 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
 // sửa code.
 const GEMINI_MODEL =
   (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-3.7-flash";
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// THÊM 25/08/2026: ngay sau khi đổi lại sang "gemini-3.7-flash" (theo quyết
+// định của Thầy ở trên), gặp thật lỗi 503 UNAVAILABLE ("This model is
+// currently experiencing high demand") — khác hẳn 2 lỗi trước đó (404 model
+// ngưng cấp, 429 hết hạn mức/ngày), đây là Google đang QUÁ TẢI TẠM THỜI cho
+// riêng model này. "3.7-flash" là model định vị cao cấp hơn (lập trình/agentic
+// phức tạp) nên nhiều khả năng bị giới hạn công suất chặt hơn, dễ quá tải vào
+// giờ cao điểm hơn "3.6-flash" (định vị tác vụ "hằng ngày", đã dùng ổn định
+// lúc trước). Thay vì bắt giáo viên chờ rồi vẫn nhận lỗi, hoặc phải tự đổi lại
+// model, thêm cơ chế DỰ PHÒNG: hết đợt thử lại ở model chính mà vẫn lỗi do quá
+// tải/hết hạn mức, tự động chuyển sang model dự phòng này trước khi báo lỗi
+// hẳn — vừa giữ đúng lựa chọn 3.7-flash của Thầy (ưu tiên hạn mức 20 lượt/ngày
+// cao hơn), vừa không bị "đứng hình" khi Google quá tải.
+const GEMINI_FALLBACK_MODEL =
+  (import.meta.env.VITE_GEMINI_FALLBACK_MODEL as string | undefined) ||
+  "gemini-3.6-flash";
+
+function geminiEndpoint(model: string): string {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 type GeminiPart =
   | { text: string }
@@ -55,6 +73,9 @@ const GEMINI_TIMEOUT_MS = 90_000;
  */
 const GEMINI_MAX_ATTEMPTS = 3;
 const GEMINI_RETRY_DELAYS_MS = [3000, 8000];
+/** Số lần thử ở ĐỢT DỰ PHÒNG (model dự phòng) — cố tình ít hơn model chính, để
+ * khi cả 2 model đều đang có vấn đề, tổng thời gian chờ không bị nhân đôi. */
+const GEMINI_FALLBACK_MAX_ATTEMPTS = 2;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -85,10 +106,21 @@ interface GeminiCallResult {
   errorMessage: string | null;
 }
 
+/**
+ * maxAttemptsForModel: số lần thử tối đa CHO MODEL HIỆN TẠI của lệnh gọi này
+ * (không tính đợt dự phòng riêng) — model dự phòng dùng số lần thử ít hơn
+ * (GEMINI_FALLBACK_MAX_ATTEMPTS) để không kéo dài gấp đôi thời gian chờ khi
+ * cả 2 model đều đang có vấn đề.
+ * isFallback: true khi lệnh gọi này đã là đợt dùng model dự phòng — để không
+ * dự phòng lồng dự phòng (chỉ đổi model đúng 1 lần).
+ */
 async function callGeminiPartsDetailed(
   parts: GeminiPart[],
   maxOutputTokens: number,
   attempt = 1,
+  model: string = GEMINI_MODEL,
+  maxAttemptsForModel: number = GEMINI_MAX_ATTEMPTS,
+  isFallback = false,
 ): Promise<GeminiCallResult> {
   if (!GEMINI_API_KEY) {
     return { text: null, errorMessage: "Thiếu VITE_GEMINI_API_KEY — chưa cấu hình API key cho AI." };
@@ -96,7 +128,7 @@ async function callGeminiPartsDetailed(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
   try {
-    const res = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(`${geminiEndpoint(model)}?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -107,13 +139,35 @@ async function callGeminiPartsDetailed(
     });
     if (!res.ok) {
       const bodyText = await res.text();
-      console.error("Gemini API lỗi:", res.status, bodyText);
-      const retriable = (res.status === 503 || res.status === 429 || res.status >= 500) && attempt < GEMINI_MAX_ATTEMPTS;
-      if (retriable) {
+      console.error(`Gemini API lỗi (model ${model}):`, res.status, bodyText);
+      // 503/429/5xx đều là lỗi CÓ THỂ tạm thời (quá tải hoặc hết hạn mức riêng
+      // của model này — hạn mức free tier tính RIÊNG theo từng model, nên
+      // model dự phòng còn nguyên hạn mức). Thử lại vài lần cùng model trước,
+      // hết lượt mới cân nhắc đổi hẳn sang model dự phòng.
+      const overloadedOrQuota = res.status === 503 || res.status === 429 || res.status >= 500;
+      const retriableSameModel = overloadedOrQuota && attempt < maxAttemptsForModel;
+      if (retriableSameModel) {
         await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] ?? 8000);
-        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
       }
-      return { text: null, errorMessage: describeGeminiHttpError(res.status) };
+      if (!isFallback && overloadedOrQuota && model !== GEMINI_FALLBACK_MODEL) {
+        console.warn(`Model "${model}" quá tải/hết hạn mức sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
+        return callGeminiPartsDetailed(
+          parts,
+          maxOutputTokens,
+          1,
+          GEMINI_FALLBACK_MODEL,
+          GEMINI_FALLBACK_MAX_ATTEMPTS,
+          true,
+        );
+      }
+      const base = describeGeminiHttpError(res.status);
+      return {
+        text: null,
+        errorMessage: isFallback
+          ? `${base} (đã tự thử cả model dự phòng "${GEMINI_FALLBACK_MODEL}" nhưng vẫn lỗi)`
+          : base,
+      };
     }
     const json = await res.json();
     const text = json?.candidates?.[0]?.content?.parts?.[0]?.text as
@@ -125,12 +179,23 @@ async function callGeminiPartsDetailed(
     return { text: text.trim(), errorMessage: null };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      if (attempt < GEMINI_MAX_ATTEMPTS) {
-        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1);
+      if (attempt < maxAttemptsForModel) {
+        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
+      }
+      if (!isFallback && model !== GEMINI_FALLBACK_MODEL) {
+        console.warn(`Model "${model}" liên tục timeout sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
+        return callGeminiPartsDetailed(
+          parts,
+          maxOutputTokens,
+          1,
+          GEMINI_FALLBACK_MODEL,
+          GEMINI_FALLBACK_MAX_ATTEMPTS,
+          true,
+        );
       }
       return {
         text: null,
-        errorMessage: `Gọi AI quá ${GEMINI_TIMEOUT_MS / 1000}s không có phản hồi (đã thử lại ${GEMINI_MAX_ATTEMPTS} lần) — có thể do mạng chậm hoặc ảnh gửi lên quá nặng.`,
+        errorMessage: `Gọi AI quá ${GEMINI_TIMEOUT_MS / 1000}s không có phản hồi (đã thử lại ${maxAttemptsForModel} lần${isFallback ? " với model dự phòng" : ""}) — có thể do mạng chậm hoặc ảnh gửi lên quá nặng.`,
       };
     }
     console.error("Gọi Gemini thất bại:", err);
