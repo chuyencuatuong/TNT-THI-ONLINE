@@ -22,6 +22,17 @@
   --color-clay-text: #8a3a22;
   --radius: 10px;
   --shadow: 0 2px 8px rgba(85, 6, 15, 0.08);
+
+  /* Thang breakpoint chuẩn hoá (24/08/2026) — CSS custom property KHÔNG dùng
+     được trực tiếp trong điều kiện @media (giới hạn của spec CSS hiện tại),
+     nên đây chỉ là tài liệu tham chiếu giá trị dùng thống nhất; các khối
+     @media bên dưới vẫn phải viết số px trực tiếp, nhưng PHẢI khớp 3 mốc này:
+       --bp-sm: 640px  (điện thoại)
+       --bp-md: 860px  (tablet / bật menu hamburger — giữ nguyên vì đã có 2 chỗ
+                        dùng sẵn mốc này trước khi đợt sửa giao diện này bắt đầu)
+       --bp-lg: 1100px (desktop hẹp — gộp 2 mốc rời rạc 980px/1080px cũ để xoá
+                        "vùng kẹt" 861–1079px từng khiến teacher-dashboard-3col
+                        bị bóp 3 cột hẹp thay vì xếp dọc) */
 }
 
 * {
@@ -64,12 +75,41 @@ a {
   background: var(--color-card);
   border-bottom: 1px solid var(--color-border);
   padding: 0 24px;
-  height: 68px;
+  /* ĐỔI 24/08/2026: min-height thay vì height cố định 68px. Trước đây, ở
+     những khung hình hẹp-vừa (~700–860px) nơi menu hamburger CHƯA bật nhưng
+     đủ 5 mục (GV) không còn vừa 1 hàng, .app-nav-links tự xuống dòng (đã có
+     flex-wrap) nhưng khung header cứng 68px thì không giãn theo — khiến nội
+     dung tràn/đè lên .app-main bên dưới mà không có lỗi hiển thị rõ ràng nào.
+     min-height giữ nguyên chiều cao 68px ở mọi trường hợp bình thường nhưng
+     cho phép header tự giãn cao hơn nếu nav lỡ xuống dòng, thay vì cắt/đè. */
+  min-height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+/* Nút hamburger mở/đóng menu di động — ẨN mặc định trên desktop, chỉ hiện
+   dưới --bp-md (860px, xem khối @media cuối phần header). Đặt tách biệt với
+   .app-nav trong DOM (xem Layout.tsx) để luôn bấm được kể cả khi menu đang
+   đóng. */
+.app-header-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.app-header-hamburger:hover {
+  background: var(--color-subtle-bg);
 }
 
 /* Lớp phủ rất mỏng hiện lên phía sau toàn trang khi chuyển trang rồi tự mờ
@@ -171,6 +211,66 @@ a {
 }
 .app-nav .btn-link:hover {
   color: var(--color-primary);
+}
+
+/* Menu di động (24/08/2026) — dưới --bp-md (860px): ẩn hẳn .app-nav khỏi
+   luồng bố cục theo mặc định (display:none), hiện nút hamburger, và khi mở
+   thì .app-nav trở thành 1 tấm trượt xuống full-width ngay dưới header
+   (position:absolute; top:100%) — nhờ vậy .app-header luôn chỉ còn 2 phần tử
+   hiển thị trong hàng flex của nó (logo + hamburger) nên không bao giờ tràn,
+   bất kể GV có tới 5 mục điều hướng. */
+@media (max-width: 860px) {
+  .app-header-hamburger {
+    display: inline-flex;
+  }
+  .app-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--color-card);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 16px 28px rgba(31, 42, 51, 0.14);
+    max-height: calc(100vh - 68px);
+    overflow-y: auto;
+    z-index: 25;
+  }
+  .app-nav--open {
+    display: flex;
+  }
+  .app-nav-links,
+  .app-user-block {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+  }
+  .app-nav-links a {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  /* Gạch chân trượt (::after) chỉ hợp lý ở menu ngang — trong danh sách dọc
+     thì đổi sang nền highlight cho mục đang chọn. */
+  .app-nav a::after {
+    display: none;
+  }
+  .app-nav a.app-nav-link--active {
+    background: var(--color-subtle-bg);
+  }
+  .app-user-block {
+    padding: 14px 24px 18px;
+    gap: 12px;
+  }
+  /* Menu "Góc âm nhạc" (MusicWidget) neo theo mép phải với chiều rộng cố
+     định 300px (xem .music-dropdown ở cuối file) — trên khung hẹp cần co lại
+     theo chiều rộng màn hình thay vì tràn mép trái. */
+  .music-dropdown {
+    width: min(300px, calc(100vw - 48px));
+  }
 }
 
 .app-main {
@@ -638,6 +738,24 @@ a {
   margin: 14px 0;
   box-shadow: var(--shadow);
 }
+
+/* Vá tràn công thức Toán (24/08/2026) — công thức khối (matrix, phân số
+   nhiều tầng...) hiển thị qua KaTeX (xem MathText.tsx) trước đây không có
+   nơi cuộn riêng, nên trên điện thoại hẹp công thức dài có thể đẩy tràn cả
+   trang thay vì chỉ tràn trong phạm vi của chính nó. .math-scroll bọc quanh
+   output KaTeX ở chế độ khối (displayMode); .katex-display là class chính
+   thư viện KaTeX tự gắn nên style luôn ở đây phòng khi dùng katex trực tiếp
+   ở chỗ khác. */
+.math-scroll {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
 .question-header {
   font-weight: 600;
   margin-bottom: 10px;
@@ -895,6 +1013,7 @@ a {
 .filter-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -1118,10 +1237,28 @@ a {
   color: var(--color-primary-dark);
 }
 .table-scroll {
+  position: relative;
   overflow-x: auto;
 }
 .table-scroll .history-table {
   min-width: 720px;
+}
+/* Gợi ý thị giác "còn nội dung bên phải, vuốt để xem thêm" cho bảng lịch sử
+   10 cột trên màn hình hẹp — bảng này để cuộn ngang chứ không tách thành
+   card (xem ghi chú thiết kế đợt sửa giao diện 24/08/2026), nên cần 1 gợi ý
+   rõ ràng thay vì để người dùng tự đoán là bảng có thể cuộn được.
+   pointer-events:none để không chặn thao tác cuộn/chạm bên dưới. */
+@media (max-width: 860px) {
+  .table-scroll::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    background: linear-gradient(to right, transparent, var(--color-card));
+    pointer-events: none;
+  }
 }
 
 /* Xem lại bài làm sau khi nộp (ResultPage) */
@@ -1387,7 +1524,10 @@ a {
   color: var(--color-text-muted);
 }
 
-@media (max-width: 1080px) {
+/* Mốc 1100px (--bp-lg) — đổi từ 1080px cũ (24/08/2026) để khớp thang
+   breakpoint chuẩn hoá, xoá "vùng kẹt" 861–1079px nơi lưới 3 cột bị bóp hẹp
+   thay vì xếp dọc hẳn. */
+@media (max-width: 1100px) {
   .teacher-dashboard-3col {
     grid-template-columns: 1fr;
   }
@@ -1535,7 +1675,9 @@ a {
   gap: 20px;
   align-items: stretch;
 }
-@media (max-width: 980px) {
+/* Mốc 1100px (--bp-lg) — đổi từ 980px cũ (24/08/2026), khớp thang breakpoint
+   chuẩn hoá chung với teacher-dashboard-3col ở trên. */
+@media (max-width: 1100px) {
   .daily-tools-row {
     grid-template-columns: 1fr;
   }

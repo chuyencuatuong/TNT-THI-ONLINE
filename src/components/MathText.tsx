@@ -18,9 +18,15 @@ export function MathText({ text }: { text: string }) {
             throwOnError: false,
             displayMode: part.type === "block",
           });
+          // Công thức khối (displayMode) có thể rất dài (ma trận, phân số
+          // nhiều tầng...) — bọc trong span cuộn ngang riêng (.math-scroll,
+          // xem styles.css) để tránh đẩy tràn cả trang trên điện thoại hẹp.
+          // Công thức trong dòng (inline) giữ nguyên, không bọc, để không
+          // phá vỡ luồng văn bản xung quanh.
           return (
             <span
               key={i}
+              className={part.type === "block" ? "math-scroll" : undefined}
               // eslint-disable-next-line react/no-danger
               dangerouslySetInnerHTML={{ __html: html }}
             />
