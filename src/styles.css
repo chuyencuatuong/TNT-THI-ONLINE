@@ -13,7 +13,15 @@
   --color-card: #ffffff;
   --color-border: #e8ddc9;
   --color-text: #1f2a33;
-  --color-text-muted: #63707c;
+  /* ĐỔI (audit theo bộ luật anti-pattern "impeccable", 27/08/2026): #63707c cũ
+     đo được contrast 4.32:1 trên --color-subtle-bg — dưới chuẩn WCAG AA
+     (4.5:1) cho chữ nhỏ, trong khi lại dùng đúng ở các badge/tag muted có nền
+     subtle-bg (.review-count-badge, .tag--muted...). #5e6b76 đậm hơn rất ít
+     (khó nhận ra bằng mắt) nhưng đạt 4.66:1 trên subtle-bg, đồng thời không
+     làm giảm contrast ở 2 nền còn lại (--color-bg, --color-card) — 2 nền đó
+     vốn đã dư contrast nên chỉ tốt lên. Không đổi bản dark mode (dòng dưới,
+     khối :root[data-theme="dark"]) vì đã đo đạt chuẩn từ trước (>=5.7:1). */
+  --color-text-muted: #5e6b76;
   --color-danger: #d6473a;
   --color-success: #2e7d32;
   --color-subtle-bg: #f3ece0;
@@ -2294,10 +2302,19 @@ a {
   overflow: hidden;
 }
 .pomodoro-progress-fill {
+  /* ĐỔI 27/08/2026 (audit "impeccable"): trước đây animate trực tiếp `width`
+     (đặt qua inline style theo %) — animate width/height gây "layout thrash"
+     (trình duyệt phải tính lại layout mỗi frame thay vì chỉ composite), dễ
+     giật ở máy yếu. Đổi sang cách chuẩn: fill luôn rộng 100%, chỉ animate
+     `transform: scaleX()` (đặt qua inline style ở PomodoroGarden.tsx) — mượt
+     hơn vì chỉ tốn GPU compositing, không đụng tới layout. transform-origin
+     left để scale từ trái sang phải giống hành vi width cũ. */
+  width: 100%;
   height: 100%;
   border-radius: 3px;
   background: var(--color-pine);
-  transition: width 0.3s ease;
+  transform-origin: left;
+  transition: transform 0.3s ease;
 }
 
 /* Đếm ngược kỳ thi */
@@ -2435,7 +2452,9 @@ a {
   text-overflow: ellipsis;
 }
 .music-pill-status {
-  font-size: 9px;
+  /* ĐỔI 27/08/2026 (audit "impeccable"): 9px dưới ngưỡng đọc được tối thiểu
+     (khuyến nghị ≥11px cho chữ chức năng) — tăng lên 11px, không đổi gì khác. */
+  font-size: 11px;
   color: var(--color-text-muted);
 }
 .music-pill-status--playing {
@@ -2571,111 +2590,223 @@ a {
 }
 
 /* Màn hình tổng quan "Ôn tập câu sai" — làm mới sau phản hồi Thầy Tường khi
- * số câu sai nhiều lên (27 câu): nhóm theo chương (collapsible) + tìm kiếm +
- * lưới thẻ 2 cột thay vì 1 danh sách dài phẳng lì, xem StudentReviewPage.tsx. */
-.review-overview-toolbar {
+ * số câu sai nhiều lên (27 câu, "tận dụng bề ngang, đỡ kéo xuống"). Đã gửi
+ * demo tĩnh duyệt trước khi đưa vào đây (xem StudentReviewPage.tsx). Khung
+ * rộng ~1160px (khớp .app-main) thay vì tái dùng .result-page (bị giới hạn
+ * 420-680px — đó chính là lý do bố cục CŨ chỉ ra được 1 cột dù đã có sẵn CSS
+ * grid nhiều cột bên trong). Mỗi chương là 1 dòng tiêu đề kéo ngang hết khung
+ * (grid-column: 1/-1) rồi câu hỏi xếp lưới nhiều cột ngay bên dưới — vừa giữ
+ * được phân nhóm theo chương, vừa dùng hết chiều ngang màn hình. */
+.review-overview-page {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding-bottom: 24px;
+}
+.review-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.review-page-sub {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin: 6px 0 0;
+  max-width: 640px;
+}
+.review-count-badge {
+  background: var(--color-subtle-bg);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.review-count-badge strong {
+  color: var(--color-primary);
+}
+
+.review-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding: 10px 12px;
-  background: var(--color-subtle-bg);
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 12px;
+  z-index: 5;
 }
-.review-overview-search {
-  flex: 1;
-  min-width: 200px;
-  padding: 7px 10px;
+.review-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 9px 12px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-family: inherit;
-  background: var(--color-card);
+  background: var(--color-bg);
   color: inherit;
 }
-.review-overview-toolbar-actions {
-  display: flex;
-  gap: 14px;
-  flex-shrink: 0;
+.review-search:focus {
+  outline: 2px solid var(--color-primary);
+  border-color: transparent;
 }
-.review-overview-groups {
+.review-toolbar-actions {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 6px;
+}
+.review-toolbar-actions button {
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: inherit;
+}
+.review-toolbar-actions button:hover {
+  background: var(--color-subtle-bg);
+}
+.review-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border);
+}
+
+.review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 14px;
 }
-.review-topic-group {
+.review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
   background: var(--color-card);
-  overflow: hidden;
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.review-topic-group-header {
+.review-chip-n {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+.review-chip--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.review-chip--active .review-chip-n {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.review-board {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px 16px;
+}
+.review-section-head {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
+  padding-bottom: 8px;
+  margin-top: 14px;
+  border-bottom: 1px solid var(--color-border);
 }
-.review-topic-group-header::-webkit-details-marker {
-  display: none;
+.review-board > .review-section-head:first-child {
+  margin-top: 0;
 }
-.review-topic-group-header:hover {
-  background: var(--color-subtle-bg);
-}
-.review-topic-group-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-.review-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+.review-section-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 0 12px 12px;
 }
-.review-overview-item {
+.review-section-title .count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-subtle-bg);
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.review-section-action {
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.review-section-action:hover {
+  text-decoration: underline;
+}
+
+.review-card {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  cursor: pointer;
+  border-radius: var(--radius);
   background: var(--color-card);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.review-overview-item:hover {
+.review-card:hover {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
-.review-overview-item input[type="checkbox"] {
+.review-card--unchecked {
+  opacity: 0.55;
+}
+.review-card input[type="checkbox"] {
   margin-top: 3px;
   flex-shrink: 0;
 }
-.review-overview-item-body {
+.review-card-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
-.review-overview-item-text {
+.review-card-text {
   font-size: 13px;
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.review-overview-item-meta {
+.review-card-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 11px;
   color: var(--color-text-muted);
+  flex-wrap: wrap;
 }
 .review-streak-dots {
   display: inline-flex;
@@ -2690,8 +2821,46 @@ a {
 .review-streak-dot--filled {
   background: var(--color-primary);
 }
-@media (max-width: 640px) {
-  .review-overview-grid {
+.review-card-date {
+  white-space: nowrap;
+}
+
+/* Thanh hành động dính đáy — luôn thấy nút "Bắt đầu" dù đã cuộn xuống xa,
+ * không phải cuộn lại lên đầu (yêu cầu "đỡ kéo xuống"). */
+.review-action-bar {
+  position: sticky;
+  bottom: 16px;
+  margin-top: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 14px 18px;
+}
+.review-action-bar-info {
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+}
+.review-action-bar-info strong {
+  color: var(--color-primary);
+  font-size: 16px;
+}
+
+@media (max-width: 700px) {
+  .review-board {
     grid-template-columns: 1fr;
+  }
+  .review-toolbar,
+  .review-action-bar {
+    position: static;
+  }
+}
+@media (min-width: 701px) and (max-width: 980px) {
+  .review-board {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

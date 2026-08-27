@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { questionMaxScore } from "../lib/api";
 import { pickRandomForSession } from "../lib/leitner";
-import { locateInBatches, splitIntoBatches } from "../lib/reviewBatching";
+import { computeBatchSizes, locateInBatches, splitIntoBatches } from "../lib/reviewBatching";
 import {
   clearReviewProgress,
   loadReviewProgress,
@@ -111,10 +111,13 @@ export function StudentReviewPage() {
   const [allEntries, setAllEntries] = useState<JournalEntryWithQuestion[]>([]);
   const [topicsById, setTopicsById] = useState<Map<string, Topic>>(new Map());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // Tìm nhanh trong danh sách câu sai (mục "trình bày đẹp/dễ quản lý hơn khi
-  // số câu sai nhiều lên", phản hồi sau khi thử Đợt 5) — chỉ lọc HIỂN THỊ,
-  // không đổi selectedIds, để việc chọn/bỏ chọn không mất khi gõ tìm kiếm.
+  // Tìm nhanh + lọc theo chương trong danh sách câu sai (mục "trình bày đẹp/dễ
+  // quản lý hơn khi số câu sai nhiều lên, tận dụng bề ngang", phản hồi sau khi
+  // thử Đợt 5 — đã duyệt demo bố cục trước khi đưa vào đây) — chỉ lọc HIỂN
+  // THỊ, không đổi selectedIds, để việc chọn/bỏ chọn không mất khi gõ tìm
+  // kiếm/bấm chip.
   const [overviewSearch, setOverviewSearch] = useState("");
+  const [activeChapterFilters, setActiveChapterFilters] = useState<Set<string>>(new Set());
 
   // Buổi ôn tập đang diễn ra (khi stage === "session"/"awaiting-round").
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -213,30 +216,54 @@ export function StudentReviewPage() {
     });
   }
 
-  // Nhóm theo chương (topic) để màn hình tổng quan không còn là 1 danh sách
-  // dài phẳng lì — dễ quét mắt và quản lý hơn khi nhật ký nhiều câu (phản hồi
-  // Thầy Tường sau khi thử Đợt 5). Lọc theo ô tìm kiếm TRƯỚC khi nhóm, để
-  // nhóm nào không còn câu nào khớp thì tự ẩn luôn.
-  const overviewGroups = useMemo(() => {
-    const query = overviewSearch.trim().toLowerCase();
-    const filtered = query
-      ? allEntries.filter((e) => e.question.content_latex.toLowerCase().includes(query))
-      : allEntries;
-    const byTopic = new Map<string, { topicName: string; entries: JournalEntryWithQuestion[] }>();
-    for (const entry of filtered) {
+  function groupByTopic(entries: JournalEntryWithQuestion[]) {
+    const byTopic = new Map<string, { topicKey: string; topicName: string; entries: JournalEntryWithQuestion[] }>();
+    for (const entry of entries) {
       const topic = entry.question.topic_id ? topicsById.get(entry.question.topic_id) : null;
       const key = topic?.id ?? "__khac__";
-      const group = byTopic.get(key) ?? { topicName: topic?.name ?? "Chưa gán chương", entries: [] };
+      const group = byTopic.get(key) ?? { topicKey: key, topicName: topic?.name ?? "Chưa gán chương", entries: [] };
       group.entries.push(entry);
       byTopic.set(key, group);
     }
-    // Câu sai gần nhất lên đầu trong từng chương — ưu tiên ôn cái mới sai.
     for (const g of byTopic.values()) {
+      // Câu sai gần nhất lên đầu trong từng chương — ưu tiên ôn cái mới sai.
       g.entries.sort((a, b) => new Date(b.last_wrong_at).getTime() - new Date(a.last_wrong_at).getTime());
     }
     return Array.from(byTopic.values()).sort((a, b) => a.topicName.localeCompare(b.topicName, "vi"));
-  }, [allEntries, topicsById, overviewSearch]);
+  }
+
+  // Danh sách chương + số lượng KHÔNG bị ảnh hưởng bởi bộ lọc hiện tại — dùng
+  // cho dải chip lọc phía trên (đếm luôn hiển thị tổng thật của mỗi chương,
+  // để bấm chip biết chắc còn bao nhiêu câu, không phải số đã bị chip khác
+  // lọc bớt).
+  const allTopicGroups = useMemo(() => groupByTopic(allEntries), [allEntries, topicsById]);
+
+  // Nhóm hiển thị trên bảng — lọc theo ô tìm kiếm VÀ chip chương đang bật
+  // (còn nếu không bấm chip nào thì coi như hiện hết, giống chuẩn UI "bộ lọc
+  // rỗng = không lọc gì").
+  const overviewGroups = useMemo(() => {
+    const query = overviewSearch.trim().toLowerCase();
+    const filtered = allEntries.filter((e) => {
+      if (query && !e.question.content_latex.toLowerCase().includes(query)) return false;
+      if (activeChapterFilters.size > 0) {
+        const key = e.question.topic_id ?? "__khac__";
+        if (!activeChapterFilters.has(key)) return false;
+      }
+      return true;
+    });
+    return groupByTopic(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEntries, topicsById, overviewSearch, activeChapterFilters]);
   const overviewVisibleCount = overviewGroups.reduce((sum, g) => sum + g.entries.length, 0);
+
+  function toggleChapterFilter(key: string) {
+    setActiveChapterFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   async function handleStartSession(entries: JournalEntryWithQuestion[]) {
     if (!profile) return;
@@ -373,112 +400,133 @@ export function StudentReviewPage() {
   }
 
   if (stage === "overview") {
+    const overviewRounds = computeBatchSizes(selectedIds.size).length;
     return (
-      <div className="result-page review-overview">
-        <div className="page-header-row">
-          <h2>Ôn tập câu sai</h2>
-          <span className="empty-hint">
-            Đã chọn {selectedIds.size}/{allEntries.length} câu
+      <div className="review-overview-page">
+        <div className="review-page-header">
+          <div>
+            <h2>Ôn tập câu sai</h2>
+            <p className="review-page-sub">
+              Chọn những câu bạn muốn ôn trong buổi này (mặc định chọn hết). Mỗi đợt tối đa 10 câu —
+              nếu chọn nhiều hơn, hệ thống sẽ tự chia thành nhiều đợt liên tiếp trong cùng 1 buổi.
+            </p>
+          </div>
+          <span className="review-count-badge">
+            Đã chọn <strong>{selectedIds.size}</strong>/{allEntries.length} câu
           </span>
         </div>
-        <p className="empty-hint">
-          Chọn những câu bạn muốn ôn trong buổi này (mặc định chọn hết). Mỗi đợt tối đa 10 câu — nếu
-          chọn nhiều hơn, hệ thống sẽ tự chia thành nhiều đợt liên tiếp trong cùng 1 buổi.
-        </p>
 
-        <div className="review-overview-toolbar">
+        <div className="review-toolbar">
           <input
             type="search"
-            className="review-overview-search"
+            className="review-search"
             placeholder="Tìm trong nội dung câu hỏi..."
             value={overviewSearch}
             onChange={(e) => setOverviewSearch(e.target.value)}
           />
-          <div className="review-overview-toolbar-actions">
+          <div className="review-toolbar-actions">
             <button
               type="button"
-              className="btn-link"
               onClick={() => setManySelected(overviewGroups.flatMap((g) => g.entries.map((e) => e.id)), true)}
             >
-              Chọn tất cả{overviewSearch ? " (đang lọc)" : ""}
+              Chọn tất cả
             </button>
+            <span className="review-toolbar-sep" />
             <button
               type="button"
-              className="btn-link"
               onClick={() => setManySelected(overviewGroups.flatMap((g) => g.entries.map((e) => e.id)), false)}
             >
-              Bỏ chọn tất cả{overviewSearch ? " (đang lọc)" : ""}
+              Bỏ chọn tất cả
             </button>
           </div>
         </div>
 
+        {allTopicGroups.length > 1 && (
+          <div className="review-chips">
+            {allTopicGroups.map((g) => (
+              <button
+                key={g.topicKey}
+                type="button"
+                className={`review-chip${activeChapterFilters.has(g.topicKey) ? " review-chip--active" : ""}`}
+                onClick={() => toggleChapterFilter(g.topicKey)}
+              >
+                {g.topicName} <span className="review-chip-n">{g.entries.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {overviewVisibleCount === 0 ? (
           <p className="empty-hint" style={{ marginTop: 16 }}>
-            Không có câu nào khớp với tìm kiếm "{overviewSearch}".
+            Không có câu nào khớp với bộ lọc hiện tại.
           </p>
         ) : (
-          <div className="review-overview-groups">
+          <div className="review-board">
             {overviewGroups.map((group) => {
               const groupIds = group.entries.map((e) => e.id);
               const selectedInGroup = groupIds.filter((id) => selectedIds.has(id)).length;
               const allSelected = selectedInGroup === groupIds.length;
               return (
-                <details className="review-topic-group" key={group.topicName} open>
-                  <summary className="review-topic-group-header">
-                    <span className="review-topic-group-title">
+                <Fragment key={group.topicKey}>
+                  <div className="review-section-head">
+                    <span className="review-section-title">
                       {group.topicName}
-                      <span className="tag tag--muted" style={{ marginLeft: 8 }}>
+                      <span className="count">
                         {selectedInGroup}/{groupIds.length} đã chọn
                       </span>
                     </span>
                     <button
                       type="button"
-                      className="btn-link"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setManySelected(groupIds, !allSelected);
-                      }}
+                      className="review-section-action"
+                      onClick={() => setManySelected(groupIds, !allSelected)}
                     >
                       {allSelected ? "Bỏ hết chương này" : "Chọn hết chương này"}
                     </button>
-                  </summary>
-                  <div className="review-overview-grid">
-                    {group.entries.map((entry) => (
-                      <label className="review-overview-item" key={entry.id}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(entry.id)}
-                          onChange={() => toggleSelected(entry.id)}
-                        />
-                        <span className="review-overview-item-body">
-                          <span className="review-overview-item-text">
-                            <MathText text={entry.question.content_latex} />
+                  </div>
+                  {group.entries.map((entry) => (
+                    <label
+                      className={`review-card${selectedIds.has(entry.id) ? "" : " review-card--unchecked"}`}
+                      key={entry.id}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(entry.id)}
+                        onChange={() => toggleSelected(entry.id)}
+                      />
+                      <span className="review-card-body">
+                        <span className="review-card-text">
+                          <MathText text={entry.question.content_latex} />
+                        </span>
+                        <span className="review-card-meta">
+                          <span
+                            className="review-streak-dots"
+                            title={`Đã đúng liên tiếp ${entry.correct_streak}/3 buổi`}
+                          >
+                            {Array.from({ length: 3 }, (_, i) => (
+                              <span
+                                key={i}
+                                className={`review-streak-dot${i < entry.correct_streak ? " review-streak-dot--filled" : ""}`}
+                              />
+                            ))}
                           </span>
-                          <span className="review-overview-item-meta">
-                            <span
-                              className="review-streak-dots"
-                              title={`Đã đúng liên tiếp ${entry.correct_streak}/3 buổi`}
-                            >
-                              {Array.from({ length: 3 }, (_, i) => (
-                                <span
-                                  key={i}
-                                  className={`review-streak-dot${i < entry.correct_streak ? " review-streak-dot--filled" : ""}`}
-                                />
-                              ))}
-                            </span>
+                          <span className="review-card-date">
                             Sai gần nhất {formatShortDate(entry.last_wrong_at)}
                           </span>
                         </span>
-                      </label>
-                    ))}
-                  </div>
-                </details>
+                      </span>
+                    </label>
+                  ))}
+                </Fragment>
               );
             })}
           </div>
         )}
 
-        <div className="page-header-row" style={{ marginTop: 20 }}>
+        <div className="review-action-bar">
+          <span className="review-action-bar-info">
+            Đã chọn <strong>{selectedIds.size}</strong>/{allEntries.length} câu
+            {overviewRounds > 1 ? ` · chia làm ${overviewRounds} đợt` : ""}
+          </span>
           <button className="btn-primary" onClick={handleBeginFromOverview} disabled={selectedIds.size === 0}>
             Bắt đầu ôn tập ({selectedIds.size} câu)
           </button>

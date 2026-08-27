@@ -194,7 +194,9 @@ export function PomodoroGarden({ studentId }: { studentId: string }) {
           </div>
         </div>
         <div className="pomodoro-progress-track">
-          <div className="pomodoro-progress-fill" style={{ width: `${Math.round(level.progressRatio * 100)}%` }} />
+          {/* transform: scaleX() thay vì width % (audit "impeccable" 27/08/2026)
+              — xem ghi chú .pomodoro-progress-fill trong styles.css. */}
+          <div className="pomodoro-progress-fill" style={{ transform: `scaleX(${level.progressRatio})` }} />
         </div>
         {saveError && (
           <div className="music-error">
