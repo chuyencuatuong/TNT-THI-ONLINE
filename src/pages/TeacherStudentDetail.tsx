@@ -10,6 +10,11 @@ import {
   CartesianGrid,
   LineChart,
   Line,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
 } from "recharts";
 import * as api from "../lib/api";
 import type { AttemptReviewItem } from "../lib/api";
@@ -82,6 +87,9 @@ export function TeacherStudentDetail() {
   const [chapterStats, setChapterStats] = useState<
     { chapter_name: string; accuracyPercent: number }[]
   >([]);
+  // Cột/Radar toggle cho biểu đồ năng lực theo chương — cùng cơ chế với
+  // TeacherDashboard.tsx (nâng cấp giao diện dashboard, đợt demo đã duyệt).
+  const [chapterView, setChapterView] = useState<"cot" | "radar">("cot");
   const [proctoringCounts, setProctoringCounts] = useState<Record<string, number>>({});
   const [blankCounts, setBlankCounts] = useState<Record<string, BlankQuestionSummary>>({});
   const [loading, setLoading] = useState(true);
@@ -508,9 +516,43 @@ export function TeacherStudentDetail() {
       </section>
 
       <section>
-        <h3>Tỉ lệ đúng theo chương</h3>
+        <div className="teacher-chart-header">
+          <h3 style={{ marginBottom: 0 }}>Tỉ lệ đúng theo chương</h3>
+          {chapterStats.length > 0 && (
+            <div className="chart-view-toggle">
+              <button
+                type="button"
+                className={chapterView === "cot" ? "chart-view-toggle--active" : ""}
+                onClick={() => setChapterView("cot")}
+              >
+                Cột
+              </button>
+              <button
+                type="button"
+                className={chapterView === "radar" ? "chart-view-toggle--active" : ""}
+                onClick={() => setChapterView("radar")}
+              >
+                Radar
+              </button>
+            </div>
+          )}
+        </div>
         {chapterStats.length === 0 ? (
           <p className="empty-hint">Chưa có dữ liệu.</p>
+        ) : chapterView === "radar" ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <RadarChart data={chapterStats} outerRadius="72%">
+              <PolarGrid />
+              <PolarAngleAxis
+                dataKey="chapter_name"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(name: string) => truncateChapterLabel(name, 12)}
+              />
+              <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
+              <Radar dataKey="accuracyPercent" stroke="#9c1420" fill="#9c1420" fillOpacity={0.25} />
+            </RadarChart>
+          </ResponsiveContainer>
         ) : (
           <ResponsiveContainer width="100%" height={Math.max(200, chapterStats.length * 40)}>
             <BarChart data={chapterStats} layout="vertical" margin={{ left: 40, right: 20 }}>

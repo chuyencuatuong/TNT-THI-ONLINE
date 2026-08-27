@@ -206,6 +206,12 @@ export function StudentDashboard() {
                 {formatMinutes(totalStudyMinutes)}
               </div>
             </div>
+            <div className="student-stat-cell">
+              <div className="student-stat-cell-label">Chuỗi ôn tập</div>
+              <div className="student-stat-cell-value">
+                {streak > 0 ? `${streak} ngày` : "—"}
+              </div>
+            </div>
           </div>
 
           {trendData.length >= 2 && (

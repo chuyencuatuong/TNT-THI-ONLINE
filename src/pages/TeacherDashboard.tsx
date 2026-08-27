@@ -5,6 +5,11 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -79,6 +84,11 @@ export function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadedAt] = useState(() => new Date());
   const [reviewSessionsThisWeek, setReviewSessionsThisWeek] = useState<number | null>(null);
+  // Chuyển đổi cột/radar cho card "Năng lực theo chương" (nâng cấp giao diện
+  // dashboard, demo đã duyệt) — mặc định vẫn "cot" (giữ nguyên hành vi cũ),
+  // radar là lựa chọn THÊM để nhìn nhiều chương cùng lúc gọn hơn khi chương
+  // nhiều (bar chart ngang khi đó phải cuộn dọc dài).
+  const [chapterView, setChapterView] = useState<"cot" | "radar">("cot");
 
   useEffect(() => {
     (async () => {
@@ -243,18 +253,52 @@ export function TeacherDashboard() {
                 {selectedSummary ? selectedSummary.profile.full_name : "Cả lớp"}
               </div>
             </div>
-            {chapterAverage !== null && (
-              <div className="teacher-chart-badge">
-                {chapterAverage}
-                <span className="teacher-chart-badge-unit">%</span>
-              </div>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {chapterAverage !== null && (
+                <div className="teacher-chart-badge">
+                  {chapterAverage}
+                  <span className="teacher-chart-badge-unit">%</span>
+                </div>
+              )}
+              {chapterChartData.length > 0 && (
+                <div className="chart-view-toggle">
+                  <button
+                    type="button"
+                    className={chapterView === "cot" ? "chart-view-toggle--active" : ""}
+                    onClick={() => setChapterView("cot")}
+                  >
+                    Cột
+                  </button>
+                  <button
+                    type="button"
+                    className={chapterView === "radar" ? "chart-view-toggle--active" : ""}
+                    onClick={() => setChapterView("radar")}
+                  >
+                    Radar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           {chapterChartData.length === 0 ? (
             <p className="empty-hint">
               Chưa có dữ liệu chương nào — cần học sinh làm ít nhất 1 đề có câu đã được gán chương
               (mục 19, Đợt 1).
             </p>
+          ) : chapterView === "radar" ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <RadarChart data={chapterChartData} outerRadius="72%">
+                <PolarGrid />
+                <PolarAngleAxis
+                  dataKey="topic_name"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(name: string) => truncateChapterLabel(name, 12)}
+                />
+                <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
+                <Radar dataKey="accuracy" stroke="#9c1420" fill="#9c1420" fillOpacity={0.25} />
+              </RadarChart>
+            </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(220, chapterChartData.length * 42)}>
               <BarChart data={chapterChartData} layout="vertical" margin={{ left: 40, right: 20 }}>

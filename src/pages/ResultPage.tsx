@@ -5,6 +5,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -105,6 +107,30 @@ export function ResultPage() {
     .filter((t) => t.label !== "chua_du_du_lieu")
     .map((t) => ({ name: t.topic_name, accuracyPercent: t.avgScoreRatio * 100 }));
 
+  // Donut "Đúng/Sai/Bỏ trống" (nâng cấp giao diện dashboard, demo đã duyệt) —
+  // dùng lại đúng `review` đã tải sẵn cho tab "Xem lại bài làm", không gọi
+  // thêm API nào. "Sai" ở đây gộp cả câu đúng 1 phần (Phần 2) vì donut 3 phần
+  // không đủ chỗ tách riêng — xem chi tiết đúng/thiếu từng câu ở tab "Xem lại
+  // bài làm" (QuestionReview đã phân biệt rõ isPartial). finalAnswer === null
+  // là quy ước "bỏ trống" dùng chung toàn app (xem diagnosis.ts).
+  const answerBreakdown = review.reduce(
+    (acc, item) => {
+      const isCorrect = item.maxScore > 0 && item.score >= item.maxScore - 0.005;
+      const isBlank = item.finalAnswer === null || item.finalAnswer === undefined;
+      if (isCorrect) acc.correct++;
+      else if (isBlank) acc.blank++;
+      else acc.wrong++;
+      return acc;
+    },
+    { correct: 0, wrong: 0, blank: 0 },
+  );
+  const answerBreakdownTotal = review.length;
+  const donutChartData = [
+    { key: "correct", name: "Đúng", value: answerBreakdown.correct, color: "#2e7d32" },
+    { key: "wrong", name: "Sai / chưa trọn điểm", value: answerBreakdown.wrong, color: "#c0392b" },
+    { key: "blank", name: "Bỏ trống", value: answerBreakdown.blank, color: "#6b7280" },
+  ].filter((d) => d.value > 0);
+
   return (
     <div className="result-page result-page--wide">
       <h2>Kết quả bài làm</h2>
@@ -153,6 +179,49 @@ export function ResultPage() {
               <strong>{score.part3_score.toFixed(2)} điểm</strong>
             </div>
           </div>
+
+          {donutChartData.length > 0 && (
+            <section className="result-section">
+              <h3>Tỉ lệ đúng / sai / bỏ trống</h3>
+              <div className="answer-donut-row">
+                <div className="answer-donut-wrap">
+                  <ResponsiveContainer width={160} height={160}>
+                    <PieChart>
+                      <Pie
+                        data={donutChartData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={54}
+                        outerRadius={78}
+                        paddingAngle={donutChartData.length > 1 ? 2 : 0}
+                        strokeWidth={0}
+                      >
+                        {donutChartData.map((d) => (
+                          <Cell key={d.key} fill={d.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number, n: string) => [`${v} câu`, n]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="answer-donut-center">
+                    <div className="answer-donut-center-value">{score.total_score.toFixed(2)}</div>
+                    <div className="answer-donut-center-label">/ 10 điểm</div>
+                  </div>
+                </div>
+                <div className="answer-donut-legend">
+                  {donutChartData.map((d) => (
+                    <div className="answer-donut-legend-item" key={d.key}>
+                      <span className="answer-donut-legend-dot" style={{ background: d.color }} />
+                      {d.name}
+                      <strong>
+                        {d.value}/{answerBreakdownTotal} câu
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
           {timeChartData.length > 0 && (
             <section className="result-section">
