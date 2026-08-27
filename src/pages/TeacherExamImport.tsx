@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
 import { matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
+import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
 import { renderPdfToImages } from "../lib/pdfImport";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
@@ -101,6 +102,14 @@ export function TeacherExamImport() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  // THÊM 25/08/2026: đường xuất bản đề qua AI (import PDF/Word) trước giờ
+  // KHÔNG có ô chọn "Chế độ phòng thi" như màn tạo đề thủ công
+  // (TeacherExamEditor.tsx) — mọi đề tạo qua đây đều âm thầm rơi vào mặc định
+  // "thoải mái" của database (migration_010), không có cách nào bật "nghiêm
+  // túc" ngay lúc xuất bản, phải đi vòng qua màn Sửa đề sau đó mới đổi được.
+  // Giáo viên dùng đường AI import làm cách chính nên đây là thiếu sót thật,
+  // không phải bug — bổ sung để 2 đường tạo đề nhất quán với nhau.
+  const [mode, setMode] = useState<"thoai_mai" | "nghiem_tuc">("thoai_mai");
   const [grade, setGrade] = useState("");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [termId, setTermId] = useState<string | null>(null);
@@ -348,6 +357,7 @@ export function TeacherExamImport() {
         folder_id: folderId,
         term_id: termId,
         drive_link: driveLink.trim() || null,
+        mode,
         created_by: profile.id,
       });
       await api.setExamQuestions(exam.id, createdIds);
@@ -476,6 +486,19 @@ export function TeacherExamImport() {
           value={durationMinutes}
           onChange={(e) => setDurationMinutes(e.target.value)}
         />
+      </div>
+      <div className="form-row">
+        <label>Chế độ phòng thi</label>
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "thoai_mai" | "nghiem_tuc")}
+          style={{ maxWidth: 280 }}
+        >
+          <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
+          <option value="nghiem_tuc">
+            Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá {AUTO_CANCEL_THRESHOLD} lần
+          </option>
+        </select>
       </div>
       <div className="form-row">
         <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
