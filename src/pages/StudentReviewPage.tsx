@@ -111,6 +111,10 @@ export function StudentReviewPage() {
   const [allEntries, setAllEntries] = useState<JournalEntryWithQuestion[]>([]);
   const [topicsById, setTopicsById] = useState<Map<string, Topic>>(new Map());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Tìm nhanh trong danh sách câu sai (mục "trình bày đẹp/dễ quản lý hơn khi
+  // số câu sai nhiều lên", phản hồi sau khi thử Đợt 5) — chỉ lọc HIỂN THỊ,
+  // không đổi selectedIds, để việc chọn/bỏ chọn không mất khi gõ tìm kiếm.
+  const [overviewSearch, setOverviewSearch] = useState("");
 
   // Buổi ôn tập đang diễn ra (khi stage === "session"/"awaiting-round").
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -197,6 +201,42 @@ export function StudentReviewPage() {
       return next;
     });
   }
+
+  function setManySelected(ids: string[], selected: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (selected) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  // Nhóm theo chương (topic) để màn hình tổng quan không còn là 1 danh sách
+  // dài phẳng lì — dễ quét mắt và quản lý hơn khi nhật ký nhiều câu (phản hồi
+  // Thầy Tường sau khi thử Đợt 5). Lọc theo ô tìm kiếm TRƯỚC khi nhóm, để
+  // nhóm nào không còn câu nào khớp thì tự ẩn luôn.
+  const overviewGroups = useMemo(() => {
+    const query = overviewSearch.trim().toLowerCase();
+    const filtered = query
+      ? allEntries.filter((e) => e.question.content_latex.toLowerCase().includes(query))
+      : allEntries;
+    const byTopic = new Map<string, { topicName: string; entries: JournalEntryWithQuestion[] }>();
+    for (const entry of filtered) {
+      const topic = entry.question.topic_id ? topicsById.get(entry.question.topic_id) : null;
+      const key = topic?.id ?? "__khac__";
+      const group = byTopic.get(key) ?? { topicName: topic?.name ?? "Chưa gán chương", entries: [] };
+      group.entries.push(entry);
+      byTopic.set(key, group);
+    }
+    // Câu sai gần nhất lên đầu trong từng chương — ưu tiên ôn cái mới sai.
+    for (const g of byTopic.values()) {
+      g.entries.sort((a, b) => new Date(b.last_wrong_at).getTime() - new Date(a.last_wrong_at).getTime());
+    }
+    return Array.from(byTopic.values()).sort((a, b) => a.topicName.localeCompare(b.topicName, "vi"));
+  }, [allEntries, topicsById, overviewSearch]);
+  const overviewVisibleCount = overviewGroups.reduce((sum, g) => sum + g.entries.length, 0);
 
   async function handleStartSession(entries: JournalEntryWithQuestion[]) {
     if (!profile) return;
@@ -334,41 +374,110 @@ export function StudentReviewPage() {
 
   if (stage === "overview") {
     return (
-      <div className="result-page">
+      <div className="result-page review-overview">
         <div className="page-header-row">
           <h2>Ôn tập câu sai</h2>
-          <span className="empty-hint">Đã chọn {selectedIds.size}/{allEntries.length} câu</span>
+          <span className="empty-hint">
+            Đã chọn {selectedIds.size}/{allEntries.length} câu
+          </span>
         </div>
         <p className="empty-hint">
           Chọn những câu bạn muốn ôn trong buổi này (mặc định chọn hết). Mỗi đợt tối đa 10 câu — nếu
           chọn nhiều hơn, hệ thống sẽ tự chia thành nhiều đợt liên tiếp trong cùng 1 buổi.
         </p>
-        <div className="pickable-list" style={{ marginTop: 12 }}>
-          {allEntries.map((entry) => {
-            const topic = entry.question.topic_id ? topicsById.get(entry.question.topic_id) : null;
-            return (
-              <div className="pickable-item" key={entry.id}>
-                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(entry.id)}
-                    onChange={() => toggleSelected(entry.id)}
-                  />
-                  <span>
-                    <div>
-                      <MathText text={entry.question.content_latex.slice(0, 120)} />
-                    </div>
-                    <span className="empty-hint">
-                      {topic ? `${topic.name} · ` : ""}
-                      Đã đúng liên tiếp {entry.correct_streak}/3 buổi · Sai gần nhất{" "}
-                      {formatShortDate(entry.last_wrong_at)}
-                    </span>
-                  </span>
-                </label>
-              </div>
-            );
-          })}
+
+        <div className="review-overview-toolbar">
+          <input
+            type="search"
+            className="review-overview-search"
+            placeholder="Tìm trong nội dung câu hỏi..."
+            value={overviewSearch}
+            onChange={(e) => setOverviewSearch(e.target.value)}
+          />
+          <div className="review-overview-toolbar-actions">
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setManySelected(overviewGroups.flatMap((g) => g.entries.map((e) => e.id)), true)}
+            >
+              Chọn tất cả{overviewSearch ? " (đang lọc)" : ""}
+            </button>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setManySelected(overviewGroups.flatMap((g) => g.entries.map((e) => e.id)), false)}
+            >
+              Bỏ chọn tất cả{overviewSearch ? " (đang lọc)" : ""}
+            </button>
+          </div>
         </div>
+
+        {overviewVisibleCount === 0 ? (
+          <p className="empty-hint" style={{ marginTop: 16 }}>
+            Không có câu nào khớp với tìm kiếm "{overviewSearch}".
+          </p>
+        ) : (
+          <div className="review-overview-groups">
+            {overviewGroups.map((group) => {
+              const groupIds = group.entries.map((e) => e.id);
+              const selectedInGroup = groupIds.filter((id) => selectedIds.has(id)).length;
+              const allSelected = selectedInGroup === groupIds.length;
+              return (
+                <details className="review-topic-group" key={group.topicName} open>
+                  <summary className="review-topic-group-header">
+                    <span className="review-topic-group-title">
+                      {group.topicName}
+                      <span className="tag tag--muted" style={{ marginLeft: 8 }}>
+                        {selectedInGroup}/{groupIds.length} đã chọn
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setManySelected(groupIds, !allSelected);
+                      }}
+                    >
+                      {allSelected ? "Bỏ hết chương này" : "Chọn hết chương này"}
+                    </button>
+                  </summary>
+                  <div className="review-overview-grid">
+                    {group.entries.map((entry) => (
+                      <label className="review-overview-item" key={entry.id}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(entry.id)}
+                          onChange={() => toggleSelected(entry.id)}
+                        />
+                        <span className="review-overview-item-body">
+                          <span className="review-overview-item-text">
+                            <MathText text={entry.question.content_latex} />
+                          </span>
+                          <span className="review-overview-item-meta">
+                            <span
+                              className="review-streak-dots"
+                              title={`Đã đúng liên tiếp ${entry.correct_streak}/3 buổi`}
+                            >
+                              {Array.from({ length: 3 }, (_, i) => (
+                                <span
+                                  key={i}
+                                  className={`review-streak-dot${i < entry.correct_streak ? " review-streak-dot--filled" : ""}`}
+                                />
+                              ))}
+                            </span>
+                            Sai gần nhất {formatShortDate(entry.last_wrong_at)}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        )}
+
         <div className="page-header-row" style={{ marginTop: 20 }}>
           <button className="btn-primary" onClick={handleBeginFromOverview} disabled={selectedIds.size === 0}>
             Bắt đầu ôn tập ({selectedIds.size} câu)

@@ -90,11 +90,19 @@ export function TeacherStudentDetail() {
   const [openViolationsFor, setOpenViolationsFor] = useState<string | null>(null);
   const [violationEvents, setViolationEvents] = useState<Record<string, ProctoringEventRow[]>>({});
   const [loadingViolations, setLoadingViolations] = useState(false);
-  // "Xem câu sai" từng lượt làm (mục 3, Đợt 2) — tái dùng getAttemptReview đã
-  // có sẵn cho ResultPage.tsx, chỉ lọc lại còn câu chưa đạt trọn điểm.
-  const [openWrongFor, setOpenWrongFor] = useState<string | null>(null);
-  const [wrongItems, setWrongItems] = useState<Record<string, AttemptReviewItem[]>>({});
-  const [loadingWrong, setLoadingWrong] = useState(false);
+  // "Xem câu sai" / "Xem cả bài" từng lượt làm (mục 3, Đợt 2; mở rộng thêm
+  // "Xem cả bài" theo yêu cầu Thầy Tường sau khi thử Đợt 5 — tái dùng
+  // getAttemptReview đã có sẵn cho ResultPage.tsx: gọi 1 lần, lọc lại còn câu
+  // chưa đạt trọn điểm cho chế độ "câu sai", giữ nguyên toàn bộ cho chế độ
+  // "cả bài". Cache theo `${attemptId}:${mode}` để đổi qua lại giữa 2 chế độ
+  // không phải gọi lại API nếu đã xem qua rồi. Chỉ mở 1 khung xem lại tại 1
+  // thời điểm cho mỗi lượt làm — tránh 2 khối dài chồng nhau gây rối mắt.
+  type ReviewMode = "wrong" | "full";
+  const [openReviewFor, setOpenReviewFor] = useState<{ attemptId: string; mode: ReviewMode } | null>(
+    null,
+  );
+  const [reviewItems, setReviewItems] = useState<Record<string, AttemptReviewItem[]>>({});
+  const [loadingReview, setLoadingReview] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
@@ -184,20 +192,21 @@ export function TeacherStudentDetail() {
     }
   }
 
-  async function toggleWrongItems(attemptId: string, examId: string) {
-    if (openWrongFor === attemptId) {
-      setOpenWrongFor(null);
+  async function toggleReview(attemptId: string, examId: string, mode: ReviewMode) {
+    if (openReviewFor?.attemptId === attemptId && openReviewFor.mode === mode) {
+      setOpenReviewFor(null);
       return;
     }
-    setOpenWrongFor(attemptId);
-    if (!wrongItems[attemptId]) {
-      setLoadingWrong(true);
+    setOpenReviewFor({ attemptId, mode });
+    const cacheKey = `${attemptId}:${mode}`;
+    if (!reviewItems[cacheKey]) {
+      setLoadingReview(true);
       try {
         const review = await api.getAttemptReview(attemptId, examId);
-        const wrong = review.filter((r) => r.score < r.maxScore - 0.005);
-        setWrongItems((prev) => ({ ...prev, [attemptId]: wrong }));
+        const items = mode === "wrong" ? review.filter((r) => r.score < r.maxScore - 0.005) : review;
+        setReviewItems((prev) => ({ ...prev, [cacheKey]: items }));
       } finally {
-        setLoadingWrong(false);
+        setLoadingReview(false);
       }
     }
   }
@@ -319,7 +328,7 @@ export function TeacherStudentDetail() {
                         <th>TG so với lần trước</th>
                         <th>Giám sát</th>
                         <th>Câu bỏ trống</th>
-                        <th>Câu sai</th>
+                        <th>Xem lại</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -343,7 +352,8 @@ export function TeacherStudentDetail() {
                             : mins - prevMins;
                         const suspicion = suspicionLabel(proctoringCounts[a.id] ?? 0);
                         const isOpen = openViolationsFor === a.id;
-                        const isWrongOpen = openWrongFor === a.id;
+                        const isWrongOpen = openReviewFor?.attemptId === a.id && openReviewFor.mode === "wrong";
+                        const isFullOpen = openReviewFor?.attemptId === a.id && openReviewFor.mode === "full";
                         return (
                           <Fragment key={a.id}>
                           <tr>
@@ -414,10 +424,18 @@ export function TeacherStudentDetail() {
                               <button
                                 type="button"
                                 className="btn-link"
-                                style={{ fontSize: 11, padding: "2px 0" }}
-                                onClick={() => toggleWrongItems(a.id, a.exam_id)}
+                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                onClick={() => toggleReview(a.id, a.exam_id, "wrong")}
                               >
                                 {isWrongOpen ? "Ẩn câu sai" : "Xem câu sai"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-link"
+                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                onClick={() => toggleReview(a.id, a.exam_id, "full")}
+                              >
+                                {isFullOpen ? "Ẩn cả bài" : "Xem cả bài"}
                               </button>
                             </td>
                           </tr>
@@ -443,27 +461,37 @@ export function TeacherStudentDetail() {
                               </td>
                             </tr>
                           )}
-                          {isWrongOpen && (
+                          {(isWrongOpen || isFullOpen) && (
                             <tr>
                               <td colSpan={11} className="proctoring-detail-cell">
-                                {loadingWrong && !wrongItems[a.id] ? (
-                                  <span className="empty-hint">Đang tải...</span>
-                                ) : (wrongItems[a.id] ?? []).length === 0 ? (
-                                  <span className="empty-hint">Không có câu nào làm sai — làm đúng trọn điểm cả đề.</span>
-                                ) : (
-                                  <div className="wrong-review-list">
-                                    {(wrongItems[a.id] ?? []).map((item, i) => (
-                                      <QuestionReview
-                                        key={item.question_id}
-                                        number={i + 1}
-                                        question={item.question}
-                                        finalAnswer={item.finalAnswer}
-                                        score={item.score}
-                                        maxScore={item.maxScore}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
+                                {(() => {
+                                  const cacheKey = `${a.id}:${isFullOpen ? "full" : "wrong"}`;
+                                  const items = reviewItems[cacheKey];
+                                  if (loadingReview && !items) {
+                                    return <span className="empty-hint">Đang tải...</span>;
+                                  }
+                                  if (!items || items.length === 0) {
+                                    return (
+                                      <span className="empty-hint">
+                                        Không có câu nào làm sai — làm đúng trọn điểm cả đề.
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <div className="wrong-review-list">
+                                      {items.map((item, i) => (
+                                        <QuestionReview
+                                          key={item.question_id}
+                                          number={i + 1}
+                                          question={item.question}
+                                          finalAnswer={item.finalAnswer}
+                                          score={item.score}
+                                          maxScore={item.maxScore}
+                                        />
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           )}

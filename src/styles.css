@@ -2569,3 +2569,129 @@ a {
   font-size: 11px;
   color: var(--color-danger);
 }
+
+/* Màn hình tổng quan "Ôn tập câu sai" — làm mới sau phản hồi Thầy Tường khi
+ * số câu sai nhiều lên (27 câu): nhóm theo chương (collapsible) + tìm kiếm +
+ * lưới thẻ 2 cột thay vì 1 danh sách dài phẳng lì, xem StudentReviewPage.tsx. */
+.review-overview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--color-subtle-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.review-overview-search {
+  flex: 1;
+  min-width: 200px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--color-card);
+  color: inherit;
+}
+.review-overview-toolbar-actions {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.review-overview-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.review-topic-group {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  overflow: hidden;
+}
+.review-topic-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.review-topic-group-header::-webkit-details-marker {
+  display: none;
+}
+.review-topic-group-header:hover {
+  background: var(--color-subtle-bg);
+}
+.review-topic-group-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.review-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+.review-overview-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--color-card);
+}
+.review-overview-item:hover {
+  border-color: var(--color-primary);
+}
+.review-overview-item input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.review-overview-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.review-overview-item-text {
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.review-overview-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.review-streak-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+.review-streak-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+.review-streak-dot--filled {
+  background: var(--color-primary);
+}
+@media (max-width: 640px) {
+  .review-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
