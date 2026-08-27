@@ -222,29 +222,6 @@ export function StudentDashboard() {
               </ResponsiveContainer>
             </div>
           )}
-
-          {(progressCardData || streakCardData) && (
-            <div className="share-card-trigger-row">
-              {progressCardData && (
-                <button
-                  type="button"
-                  className="share-card-trigger"
-                  onClick={() => setShareCard(progressCardData)}
-                >
-                  Chia sẻ tiến bộ
-                </button>
-              )}
-              {streakCardData && (
-                <button
-                  type="button"
-                  className="share-card-trigger"
-                  onClick={() => setShareCard(streakCardData)}
-                >
-                  Chia sẻ chuỗi ôn tập
-                </button>
-              )}
-            </div>
-          )}
         </>
       )}
 
@@ -399,6 +376,35 @@ export function StudentDashboard() {
             </div>
             <div className="coming-soon-chip">Sắp có</div>
           </div>
+        </div>
+      )}
+
+      {/* Chia sẻ tiến bộ/chuỗi ôn tập — dời vào đây (đợt cải tiến sau audit
+          thực tế, mục 5): trước đây đặt thành 1 hàng nút nổi bật ngay giữa
+          luồng đọc chính (giữa biểu đồ xu hướng điểm và "Đề thi mới nhất"),
+          Thầy Tường thấy chưa phù hợp — chuyển vào khu vực "Công cụ học mỗi
+          ngày" (thu gọn mặc định) cho gọn, cùng nhóm với các tiện ích phụ
+          khác thay vì chen vào quyết định cốt lõi của HS. */}
+      {toolsOpen && (progressCardData || streakCardData) && (
+        <div className="share-card-trigger-row" style={{ marginTop: 4 }}>
+          {progressCardData && (
+            <button
+              type="button"
+              className="share-card-trigger"
+              onClick={() => setShareCard(progressCardData)}
+            >
+              Chia sẻ tiến bộ
+            </button>
+          )}
+          {streakCardData && (
+            <button
+              type="button"
+              className="share-card-trigger"
+              onClick={() => setShareCard(streakCardData)}
+            >
+              Chia sẻ chuỗi ôn tập
+            </button>
+          )}
         </div>
       )}
 

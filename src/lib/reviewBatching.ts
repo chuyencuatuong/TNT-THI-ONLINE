@@ -49,3 +49,28 @@ export function splitIntoBatches<T>(items: T[], maxBatchSize = MAX_BATCH_SIZE): 
   }
   return batches;
 }
+
+/**
+ * Xác định vị trí (đợt, số thứ tự trong đợt) của câu TIẾP THEO cần làm, chỉ
+ * dựa vào SỐ CÂU ĐÃ LÀM XONG (`answeredCount`) và kích thước từng đợt — dùng
+ * làm nguồn sự thật DUY NHẤT cho vị trí hiện tại trong buổi ôn tập (thay vì
+ * lưu riêng "đợt mấy" + "câu mấy trong đợt" 2 số tách rời), để việc tiếp tục
+ * đúng chỗ dở dang sau khi tải lại trang (mục 7, Đợt 5) chỉ cần khôi phục lại
+ * ĐÚNG 1 con số duy nhất, còn vị trí hiển thị luôn tính lại từ hàm này —
+ * không bao giờ lệch nhau giữa 2 nguồn dữ liệu.
+ *
+ * Trả về null nếu đã làm xong hết (answeredCount >= tổng số câu).
+ */
+export function locateInBatches(
+  batchSizes: number[],
+  answeredCount: number,
+): { roundIndex: number; indexInRound: number } | null {
+  let remaining = Math.max(0, answeredCount);
+  for (let roundIndex = 0; roundIndex < batchSizes.length; roundIndex++) {
+    if (remaining < batchSizes[roundIndex]) {
+      return { roundIndex, indexInRound: remaining };
+    }
+    remaining -= batchSizes[roundIndex];
+  }
+  return null;
+}

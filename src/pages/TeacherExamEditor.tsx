@@ -33,6 +33,17 @@ export function TeacherExamEditor() {
   const [assignEnabled, setAssignEnabled] = useState(false);
   const [unlockAt, setUnlockAt] = useState("");
   const [lockAt, setLockAt] = useState("");
+  // Tính điểm linh hoạt (Đợt 3, mục 2) — mặc định "chuan_thpt" giữ nguyên
+  // hành vi cũ. "tuy_chinh" mở thêm 2 lựa chọn: tự động chia đều 10đ (không
+  // cần nhập gì) hoặc thủ công (nhập điểm từng câu/từng ý bên dưới).
+  const [scoringMode, setScoringMode] = useState<"chuan_thpt" | "tuy_chinh">("chuan_thpt");
+  const [customScoringMethod, setCustomScoringMethod] = useState<"tu_dong" | "thu_cong" | null>(
+    null,
+  );
+  const [customPoints, setCustomPoints] = useState<Record<string, string>>({});
+  const [customPart2Points, setCustomPart2Points] = useState<
+    Record<string, { a: string; b: string; c: string; d: string }>
+  >({});
   const [folders, setFolders] = useState<ExamTag[]>([]);
   const [terms, setTerms] = useState<ExamTag[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -64,6 +75,18 @@ export function TeacherExamEditor() {
         ]);
         setSelected(new Set(existing.map((e) => e.question_id)));
         setSelectedTopicIds(new Set(examTopicIds));
+        // Nạp lại điểm tuỳ chỉnh đã nhập trước đó (nếu có) cho từng câu.
+        const cp: Record<string, string> = {};
+        const cp2: Record<string, { a: string; b: string; c: string; d: string }> = {};
+        for (const eq of existing) {
+          if (eq.custom_points != null) cp[eq.question_id] = String(eq.custom_points);
+          if (eq.custom_part2_points) {
+            const p = eq.custom_part2_points;
+            cp2[eq.question_id] = { a: String(p.a), b: String(p.b), c: String(p.c), d: String(p.d) };
+          }
+        }
+        setCustomPoints(cp);
+        setCustomPart2Points(cp2);
         if (examRow) {
           setTitle(examRow.title);
           setDescription(examRow.description ?? "");
@@ -78,6 +101,8 @@ export function TeacherExamEditor() {
           setAssignEnabled(!!examRow.assigned_unlock_at || !!examRow.assigned_lock_at);
           setUnlockAt(examRow.assigned_unlock_at ? toDatetimeLocalValue(examRow.assigned_unlock_at) : "");
           setLockAt(examRow.assigned_lock_at ? toDatetimeLocalValue(examRow.assigned_lock_at) : "");
+          setScoringMode(examRow.scoring_mode);
+          setCustomScoringMethod(examRow.custom_scoring_method);
         }
       }
       setLoading(false);
@@ -127,6 +152,8 @@ export function TeacherExamEditor() {
           mode,
           assigned_unlock_at: assignedUnlockAt,
           assigned_lock_at: assignedLockAt,
+          scoring_mode: scoringMode,
+          custom_scoring_method: scoringMode === "tuy_chinh" ? customScoringMethod : null,
           created_by: profile.id,
         });
         examIdToUse = created.id;
@@ -143,6 +170,8 @@ export function TeacherExamEditor() {
           mode,
           assigned_unlock_at: assignedUnlockAt,
           assigned_lock_at: assignedLockAt,
+          scoring_mode: scoringMode,
+          custom_scoring_method: scoringMode === "tuy_chinh" ? customScoringMethod : null,
         });
       }
 
@@ -150,10 +179,47 @@ export function TeacherExamEditor() {
       const byPart: Record<1 | 2 | 3, QuestionRow[]> = { 1: [], 2: [], 3: [] };
       for (const q of selectedQuestions) byPart[q.part].push(q);
 
+      // Điểm tuỳ chỉnh (Đợt 3) chỉ thực sự ghi khi đang ở chế độ tuỳ
+      // chỉnh/thủ công — chế độ tự động không cần lưu gì (tính động lúc chấm
+      // điểm dựa trên tổng số câu), chế độ chuẩn cũng không cần.
+      const includeCustom = scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong";
+      const parsePoint = (raw: string | undefined): number | null =>
+        raw && raw.trim() !== "" && !Number.isNaN(Number(raw)) ? Number(raw) : null;
+      const parsePart2 = (
+        raw: { a: string; b: string; c: string; d: string } | undefined,
+      ): { a: number; b: number; c: number; d: number } | null => {
+        if (!raw) return null;
+        const vals = [raw.a, raw.b, raw.c, raw.d].map((v) => parsePoint(v));
+        if (vals.some((v) => v === null)) return null; // chưa nhập đủ 4 ý -> coi như chưa nhập
+        return { a: vals[0]!, b: vals[1]!, c: vals[2]!, d: vals[3]! };
+      };
+
       const examQuestions = [
-        ...byPart[1].map((q, i) => ({ question_id: q.id, order_index: i, part: 1 as const })),
-        ...byPart[2].map((q, i) => ({ question_id: q.id, order_index: i, part: 2 as const })),
-        ...byPart[3].map((q, i) => ({ question_id: q.id, order_index: i, part: 3 as const })),
+        ...byPart[1].map((q, i) => ({
+          question_id: q.id,
+          order_index: i,
+          part: 1 as const,
+          ...(includeCustom ? { custom_points: parsePoint(customPoints[q.id]) } : {}),
+        })),
+        ...byPart[2].map((q, i) => ({
+          question_id: q.id,
+          order_index: i,
+          part: 2 as const,
+          ...(includeCustom
+            ? {
+                custom_part2_points: parsePart2(customPart2Points[q.id]),
+                custom_points: parsePart2(customPart2Points[q.id])
+                  ? null
+                  : parsePoint(customPoints[q.id]),
+              }
+            : {}),
+        })),
+        ...byPart[3].map((q, i) => ({
+          question_id: q.id,
+          order_index: i,
+          part: 3 as const,
+          ...(includeCustom ? { custom_points: parsePoint(customPoints[q.id]) } : {}),
+        })),
       ];
 
       await api.setExamQuestions(examIdToUse, examQuestions);
@@ -272,6 +338,55 @@ export function TeacherExamEditor() {
       </div>
 
       <div className="form-row">
+        <label>Chế độ tính điểm</label>
+        <select
+          value={scoringMode}
+          onChange={(e) => {
+            const next = e.target.value as "chuan_thpt" | "tuy_chinh";
+            setScoringMode(next);
+            if (next === "tuy_chinh" && !customScoringMethod) setCustomScoringMethod("tu_dong");
+          }}
+          style={{ maxWidth: 320 }}
+        >
+          <option value="chuan_thpt">Chuẩn THPT — barem chính thức (Phần 1/2/3)</option>
+          <option value="tuy_chinh">
+            Tuỳ chỉnh — cho đề không theo cấu trúc chuẩn (kiểm tra 15 phút...)
+          </option>
+        </select>
+      </div>
+      {scoringMode === "tuy_chinh" && (
+        <div className="form-row">
+          <label>
+            <input
+              type="radio"
+              name="customScoringMethod"
+              checked={customScoringMethod === "tu_dong"}
+              onChange={() => setCustomScoringMethod("tu_dong")}
+              style={{ marginRight: 6 }}
+            />
+            Tự động chia đều 10 điểm theo số câu
+          </label>
+          {customScoringMethod === "tu_dong" && (
+            <p className="empty-hint">
+              {selected.size > 0
+                ? `Mỗi câu tự động được ${(Math.round((10 / selected.size) * 100) / 100).toFixed(2)} điểm (10đ / ${selected.size} câu).`
+                : "Chọn câu hỏi bên dưới để xem điểm mỗi câu."}
+            </p>
+          )}
+          <label style={{ display: "block", marginTop: 8 }}>
+            <input
+              type="radio"
+              name="customScoringMethod"
+              checked={customScoringMethod === "thu_cong"}
+              onChange={() => setCustomScoringMethod("thu_cong")}
+              style={{ marginRight: 6 }}
+            />
+            Thủ công — tự nhập điểm từng câu (Phần 2 nhập riêng từng ý)
+          </label>
+        </div>
+      )}
+
+      <div className="form-row">
         <label>
           <input
             type="checkbox"
@@ -322,16 +437,62 @@ export function TeacherExamEditor() {
             </p>
           )}
           <div className="pickable-list">
-            {questionsByPart(part).map((q) => (
-              <label key={q.id} className="pickable-item">
-                <input
-                  type="checkbox"
-                  checked={selected.has(q.id)}
-                  onChange={() => toggle(q.id)}
-                />
-                <MathText text={q.content_latex} />
-              </label>
-            ))}
+            {questionsByPart(part).map((q) => {
+              const showCustomInput =
+                scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && selected.has(q.id);
+              return (
+                <div key={q.id} className="pickable-item">
+                  <label style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(q.id)}
+                      onChange={() => toggle(q.id)}
+                    />
+                    <MathText text={q.content_latex} />
+                  </label>
+                  {showCustomInput && part !== 2 && (
+                    <input
+                      type="number"
+                      step="0.05"
+                      min={0}
+                      placeholder="Điểm"
+                      value={customPoints[q.id] ?? ""}
+                      onChange={(e) =>
+                        setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
+                      }
+                      style={{ maxWidth: 90 }}
+                    />
+                  )}
+                  {showCustomInput && part === 2 && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {(["a", "b", "c", "d"] as const).map((k) => (
+                        <input
+                          key={k}
+                          type="number"
+                          step="0.05"
+                          min={0}
+                          placeholder={k}
+                          value={customPart2Points[q.id]?.[k] ?? ""}
+                          onChange={(e) =>
+                            setCustomPart2Points((prev) => ({
+                              ...prev,
+                              [q.id]: {
+                                a: prev[q.id]?.a ?? "",
+                                b: prev[q.id]?.b ?? "",
+                                c: prev[q.id]?.c ?? "",
+                                d: prev[q.id]?.d ?? "",
+                                [k]: e.target.value,
+                              },
+                            }))
+                          }
+                          style={{ maxWidth: 60 }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       ))}

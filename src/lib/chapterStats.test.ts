@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { accuracyPercent, buildComparisonRows, mergeChapterStats, type ChapterStat } from "./chapterStats";
+import {
+  accuracyPercent,
+  buildComparisonRows,
+  mergeChapterStats,
+  truncateChapterLabel,
+  type ChapterStat,
+} from "./chapterStats";
 
 function stat(partial: Partial<ChapterStat> & Pick<ChapterStat, "topic_id">): ChapterStat {
   return {
@@ -78,5 +84,24 @@ describe("buildComparisonRows", () => {
     ]);
     expect(rows[0].studentAccuracy).toBe(50);
     expect(rows[0].classAccuracy).toBe(70);
+  });
+});
+
+describe("truncateChapterLabel", () => {
+  it("tên ngắn hơn hoặc bằng giới hạn -> giữ nguyên", () => {
+    expect(truncateChapterLabel("Hàm số", 18)).toBe("Hàm số");
+    expect(truncateChapterLabel("Đúng 18 ký tự nè!", 18)).toBe("Đúng 18 ký tự nè!");
+  });
+
+  it("tên dài hơn giới hạn -> cắt kèm dấu … và không vượt quá maxChars", () => {
+    const long = "Hàm số lượng giác và phương trình lượng giác";
+    const result = truncateChapterLabel(long, 18);
+    expect(result.length).toBeLessThanOrEqual(18);
+    expect(result.endsWith("…")).toBe(true);
+    expect(long.startsWith(result.slice(0, -1))).toBe(true);
+  });
+
+  it("có khoảng trắng thừa ở đầu/cuối -> vẫn cắt đúng, không để dư khoảng trắng ngay trước dấu …", () => {
+    expect(truncateChapterLabel("  Hàm số  ", 18)).toBe("Hàm số");
   });
 });

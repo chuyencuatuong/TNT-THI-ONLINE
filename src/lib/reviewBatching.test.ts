@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBatchSizes, MAX_BATCH_SIZE, splitIntoBatches } from "./reviewBatching";
+import { computeBatchSizes, locateInBatches, MAX_BATCH_SIZE, splitIntoBatches } from "./reviewBatching";
 
 describe("computeBatchSizes", () => {
   it("total <= 0 -> mảng rỗng", () => {
@@ -62,5 +62,44 @@ describe("splitIntoBatches", () => {
 
   it("mảng nhỏ hơn maxBatchSize -> 1 đợt duy nhất chứa hết", () => {
     expect(splitIntoBatches([1, 2, 3])).toEqual([[1, 2, 3]]);
+  });
+});
+
+describe("locateInBatches", () => {
+  const sizes = [5, 6]; // 11 câu, chia 2 đợt như test splitIntoBatches ở trên
+
+  it("answeredCount = 0 -> đầu đợt 1", () => {
+    expect(locateInBatches(sizes, 0)).toEqual({ roundIndex: 0, indexInRound: 0 });
+  });
+
+  it("còn trong đợt 1", () => {
+    expect(locateInBatches(sizes, 4)).toEqual({ roundIndex: 0, indexInRound: 4 });
+  });
+
+  it("vừa hết đợt 1 -> đầu đợt 2", () => {
+    expect(locateInBatches(sizes, 5)).toEqual({ roundIndex: 1, indexInRound: 0 });
+  });
+
+  it("giữa đợt 2", () => {
+    // batchSizes = [5, 6] -> đợt 2 (roundIndex 1) có 6 câu, chỉ số 0..5.
+    // answeredCount=9 nghĩa là đã làm xong 5 câu đợt 1 + 4 câu đầu đợt 2,
+    // nên câu TIẾP THEO cần làm là chỉ số 4 trong đợt 2 (giữa đợt, còn 2 câu).
+    expect(locateInBatches(sizes, 9)).toEqual({ roundIndex: 1, indexInRound: 4 });
+  });
+
+  it("làm xong hết (answeredCount = tổng) -> null", () => {
+    expect(locateInBatches(sizes, 11)).toBeNull();
+  });
+
+  it("answeredCount vượt quá tổng (dữ liệu cũ/hỏng) -> vẫn null, không lỗi", () => {
+    expect(locateInBatches(sizes, 999)).toBeNull();
+  });
+
+  it("answeredCount âm (dữ liệu hỏng) -> coi như 0, không lỗi", () => {
+    expect(locateInBatches(sizes, -5)).toEqual({ roundIndex: 0, indexInRound: 0 });
+  });
+
+  it("mảng batchSizes rỗng -> luôn null", () => {
+    expect(locateInBatches([], 0)).toBeNull();
   });
 });

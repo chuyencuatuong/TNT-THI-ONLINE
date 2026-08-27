@@ -14,6 +14,7 @@ import { TeacherQuestionBank } from "./pages/TeacherQuestionBank";
 import { TeacherExamList } from "./pages/TeacherExamList";
 import { TeacherExamEditor } from "./pages/TeacherExamEditor";
 import { TeacherStudentDetail } from "./pages/TeacherStudentDetail";
+import { TeacherExamStats } from "./pages/TeacherExamStats";
 
 // Tách riêng (lazy load) vì trang này kéo theo thư viện đọc file .docx khá nặng
 // (mammoth.js) — chỉ giáo viên mới cần, không nên bắt học sinh tải về mỗi lần vào web.
@@ -158,6 +159,14 @@ export default function App() {
           element={
             <RequireRole role="teacher">
               <TeacherExamEditor />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/de-thi/:examId/thong-ke"
+          element={
+            <RequireRole role="teacher">
+              <TeacherExamStats />
             </RequireRole>
           }
         />

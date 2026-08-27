@@ -12,8 +12,10 @@ import {
   Line,
 } from "recharts";
 import * as api from "../lib/api";
+import type { AttemptReviewItem } from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
-import { accuracyPercent } from "../lib/chapterStats";
+import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
+import { QuestionReview } from "../components/QuestionReview";
 import { BLANK_REASON_LABELS, type BlankQuestionSummary } from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
 import {
@@ -88,6 +90,11 @@ export function TeacherStudentDetail() {
   const [openViolationsFor, setOpenViolationsFor] = useState<string | null>(null);
   const [violationEvents, setViolationEvents] = useState<Record<string, ProctoringEventRow[]>>({});
   const [loadingViolations, setLoadingViolations] = useState(false);
+  // "Xem câu sai" từng lượt làm (mục 3, Đợt 2) — tái dùng getAttemptReview đã
+  // có sẵn cho ResultPage.tsx, chỉ lọc lại còn câu chưa đạt trọn điểm.
+  const [openWrongFor, setOpenWrongFor] = useState<string | null>(null);
+  const [wrongItems, setWrongItems] = useState<Record<string, AttemptReviewItem[]>>({});
+  const [loadingWrong, setLoadingWrong] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
@@ -175,6 +182,40 @@ export function TeacherStudentDetail() {
         setLoadingViolations(false);
       }
     }
+  }
+
+  async function toggleWrongItems(attemptId: string, examId: string) {
+    if (openWrongFor === attemptId) {
+      setOpenWrongFor(null);
+      return;
+    }
+    setOpenWrongFor(attemptId);
+    if (!wrongItems[attemptId]) {
+      setLoadingWrong(true);
+      try {
+        const review = await api.getAttemptReview(attemptId, examId);
+        const wrong = review.filter((r) => r.score < r.maxScore - 0.005);
+        setWrongItems((prev) => ({ ...prev, [attemptId]: wrong }));
+      } finally {
+        setLoadingWrong(false);
+      }
+    }
+  }
+
+  // Hủy/bỏ hủy 1 lượt làm THỦ CÔNG — dùng chung cột `invalidated` với cơ chế
+  // tự động huỷ khi HS rời màn hình quá nhiều lần ở chế độ nghiêm túc, nên
+  // badge "Đã huỷ" hiển thị đúng ngay mà không cần đổi gì thêm ở đây. KHÔNG
+  // xoá dữ liệu — lượt làm vẫn xem lại được, chỉ đánh dấu không hợp lệ.
+  async function toggleInvalidated(attemptId: string, currentlyInvalidated: boolean) {
+    const next = !currentlyInvalidated;
+    const confirmMsg = next
+      ? "Đánh dấu lượt làm bài này là KHÔNG HỢP LỆ (đã huỷ)? Dữ liệu vẫn được giữ để xem lại, chỉ không còn tính là kết quả hợp lệ."
+      : "Bỏ đánh dấu huỷ cho lượt làm bài này, tính lại là kết quả hợp lệ?";
+    if (!confirm(confirmMsg)) return;
+    await api.setAttemptInvalidated(attemptId, next);
+    setAttempts((prev) =>
+      prev.map((a) => (a.id === attemptId ? { ...a, invalidated: next } : a)),
+    );
   }
 
   function suspicionLabel(count: number): { text: string; className: string } {
@@ -278,6 +319,7 @@ export function TeacherStudentDetail() {
                         <th>TG so với lần trước</th>
                         <th>Giám sát</th>
                         <th>Câu bỏ trống</th>
+                        <th>Câu sai</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -301,6 +343,7 @@ export function TeacherStudentDetail() {
                             : mins - prevMins;
                         const suspicion = suspicionLabel(proctoringCounts[a.id] ?? 0);
                         const isOpen = openViolationsFor === a.id;
+                        const isWrongOpen = openWrongFor === a.id;
                         return (
                           <Fragment key={a.id}>
                           <tr>
@@ -309,6 +352,14 @@ export function TeacherStudentDetail() {
                             <td>
                               <strong>{score.toFixed(2)}</strong>
                               {a.invalidated && <span className="badge badge-danger" style={{ marginLeft: 6 }}>Đã huỷ</span>}
+                              <button
+                                type="button"
+                                className="btn-link btn-danger"
+                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                onClick={() => toggleInvalidated(a.id, a.invalidated)}
+                              >
+                                {a.invalidated ? "Bỏ huỷ" : "Hủy lượt này"}
+                              </button>
                             </td>
                             <td>
                               {scoreVsFirst === null ? (
@@ -359,10 +410,20 @@ export function TeacherStudentDetail() {
                                 );
                               })()}
                             </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn-link"
+                                style={{ fontSize: 11, padding: "2px 0" }}
+                                onClick={() => toggleWrongItems(a.id, a.exam_id)}
+                              >
+                                {isWrongOpen ? "Ẩn câu sai" : "Xem câu sai"}
+                              </button>
+                            </td>
                           </tr>
                           {isOpen && (
                             <tr>
-                              <td colSpan={10} className="proctoring-detail-cell">
+                              <td colSpan={11} className="proctoring-detail-cell">
                                 {loadingViolations && !violationEvents[a.id] ? (
                                   <span className="empty-hint">Đang tải...</span>
                                 ) : (violationEvents[a.id] ?? []).length === 0 ? (
@@ -378,6 +439,30 @@ export function TeacherStudentDetail() {
                                       </li>
                                     ))}
                                   </ul>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                          {isWrongOpen && (
+                            <tr>
+                              <td colSpan={11} className="proctoring-detail-cell">
+                                {loadingWrong && !wrongItems[a.id] ? (
+                                  <span className="empty-hint">Đang tải...</span>
+                                ) : (wrongItems[a.id] ?? []).length === 0 ? (
+                                  <span className="empty-hint">Không có câu nào làm sai — làm đúng trọn điểm cả đề.</span>
+                                ) : (
+                                  <div className="wrong-review-list">
+                                    {(wrongItems[a.id] ?? []).map((item, i) => (
+                                      <QuestionReview
+                                        key={item.question_id}
+                                        number={i + 1}
+                                        question={item.question}
+                                        finalAnswer={item.finalAnswer}
+                                        score={item.score}
+                                        maxScore={item.maxScore}
+                                      />
+                                    ))}
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -403,7 +488,12 @@ export function TeacherStudentDetail() {
             <BarChart data={chapterStats} layout="vertical" margin={{ left: 40, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" domain={[0, 100]} unit="%" />
-              <YAxis type="category" dataKey="chapter_name" width={160} />
+              <YAxis
+                type="category"
+                dataKey="chapter_name"
+                width={160}
+                tickFormatter={truncateChapterLabel}
+              />
               <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
               <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>

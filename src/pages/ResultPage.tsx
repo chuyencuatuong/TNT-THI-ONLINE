@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import * as api from "../lib/api";
 import type { AttemptDiagnostics, AttemptReviewItem } from "../lib/api";
+import { truncateChapterLabel } from "../lib/chapterStats";
 import {
   BLANK_REASON_LABELS,
   blankQuestionAdvice,
@@ -182,7 +183,13 @@ export function ResultPage() {
                 <BarChart data={topicChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" domain={[0, 100]} unit="%" />
-                  <YAxis type="category" dataKey="name" width={160} fontSize={12} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={160}
+                    fontSize={12}
+                    tickFormatter={truncateChapterLabel}
+                  />
                   <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
                   <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
                 </BarChart>

@@ -1,7 +1,11 @@
 import { supabase } from "./supabaseClient";
 import {
   combineScores,
+  resolveExamScoring,
+  scorePart1Custom,
   scorePart1Question,
+  scorePart2AllOrNothing,
+  scorePart2Custom,
   scorePart2Question,
   scorePart3Question,
 } from "./scoring";
@@ -233,6 +237,8 @@ export async function createExam(input: {
   mode?: "thoai_mai" | "nghiem_tuc";
   assigned_unlock_at?: string | null;
   assigned_lock_at?: string | null;
+  scoring_mode?: "chuan_thpt" | "tuy_chinh";
+  custom_scoring_method?: "tu_dong" | "thu_cong" | null;
   created_by: string;
 }): Promise<ExamRow> {
   const { data, error } = await supabase
@@ -259,10 +265,26 @@ export async function updateExam(
       | "mode"
       | "assigned_unlock_at"
       | "assigned_lock_at"
+      | "scoring_mode"
+      | "custom_scoring_method"
     >
   >,
 ): Promise<void> {
   const { error } = await supabase.from("exams").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Xoá VĨNH VIỄN 1 đề thi — không thể khôi phục. Dựa hoàn toàn vào cascade đã
+ * khai báo sẵn ở CSDL (schema.sql: exam_questions/exam_attempts "on delete
+ * cascade" theo exam_id; từ exam_attempts lại cascade tiếp xuống
+ * answer_events, question_view_events, question_responses, attempt_scores,
+ * proctoring_events) — nên chỉ cần xoá đúng 1 dòng ở bảng exams, không cần tự
+ * viết logic dọn dẹp từng bảng con. Xác nhận (confirm) trước khi gọi hàm này
+ * là trách nhiệm của tầng giao diện (xem TeacherExamList.tsx).
+ */
+export async function deleteExam(id: string): Promise<void> {
+  const { error } = await supabase.from("exams").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -308,7 +330,15 @@ export async function getExam(id: string): Promise<ExamRow | null> {
 
 export async function setExamQuestions(
   examId: string,
-  questions: { question_id: string; order_index: number; part: 1 | 2 | 3 }[],
+  questions: {
+    question_id: string;
+    order_index: number;
+    part: 1 | 2 | 3;
+    /** Điểm tuỳ chỉnh (Đợt 3) — chỉ có ý nghĩa khi đề ở chế độ tính điểm
+     * tuỳ chỉnh/thủ công; bỏ qua (undefined) ở mọi trường hợp khác. */
+    custom_points?: number | null;
+    custom_part2_points?: { a: number; b: number; c: number; d: number } | null;
+  }[],
 ): Promise<void> {
   // Xoá hết rồi chèn lại cho đơn giản (số lượng câu hỏi mỗi đề rất nhỏ, không cần tối ưu diff)
   const { error: delErr } = await supabase
@@ -566,7 +596,21 @@ export async function submitAttempt(
   studentId?: string,
   invalidatedReason?: string,
 ): Promise<AttemptScoreRow> {
-  const examQuestions = await getExamQuestions(examId);
+  const [examQuestions, exam] = await Promise.all([getExamQuestions(examId), getExam(examId)]);
+  // Điểm tối đa thật của TỪNG câu trong đề này — tôn trọng chế độ tính điểm
+  // của đề (Đợt 3: chuẩn THPT mặc định, hoặc tuỳ chỉnh tự động/thủ công).
+  // Ở chế độ chuẩn (mọi đề tạo trước Đợt 3), kết quả giống hệt barem cũ.
+  const scoring = resolveExamScoring(
+    exam?.scoring_mode ?? "chuan_thpt",
+    exam?.custom_scoring_method ?? null,
+    examQuestions.map((eq) => ({
+      question_id: eq.question.id,
+      part: eq.part,
+      default_points: eq.question.default_points,
+      custom_points: eq.custom_points,
+      custom_part2_points: eq.custom_part2_points,
+    })),
+  );
   const [{ data: events, error: evErr }, { data: viewEvents, error: veErr }] =
     await Promise.all([
       supabase
@@ -625,19 +669,24 @@ export async function submitAttempt(
 
     let score = 0;
     let subCorrectCount: number | null = null;
+    const resolved = scoring.get(q.id);
+    const isCustomScoring = exam?.scoring_mode === "tuy_chinh" && resolved;
 
     if (q.part === 1) {
       const correct = (q.correct_answer as Part1Answer).choice;
-      score = scorePart1Question(
-        correct,
-        (finalAnswer as Part1Answer | null)?.choice ?? null,
-      );
+      const studentChoice = (finalAnswer as Part1Answer | null)?.choice ?? null;
+      score = isCustomScoring
+        ? scorePart1Custom(correct, studentChoice, resolved.maxScore)
+        : scorePart1Question(correct, studentChoice);
     } else if (q.part === 2) {
       const correct = q.correct_answer as Part2Answer;
-      const result = scorePart2Question(
-        correct,
-        finalAnswer as Partial<Part2Answer> | null,
-      );
+      const studentAnswer = finalAnswer as Partial<Part2Answer> | null;
+      const result =
+        isCustomScoring && resolved.part2SubPoints
+          ? scorePart2Custom(correct, studentAnswer, resolved.part2SubPoints)
+          : isCustomScoring
+            ? scorePart2AllOrNothing(correct, studentAnswer, resolved.maxScore)
+            : scorePart2Question(correct, studentAnswer);
       score = result.score;
       subCorrectCount = result.correctCount;
     } else {
@@ -645,7 +694,7 @@ export async function submitAttempt(
       score = scorePart3Question(
         correct.value,
         (finalAnswer as Part3Answer | null)?.value ?? null,
-        q.default_points ?? 0.5,
+        isCustomScoring ? resolved.maxScore : q.default_points ?? 0.5,
       );
     }
 
@@ -653,7 +702,11 @@ export async function submitAttempt(
     else if (q.part === 2) part2Score += score;
     else part3Score += score;
 
-    if (score < questionMaxScore(q)) wrongQuestionIds.push(q.id);
+    // Dùng điểm tối đa THẬT của câu này (resolved.maxScore) thay vì
+    // questionMaxScore(q) đơn thuần — ở chế độ tính điểm tuỳ chỉnh (Đợt 3),
+    // 2 giá trị này có thể khác nhau; ở chế độ chuẩn THPT thì luôn bằng nhau
+    // (resolveExamScoring trả về đúng barem cũ), nên hành vi cũ không đổi.
+    if (score < (resolved?.maxScore ?? questionMaxScore(q))) wrongQuestionIds.push(q.id);
 
     responsesToInsert.push({
       attempt_id: attemptId,
@@ -710,6 +763,30 @@ export async function submitAttempt(
   return scoreRow as AttemptScoreRow;
 }
 
+/**
+ * Đánh dấu/bỏ đánh dấu THỦ CÔNG 1 lượt làm bài là "đã huỷ" (không hợp lệ) —
+ * dùng chung đúng cột `invalidated`/`invalidated_reason` mà `submitAttempt`
+ * đã dùng để tự động huỷ khi HS rời màn hình quá nhiều lần ở chế độ nghiêm
+ * túc (xem `invalidatedReason` ở trên) — nên badge "Đã huỷ" ở ResultPage.tsx
+ * và TeacherStudentDetail.tsx tự động hiển thị đúng cho CẢ 2 trường hợp mà
+ * không cần sửa gì thêm ở đó. KHÔNG xoá dữ liệu — lượt làm vẫn xem lại được
+ * bình thường, chỉ không còn được tính là kết quả hợp lệ.
+ */
+export async function setAttemptInvalidated(
+  attemptId: string,
+  invalidated: boolean,
+  reason?: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("exam_attempts")
+    .update({
+      invalidated,
+      invalidated_reason: invalidated ? (reason ?? "Giáo viên đánh dấu thủ công") : null,
+    })
+    .eq("id", attemptId);
+  if (error) throw error;
+}
+
 export async function getAttempt(
   attemptId: string,
 ): Promise<(ExamAttemptRow & { exam: ExamRow }) | null> {
@@ -752,6 +829,52 @@ export async function listStudentAttempts(
       ...r,
       score: Array.isArray(r.score) ? r.score[0] ?? null : r.score,
     };
+  });
+}
+
+export interface ExamProgressRow {
+  student: Profile;
+  /** Lượt làm MỚI NHẤT của học sinh này cho đề đang xem — null = chưa làm. */
+  attempt: ExamAttemptRow | null;
+  score: AttemptScoreRow | null;
+}
+
+/**
+ * Theo dõi tiến độ làm bài của CẢ LỚP cho 1 đề cụ thể (mục "theo dõi thời
+ * gian thực" — Đợt 2): với mỗi học sinh, lấy lượt làm mới nhất (nếu có) cho
+ * đề này — "chưa làm" (attempt null), "đang làm" (có attempt nhưng
+ * submitted_at null), hay "đã nộp" (kèm điểm). Tầng gọi (TeacherExamStats.tsx)
+ * tự polling định kỳ bằng setInterval — quy mô lớp nhỏ (~5 HS) nên không cần
+ * kênh Supabase Realtime.
+ */
+export async function listAttemptsForExam(examId: string): Promise<ExamProgressRow[]> {
+  const [students, { data, error }] = await Promise.all([
+    listStudents(),
+    supabase
+      .from("exam_attempts")
+      .select("*, score:attempt_scores(*)")
+      .eq("exam_id", examId)
+      .order("started_at", { ascending: false }),
+  ]);
+  if (error) throw error;
+
+  const latestByStudent = new Map<
+    string,
+    { attempt: ExamAttemptRow; score: AttemptScoreRow | null }
+  >();
+  for (const row of data as unknown[]) {
+    const r = row as ExamAttemptRow & { score: AttemptScoreRow[] | AttemptScoreRow | null };
+    if (latestByStudent.has(r.student_id)) continue; // đã sắp mới nhất trước, giữ lượt đầu tiên gặp
+    const { score, ...attempt } = r;
+    latestByStudent.set(r.student_id, {
+      attempt: attempt as ExamAttemptRow,
+      score: Array.isArray(score) ? score[0] ?? null : score,
+    });
+  }
+
+  return students.map((student) => {
+    const found = latestByStudent.get(student.id);
+    return { student, attempt: found?.attempt ?? null, score: found?.score ?? null };
   });
 }
 
@@ -1067,6 +1190,74 @@ export async function getAttemptReview(
       finalAnswer: resp?.final_answer ?? null,
       score: resp?.score ?? 0,
       maxScore,
+    };
+  });
+}
+
+export interface ExamQuestionWrongStat {
+  question_id: string;
+  part: 1 | 2 | 3;
+  order_index: number;
+  question: QuestionRow;
+  wrongCount: number;
+  totalCount: number;
+  /** Làm tròn 0-100, dùng để sắp "câu sai nhiều nhất" lên đầu ở tầng gọi. */
+  wrongPercent: number;
+}
+
+/**
+ * Với mỗi câu trong 1 đề, đếm số lượt làm SAI (chưa đạt trọn điểm câu đó)
+ * trên tổng số lượt ĐÃ NỘP bài của đề — để GV thấy "câu nào cả lớp hay sai
+ * nhất" (mục 3 — thống kê "sai chung"), tìm lỗ hổng kiến thức chung của lớp.
+ * Chỉ tính lượt đã nộp (submitted_at khác null) — lượt đang làm dở chưa có
+ * ý nghĩa thống kê. Dùng lại `questionMaxScore` (đã dùng cho getAttemptReview
+ * ở trên) để biết ngưỡng "sai" cho từng câu — kể cả đề dùng chế độ tính điểm
+ * tuỳ chỉnh (Đợt 3) vẫn đúng vì hàm này luôn phản ánh điểm tối đa thật của câu.
+ */
+export async function getExamWrongStats(examId: string): Promise<ExamQuestionWrongStat[]> {
+  const [examQuestions, { data: attemptRows, error: attErr }] = await Promise.all([
+    getExamQuestions(examId),
+    supabase
+      .from("exam_attempts")
+      .select("id")
+      .eq("exam_id", examId)
+      .not("submitted_at", "is", null),
+  ]);
+  if (attErr) throw attErr;
+  const attemptIds = (attemptRows as { id: string }[]).map((a) => a.id);
+
+  const wrongByQuestion = new Map<string, number>();
+  const totalByQuestion = new Map<string, number>();
+
+  if (attemptIds.length > 0) {
+    const { data: responses, error } = await supabase
+      .from("question_responses")
+      .select("question_id, score")
+      .in("attempt_id", attemptIds);
+    if (error) throw error;
+    const maxScoreByQuestion = new Map(
+      examQuestions.map((eq) => [eq.question.id, questionMaxScore(eq.question)]),
+    );
+    for (const r of responses as { question_id: string; score: number }[]) {
+      totalByQuestion.set(r.question_id, (totalByQuestion.get(r.question_id) ?? 0) + 1);
+      const maxScore = maxScoreByQuestion.get(r.question_id) ?? 0;
+      if (r.score < maxScore) {
+        wrongByQuestion.set(r.question_id, (wrongByQuestion.get(r.question_id) ?? 0) + 1);
+      }
+    }
+  }
+
+  return examQuestions.map((eq) => {
+    const total = totalByQuestion.get(eq.question.id) ?? 0;
+    const wrong = wrongByQuestion.get(eq.question.id) ?? 0;
+    return {
+      question_id: eq.question.id,
+      part: eq.part,
+      order_index: eq.order_index,
+      question: eq.question,
+      wrongCount: wrong,
+      totalCount: total,
+      wrongPercent: total > 0 ? Math.round((wrong / total) * 100) : 0,
     };
   });
 }

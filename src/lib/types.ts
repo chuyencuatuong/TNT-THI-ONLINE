@@ -132,6 +132,16 @@ export interface ExamRow {
   assigned_unlock_at: string | null;
   /** Sau giờ này (nếu có) học sinh không thể bắt đầu lượt làm mới nữa. */
   assigned_lock_at: string | null;
+  /** "chuan_thpt" (mặc định, MỌI đề tạo trước Đợt 3) = giữ nguyên barem chính
+   * thức THPT hiện có. "tuy_chinh" = dùng điểm ở exam_questions.custom_points/
+   * custom_part2_points (xem custom_scoring_method để biết tự động hay thủ
+   * công) — dành cho các đề không theo cấu trúc chuẩn (kiểm tra 15 phút...).
+   * Xem src/lib/scoring.ts (resolveExamScoring) cho logic tính điểm đầy đủ. */
+  scoring_mode: "chuan_thpt" | "tuy_chinh";
+  /** Chỉ có ý nghĩa khi scoring_mode = "tuy_chinh". "tu_dong" = chia đều 10đ
+   * cho số câu trong đề (không cần nhập gì). "thu_cong" = giáo viên tự nhập
+   * điểm từng câu (và từng ý với Phần 2) ở exam_questions. */
+  custom_scoring_method: "tu_dong" | "thu_cong" | null;
   created_by: string;
   created_at: string;
 }
@@ -178,6 +188,14 @@ export interface ExamQuestionRow {
   question_id: string;
   order_index: number;
   part: 1 | 2 | 3;
+  /** Điểm tối đa TUỲ CHỈNH cho câu này (Đợt 3) — chỉ dùng khi exams.scoring_mode
+   * = "tuy_chinh" VÀ custom_scoring_method = "thu_cong". Với Phần 2, chỉ dùng
+   * khi custom_part2_points là null (chưa nhập riêng từng ý). null = chưa nhập
+   * (0đ nếu vẫn ở chế độ tuỳ chỉnh thủ công). */
+  custom_points: number | null;
+  /** Điểm riêng từng ý a/b/c/d — CHỈ dùng cho Phần 2 ở chế độ tuỳ chỉnh thủ
+   * công; null = dùng custom_points làm tổng điểm cả câu thay vì tách theo ý. */
+  custom_part2_points: { a: number; b: number; c: number; d: number } | null;
 }
 
 export interface ExamAttemptRow {

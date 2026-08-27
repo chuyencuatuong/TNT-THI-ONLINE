@@ -4,7 +4,13 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { questionMaxScore } from "../lib/api";
 import { pickRandomForSession } from "../lib/leitner";
-import { splitIntoBatches } from "../lib/reviewBatching";
+import { locateInBatches, splitIntoBatches } from "../lib/reviewBatching";
+import {
+  clearReviewProgress,
+  loadReviewProgress,
+  reconcileReviewProgress,
+  saveReviewProgress,
+} from "../lib/reviewProgress";
 import { shuffleQuestionForReview } from "../lib/reviewShuffle";
 import { scorePart1Question, scorePart2Question, scorePart3Question } from "../lib/scoring";
 import { MathText } from "../components/MathText";
@@ -16,11 +22,16 @@ import type {
   Part2Answer,
   Part3Answer,
   QuestionRow,
+  Topic,
   WrongAnswerJournalRow,
 } from "../lib/types";
 
 type AnyAnswer = Part1Answer | Partial<Part2Answer> | Part3Answer;
 type JournalEntryWithQuestion = WrongAnswerJournalRow & { question: QuestionRow };
+/** Giai đoạn hiện tại của trang — thay cho các cờ boolean rời rạc trước đây
+ * (finished/awaitingNextRound) để luồng chuyển màn hình rõ ràng, không thể
+ * rơi vào trạng thái mâu thuẫn (vd. vừa finished vừa awaitingNextRound). */
+type Stage = "loading" | "resume-prompt" | "overview" | "session" | "awaiting-round" | "finished";
 
 /**
  * Chấm 1 câu ôn tập bằng đúng bộ máy chấm điểm đã dùng cho đề thi thật
@@ -55,18 +66,34 @@ function isFullyCorrect(question: QuestionRow, answer: AnyAnswer | null): boolea
   return score >= maxScore;
 }
 
+function formatShortDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("vi-VN");
+  } catch {
+    return iso;
+  }
+}
+
 /**
- * Màn hình "Ôn tập câu sai" — lấy TOÀN BỘ câu đang cần ôn (chưa rút khỏi
- * nhật ký), xáo ngẫu nhiên thứ tự rồi chia thành nhiều "đợt" nhỏ (tối đa 10
- * câu/đợt, xem `reviewBatching.ts`) để không dồn quá tải trong 1 lần mở màn
- * hình — nhưng vẫn dùng CHUNG 1 buổi ôn tập (1 `sessionId`/`review_sessions`
- * row) cho mọi đợt, vì Leitner streak (mục 19.3, `leitner.ts`) tính theo
- * "buổi riêng biệt" = 1 lần MỞ MÀN HÌNH, không phải theo từng đợt nhỏ bên
- * trong — chia đợt chỉ để đỡ mỏi, không phải để nhân thêm số buổi tính streak.
+ * Màn hình "Ôn tập câu sai" — làm mới toàn diện (đợt cải tiến sau audit thực
+ * tế, mục 7 — trọng tâm được nhấn mạnh nhiều nhất): thay vì tự động xáo toàn
+ * bộ nhật ký và vào thẳng câu hỏi như trước, trang này giờ có 1 màn hình
+ * TỔNG QUAN trước khi bắt đầu (chọn lại câu muốn ôn) và LƯU LẠI vị trí đang
+ * làm dở (localStorage, xem reviewProgress.ts) để tiếp tục đúng chỗ nếu thoát
+ * giữa chừng — thay vì phải xáo lại từ đầu.
  *
- * Đáp án mỗi câu được xáo vị trí ngẫu nhiên (`reviewShuffle.ts`) mỗi lần hiện
- * ra, để học sinh không thể "đối phó" bằng cách nhớ đúng vị trí đã bấm ở lần
- * trước rồi bấm lại y hệt cả 3 buổi liên tiếp mà không thực sự hiểu bài.
+ * Nền tảng Leitner (leitner.ts, applyReviewResult), cơ chế chia đợt tối đa 10
+ * câu/đợt (reviewBatching.ts) và submitReviewAnswer GIỮ NGUYÊN HOÀN TOÀN —
+ * đúng/sai từng câu đã được ghi thẳng vào CSDL ngay khi trả lời, nên phần
+ * "lưu tiến trình" ở đây chỉ là CON TRỎ VỊ TRÍ của riêng thiết bị này (câu
+ * nào đã chọn, làm tới câu thứ mấy), không phải nguồn sự thật cho đúng/sai.
+ *
+ * Vị trí hiện tại được tính từ 1 con số DUY NHẤT — `answeredCount` — qua
+ * `locateInBatches` (reviewBatching.ts), thay vì lưu riêng `roundIndex` +
+ * `index` như bản cũ. Lý do: sau khi đối chiếu (reconcile) danh sách câu đã
+ * chọn với danh sách câu ĐANG THẬT SỰ active (có thể đã đổi từ lần trước),
+ * chỉ cần dồn (clamp) đúng 1 con số là xong — không có rủi ro 2 con số lệch
+ * nhau.
  *
  * MỞ RỘNG SAU (chưa làm ở lần này, đã bàn với người dùng): thay vì chỉ trả
  * lời lại, có thể thêm chế độ "sắp xếp lại các bước lời giải" (kéo thả), tự
@@ -77,51 +104,152 @@ function isFullyCorrect(question: QuestionRow, answer: AnyAnswer | null): boolea
  */
 export function StudentReviewPage() {
   const { profile } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<Stage>("loading");
+
+  // Toàn bộ nhật ký đang active (chưa rút) + map chương, dùng cho màn hình
+  // tổng quan lẫn để đối chiếu (reconcile) tiến trình đã lưu.
+  const [allEntries, setAllEntries] = useState<JournalEntryWithQuestion[]>([]);
+  const [topicsById, setTopicsById] = useState<Map<string, Topic>>(new Map());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Buổi ôn tập đang diễn ra (khi stage === "session"/"awaiting-round").
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [batches, setBatches] = useState<JournalEntryWithQuestion[][]>([]);
-  const [roundIndex, setRoundIndex] = useState(0);
-  const [awaitingNextRound, setAwaitingNextRound] = useState(false);
-  const [index, setIndex] = useState(0);
+  const [orderedEntries, setOrderedEntries] = useState<JournalEntryWithQuestion[]>([]);
+  const [answeredCount, setAnsweredCount] = useState(0);
+  const [tally, setTally] = useState({ correct: 0, wrong: 0 });
+
+  // Gợi ý tiếp tục buổi cũ (khi stage === "resume-prompt").
+  const [resumeData, setResumeData] = useState<{
+    sessionId: string;
+    questionIds: string[];
+    answeredCount: number;
+    tally: { correct: number; wrong: number };
+  } | null>(null);
+
   const [answer, setAnswer] = useState<AnyAnswer | null>(null);
   const [checked, setChecked] = useState<{ isCorrect: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [tally, setTally] = useState({ correct: 0, wrong: 0 });
-  const [finished, setFinished] = useState(false);
-
-  const totalCount = useMemo(() => batches.reduce((sum, b) => sum + b.length, 0), [batches]);
 
   useEffect(() => {
     if (!profile) return;
     (async () => {
-      const entries = await api.listActiveJournalEntries(profile.id);
+      const [entries, topics] = await Promise.all([
+        api.listActiveJournalEntries(profile.id),
+        api.listTopics(),
+      ]);
+      setAllEntries(entries);
+      setSelectedIds(new Set(entries.map((e) => e.id)));
+      setTopicsById(new Map(topics.map((t) => [t.id, t])));
+
       if (entries.length === 0) {
-        // Không tạo buổi ôn tập nếu chẳng có câu nào để ôn — tránh để lại
-        // review_sessions "rỗng" không bao giờ có review_session_answers nào.
-        setFinished(true);
-        setLoading(false);
+        setStage("finished");
         return;
       }
-      const shuffledOrder = pickRandomForSession(entries, entries.length);
-      setBatches(splitIntoBatches(shuffledOrder));
-      const session = await api.startReviewSession(profile.id);
-      setSessionId(session.id);
-      setLoading(false);
+
+      const saved = loadReviewProgress(profile.id);
+      const activeQuestionIds = new Set(entries.map((e) => e.question_id));
+      const reconciled = saved ? reconcileReviewProgress(saved, activeQuestionIds) : null;
+      if (saved && reconciled) {
+        setResumeData({
+          sessionId: saved.sessionId,
+          questionIds: reconciled.questionIds,
+          answeredCount: reconciled.answeredCount,
+          tally: reconciled.tally,
+        });
+        setStage("resume-prompt");
+      } else {
+        if (saved) {
+          // Có tiến trình cũ nhưng không còn câu nào active — dọn luôn, tránh
+          // hỏi lại "tiếp tục" ở lần mở kế tiếp cho 1 buổi đã hết ý nghĩa.
+          clearReviewProgress(profile.id);
+        }
+        setStage("overview");
+      }
     })();
   }, [profile]);
 
-  const queue = batches[roundIndex] ?? [];
-  const currentEntry = queue[index];
+  const batches = useMemo(() => splitIntoBatches(orderedEntries), [orderedEntries]);
+  const batchSizes = useMemo(() => batches.map((b) => b.length), [batches]);
+  const totalCount = orderedEntries.length;
+  const position = useMemo(
+    () => locateInBatches(batchSizes, answeredCount),
+    [batchSizes, answeredCount],
+  );
 
-  // Xáo vị trí đáp án — nhớ lại (memo) theo id câu hỏi + đợt + số thứ tự
-  // trong đợt, để đáp án không bị đổi vị trí giữa chừng khi học sinh đang
-  // chọn (component chỉ re-shuffle khi CHUYỂN sang câu khác, không phải mỗi
-  // lần re-render do state answer/checked thay đổi).
+  const queue = position ? batches[position.roundIndex] ?? [] : [];
+  const currentEntry = position ? queue[position.indexInRound] : undefined;
+
+  // Xáo vị trí đáp án — nhớ lại (memo) theo id câu hỏi, để đáp án không bị
+  // đổi vị trí giữa chừng khi học sinh đang chọn (component chỉ re-shuffle
+  // khi CHUYỂN sang câu khác, không phải mỗi lần re-render do state
+  // answer/checked thay đổi).
   const current = useMemo(() => {
     if (!currentEntry) return null;
     return { ...currentEntry, question: shuffleQuestionForReview(currentEntry.question) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEntry?.id, roundIndex, index]);
+  }, [currentEntry?.id]);
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleStartSession(entries: JournalEntryWithQuestion[]) {
+    if (!profile) return;
+    const shuffledOrder = pickRandomForSession(entries, entries.length);
+    const session = await api.startReviewSession(profile.id);
+    setSessionId(session.id);
+    setOrderedEntries(shuffledOrder);
+    setAnsweredCount(0);
+    setTally({ correct: 0, wrong: 0 });
+    saveReviewProgress({
+      studentId: profile.id,
+      sessionId: session.id,
+      questionIds: shuffledOrder.map((e) => e.question_id),
+      answeredCount: 0,
+      tally: { correct: 0, wrong: 0 },
+    });
+    setStage("session");
+  }
+
+  function handleBeginFromOverview() {
+    const chosen = allEntries.filter((e) => selectedIds.has(e.id));
+    if (chosen.length === 0) return;
+    void handleStartSession(chosen);
+  }
+
+  async function handleResumeContinue() {
+    if (!profile || !resumeData) return;
+    // Dựng lại đúng hàng đợi cũ theo id đã lưu — tải dữ liệu câu hỏi MỚI NHẤT
+    // (allEntries vừa fetch ở trên), giữ nguyên thứ tự đã xáo trước đó.
+    const byQuestionId = new Map(allEntries.map((e) => [e.question_id, e]));
+    const rebuilt = resumeData.questionIds
+      .map((qid) => byQuestionId.get(qid))
+      .filter((e): e is JournalEntryWithQuestion => !!e);
+    setSessionId(resumeData.sessionId);
+    setOrderedEntries(rebuilt);
+    setAnsweredCount(Math.min(resumeData.answeredCount, rebuilt.length));
+    setTally(resumeData.tally);
+    setStage("session");
+  }
+
+  async function handleResumeStartNew() {
+    if (!profile || !resumeData) return;
+    // Đóng buổi cũ cho gọn (không để lại review_sessions dở dang mãi mãi),
+    // rồi xoá tiến trình đã lưu và quay về màn hình tổng quan chọn câu.
+    try {
+      await api.finishReviewSession(resumeData.sessionId);
+    } catch {
+      // Buổi cũ có thể đã bị xoá/không hợp lệ — không chặn luồng vì lỗi này.
+    }
+    clearReviewProgress(profile.id);
+    setResumeData(null);
+    setStage("overview");
+  }
 
   async function handleCheck() {
     if (!current || !sessionId || !profile) return;
@@ -145,34 +273,116 @@ export function StudentReviewPage() {
   }
 
   async function handleNext() {
+    if (!profile || !sessionId) return;
+    // Lưu ý: `tally` ở đây ĐÃ được cập nhật xong bởi handleCheck (setTally)
+    // từ lần bấm "Kiểm tra" trước khi nút "Câu tiếp theo" xuất hiện — không
+    // cộng thêm lần nữa ở đây, tránh đếm trùng.
     setAnswer(null);
     setChecked(null);
-    if (index + 1 < queue.length) {
-      setIndex(index + 1);
+    const nextAnsweredCount = answeredCount + 1;
+    setAnsweredCount(nextAnsweredCount);
+
+    const nextPosition = locateInBatches(batchSizes, nextAnsweredCount);
+    if (!nextPosition) {
+      // Làm xong hết — kết thúc buổi, dọn tiến trình đã lưu.
+      await api.finishReviewSession(sessionId);
+      clearReviewProgress(profile.id);
+      setStage("finished");
       return;
     }
-    // Hết đợt hiện tại.
-    if (roundIndex + 1 < batches.length) {
-      setAwaitingNextRound(true);
-    } else {
-      if (sessionId) await api.finishReviewSession(sessionId);
-      setFinished(true);
+
+    saveReviewProgress({
+      studentId: profile.id,
+      sessionId,
+      questionIds: orderedEntries.map((e) => e.question_id),
+      answeredCount: nextAnsweredCount,
+      tally,
+    });
+
+    const prevPosition = locateInBatches(batchSizes, answeredCount);
+    if (prevPosition && nextPosition.roundIndex > prevPosition.roundIndex) {
+      setStage("awaiting-round");
     }
   }
 
   function handleContinueNextRound() {
-    setAwaitingNextRound(false);
-    setRoundIndex((r) => r + 1);
-    setIndex(0);
+    setStage("session");
   }
 
-  if (loading) return <div className="page-loading">Đang tải...</div>;
+  if (stage === "loading") return <div className="page-loading">Đang tải...</div>;
 
-  if (finished) {
+  if (stage === "resume-prompt" && resumeData) {
+    const remaining = resumeData.questionIds.length - resumeData.answeredCount;
+    return (
+      <div className="result-page">
+        <h2>Tiếp tục buổi ôn tập đang dở?</h2>
+        <p className="empty-hint">
+          Bạn có 1 buổi ôn tập chưa làm xong — còn {remaining} câu (đã làm đúng {resumeData.tally.correct}
+          , sai {resumeData.tally.wrong}). Tiếp tục sẽ vào đúng chỗ đang dở, không cần làm lại từ đầu.
+        </p>
+        <div className="page-header-row" style={{ marginTop: 12 }}>
+          <button className="btn-primary" onClick={handleResumeContinue}>
+            Tiếp tục ({remaining} câu còn lại)
+          </button>
+          <button className="btn-link" onClick={handleResumeStartNew}>
+            Bắt đầu buổi mới
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === "overview") {
+    return (
+      <div className="result-page">
+        <div className="page-header-row">
+          <h2>Ôn tập câu sai</h2>
+          <span className="empty-hint">Đã chọn {selectedIds.size}/{allEntries.length} câu</span>
+        </div>
+        <p className="empty-hint">
+          Chọn những câu bạn muốn ôn trong buổi này (mặc định chọn hết). Mỗi đợt tối đa 10 câu — nếu
+          chọn nhiều hơn, hệ thống sẽ tự chia thành nhiều đợt liên tiếp trong cùng 1 buổi.
+        </p>
+        <div className="pickable-list" style={{ marginTop: 12 }}>
+          {allEntries.map((entry) => {
+            const topic = entry.question.topic_id ? topicsById.get(entry.question.topic_id) : null;
+            return (
+              <div className="pickable-item" key={entry.id}>
+                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(entry.id)}
+                    onChange={() => toggleSelected(entry.id)}
+                  />
+                  <span>
+                    <div>
+                      <MathText text={entry.question.content_latex.slice(0, 120)} />
+                    </div>
+                    <span className="empty-hint">
+                      {topic ? `${topic.name} · ` : ""}
+                      Đã đúng liên tiếp {entry.correct_streak}/3 buổi · Sai gần nhất{" "}
+                      {formatShortDate(entry.last_wrong_at)}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            );
+          })}
+        </div>
+        <div className="page-header-row" style={{ marginTop: 20 }}>
+          <button className="btn-primary" onClick={handleBeginFromOverview} disabled={selectedIds.size === 0}>
+            Bắt đầu ôn tập ({selectedIds.size} câu)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === "finished") {
     return (
       <div className="result-page">
         <h2>Đã xong buổi ôn tập</h2>
-        {totalCount === 0 ? (
+        {allEntries.length === 0 ? (
           <p className="empty-hint">
             Nhật ký ôn tập hiện đang trống — chưa có câu nào cần ôn. Quay lại đây sau khi bạn làm
             sai 1 câu nào đó trong lúc làm đề nhé.
@@ -180,7 +390,7 @@ export function StudentReviewPage() {
         ) : (
           <p className="empty-hint">
             Buổi này bạn làm đúng {tally.correct}/{totalCount} câu
-            {batches.length > 1 ? ` (chia làm ${batches.length} đợt)` : ""}. Câu làm sai vẫn còn
+            {batchSizes.length > 1 ? ` (chia làm ${batchSizes.length} đợt)` : ""}. Câu làm sai vẫn còn
             trong nhật ký (streak về 0), câu làm đúng đã tính thêm 1 buổi liên tiếp — quay lại ôn
             tiếp vào buổi sau để rút dần các câu ra khỏi nhật ký.
           </p>
@@ -192,26 +402,35 @@ export function StudentReviewPage() {
     );
   }
 
-  if (awaitingNextRound) {
+  if (stage === "awaiting-round" && position === null) {
+    // Vừa chuyển sang awaiting-round ngay sau round cuối của batchSizes hiện
+    // tại nhưng chưa hết tổng — position luôn khác null ở nhánh này trong
+    // luồng bình thường; phòng hờ dữ liệu lệch thì quay lại tổng quan an toàn
+    // hơn là hiển thị màn hình trống.
+    return <div className="page-loading">Đang tải...</div>;
+  }
+
+  if (stage === "awaiting-round") {
+    const roundsDone = position ? position.roundIndex : 0;
+    const remaining = totalCount - answeredCount;
     return (
       <div className="result-page">
         <h2>
-          Xong đợt {roundIndex + 1}/{batches.length}
+          Xong đợt {roundsDone}/{batchSizes.length}
         </h2>
         <p className="empty-hint">
-          Bạn vừa làm xong {queue.length} câu của đợt {roundIndex + 1}. Nhật ký còn{" "}
-          {batches.slice(roundIndex + 1).reduce((s, b) => s + b.length, 0)} câu nữa, chia làm{" "}
-          {batches.length - roundIndex - 1} đợt tiếp theo — nghỉ tay chút rồi làm tiếp đợt sau
-          trong cùng buổi này nhé (vẫn tính chung 1 buổi ôn tập).
+          Bạn vừa làm xong {batchSizes[roundsDone - 1] ?? 0} câu của đợt {roundsDone}. Còn {remaining}{" "}
+          câu nữa, chia làm {batchSizes.length - roundsDone} đợt tiếp theo — nghỉ tay chút rồi làm
+          tiếp đợt sau trong cùng buổi này nhé (vẫn tính chung 1 buổi ôn tập).
         </p>
         <button className="btn-primary" onClick={handleContinueNextRound}>
-          Làm tiếp đợt {roundIndex + 2}/{batches.length}
+          Làm tiếp đợt {roundsDone + 1}/{batchSizes.length}
         </button>
       </div>
     );
   }
 
-  if (!current) return <div className="page-loading">Đang tải...</div>;
+  if (!current || !position) return <div className="page-loading">Đang tải...</div>;
 
   const q = current.question;
 
@@ -220,14 +439,14 @@ export function StudentReviewPage() {
       <div className="page-header-row">
         <h2>Ôn tập câu sai</h2>
         <span className="empty-hint">
-          {batches.length > 1 ? `Đợt ${roundIndex + 1}/${batches.length} · ` : ""}
-          Câu {index + 1}/{queue.length} · không tính giờ
+          {batchSizes.length > 1 ? `Đợt ${position.roundIndex + 1}/${batchSizes.length} · ` : ""}
+          Câu {position.indexInRound + 1}/{queue.length} · không tính giờ
         </span>
       </div>
 
       {q.part === 1 && (
         <Part1Question
-          number={index + 1}
+          number={position.indexInRound + 1}
           question={q}
           value={(answer as Part1Answer | null) ?? null}
           onChange={(v) => !checked && setAnswer(v)}
@@ -235,7 +454,7 @@ export function StudentReviewPage() {
       )}
       {q.part === 2 && (
         <Part2Question
-          number={index + 1}
+          number={position.indexInRound + 1}
           question={q}
           value={(answer as Partial<Part2Answer> | null) ?? null}
           onChange={(v) => !checked && setAnswer(v)}
@@ -243,7 +462,7 @@ export function StudentReviewPage() {
       )}
       {q.part === 3 && (
         <Part3Question
-          number={index + 1}
+          number={position.indexInRound + 1}
           question={q}
           value={(answer as Part3Answer | null) ?? null}
           onChange={(v) => !checked && setAnswer(v)}
@@ -267,10 +486,10 @@ export function StudentReviewPage() {
             Kiểm tra
           </button>
         ) : (
-          <button className="btn-primary" onClick={handleNext}>
-            {index + 1 >= queue.length && roundIndex + 1 >= batches.length
+          <button className="btn-primary" onClick={() => void handleNext()}>
+            {answeredCount + 1 >= totalCount
               ? "Hoàn tất buổi ôn tập"
-              : index + 1 >= queue.length
+              : position.indexInRound + 1 >= queue.length
                 ? "Hoàn tất đợt này"
                 : "Câu tiếp theo"}
           </button>

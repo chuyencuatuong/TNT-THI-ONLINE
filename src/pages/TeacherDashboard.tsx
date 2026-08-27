@@ -11,7 +11,13 @@ import {
   YAxis,
 } from "recharts";
 import * as api from "../lib/api";
-import { accuracyPercent, buildComparisonRows, mergeChapterStats, type ChapterStat } from "../lib/chapterStats";
+import {
+  accuracyPercent,
+  buildComparisonRows,
+  mergeChapterStats,
+  truncateChapterLabel,
+  type ChapterStat,
+} from "../lib/chapterStats";
 import type { Profile } from "../lib/types";
 
 interface StudentSummary {
@@ -254,7 +260,12 @@ export function TeacherDashboard() {
               <BarChart data={chapterChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" domain={[0, 100]} unit="%" />
-                <YAxis type="category" dataKey="topic_name" width={150} />
+                <YAxis
+                  type="category"
+                  dataKey="topic_name"
+                  width={150}
+                  tickFormatter={truncateChapterLabel}
+                />
                 <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
                 <Bar dataKey="accuracy" fill="#9c1420" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -280,7 +291,12 @@ export function TeacherDashboard() {
               <BarChart data={comparisonData} layout="vertical" margin={{ left: 40, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" domain={[0, 100]} unit="%" />
-                <YAxis type="category" dataKey="topic_name" width={150} />
+                <YAxis
+                  type="category"
+                  dataKey="topic_name"
+                  width={150}
+                  tickFormatter={truncateChapterLabel}
+                />
                 <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
                 <Legend />
                 {selectedSummary && (

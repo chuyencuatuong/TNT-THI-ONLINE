@@ -4,7 +4,22 @@ import * as api from "../lib/api";
 import { groupExamsByFolder } from "../lib/examLibrary";
 import type { ExamRow, ExamTag } from "../lib/types";
 
-function ExamCard({ exam }: { exam: ExamRow }) {
+function ExamCard({ exam, onDeleted }: { exam: ExamRow; onDeleted: (examId: string) => void }) {
+  // Xóa đề — VĨNH VIỄN, kéo theo mọi lượt làm + kết quả của mọi HS cho đề
+  // này (dựa vào cascade đã có sẵn ở CSDL, xem api.deleteExam). Cảnh báo rõ
+  // trong hộp thoại confirm() vì không có cách khôi phục lại sau khi xoá.
+  async function handleDelete() {
+    if (
+      !confirm(
+        `Xoá vĩnh viễn đề "${exam.title}"?\n\nThao tác này sẽ xoá LUÔN toàn bộ lượt làm bài và kết quả của mọi học sinh cho đề này. Không thể khôi phục lại được.`,
+      )
+    ) {
+      return;
+    }
+    await api.deleteExam(exam.id);
+    onDeleted(exam.id);
+  }
+
   return (
     <div className="card">
       <div className="card-title">
@@ -19,11 +34,17 @@ function ExamCard({ exam }: { exam: ExamRow }) {
         <Link className="btn-secondary" to={`/giao-vien/de-thi/${exam.id}`}>
           Chỉnh sửa
         </Link>
+        <Link className="btn-secondary" to={`/giao-vien/de-thi/${exam.id}/thong-ke`}>
+          Xem thống kê
+        </Link>
         {exam.drive_link && (
           <a className="btn-secondary" href={exam.drive_link} target="_blank" rel="noreferrer">
             Tải đề
           </a>
         )}
+        <button type="button" className="btn-link btn-danger" onClick={handleDelete}>
+          Xoá đề
+        </button>
       </div>
     </div>
   );
@@ -42,6 +63,10 @@ export function TeacherExamList() {
       setLoading(false);
     });
   }, []);
+
+  function handleExamDeleted(examId: string) {
+    setExams((prev) => prev.filter((e) => e.id !== examId));
+  }
 
   const folderNameById = useMemo(() => new Map(folders.map((f) => [f.id, f.name])), [folders]);
 
@@ -97,7 +122,7 @@ export function TeacherExamList() {
             </summary>
             <div className="card-list">
               {group.exams.map((exam) => (
-                <ExamCard key={exam.id} exam={exam} />
+                <ExamCard key={exam.id} exam={exam} onDeleted={handleExamDeleted} />
               ))}
             </div>
           </details>

@@ -110,6 +110,23 @@ export function TeacherExamImport() {
   // Giáo viên dùng đường AI import làm cách chính nên đây là thiếu sót thật,
   // không phải bug — bổ sung để 2 đường tạo đề nhất quán với nhau.
   const [mode, setMode] = useState<"thoai_mai" | "nghiem_tuc">("thoai_mai");
+  // THÊM 25/08/2026: cùng lý do với "mode" ở trên — "Giao đề theo lịch"
+  // (mở khoá/khoá đúng giờ, hiện nổi bật ở trang chủ học sinh qua
+  // .featured-assigned-card) cũng chỉ có ở màn tạo đề thủ công, chưa có ở đây.
+  const [assignEnabled, setAssignEnabled] = useState(false);
+  const [unlockAt, setUnlockAt] = useState("");
+  const [lockAt, setLockAt] = useState("");
+  // Tính điểm linh hoạt (Đợt 3, mục 2) — mirror y hệt TeacherExamEditor.tsx.
+  // Điểm tuỳ chỉnh nhập theo id CỤC BỘ (q.id, dạng "local-N") vì câu hỏi chỉ
+  // thật sự có question_id sau khi api.createQuestion() chạy lúc xuất bản.
+  const [scoringMode, setScoringMode] = useState<"chuan_thpt" | "tuy_chinh">("chuan_thpt");
+  const [customScoringMethod, setCustomScoringMethod] = useState<"tu_dong" | "thu_cong" | null>(
+    null,
+  );
+  const [customPoints, setCustomPoints] = useState<Record<string, string>>({});
+  const [customPart2Points, setCustomPart2Points] = useState<
+    Record<string, { a: string; b: string; c: string; d: string }>
+  >({});
   const [grade, setGrade] = useState("");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [termId, setTermId] = useState<string | null>(null);
@@ -286,7 +303,28 @@ export function TeacherExamImport() {
     }
     setPublishing(true);
     try {
-      const createdIds: { question_id: string; order_index: number; part: 1 | 2 | 3 }[] = [];
+      // Điểm tuỳ chỉnh (Đợt 3) chỉ thực sự ghi khi đang ở chế độ tuỳ
+      // chỉnh/thủ công — chế độ tự động không cần lưu gì (tính động lúc chấm
+      // điểm dựa trên tổng số câu), chế độ chuẩn cũng không cần.
+      const includeCustom = scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong";
+      const parsePoint = (raw: string | undefined): number | null =>
+        raw && raw.trim() !== "" && !Number.isNaN(Number(raw)) ? Number(raw) : null;
+      const parsePart2 = (
+        raw: { a: string; b: string; c: string; d: string } | undefined,
+      ): { a: number; b: number; c: number; d: number } | null => {
+        if (!raw) return null;
+        const vals = [raw.a, raw.b, raw.c, raw.d].map((v) => parsePoint(v));
+        if (vals.some((v) => v === null)) return null; // chưa nhập đủ 4 ý -> coi như chưa nhập
+        return { a: vals[0]!, b: vals[1]!, c: vals[2]!, d: vals[3]! };
+      };
+
+      const createdIds: {
+        question_id: string;
+        order_index: number;
+        part: 1 | 2 | 3;
+        custom_points?: number | null;
+        custom_part2_points?: { a: number; b: number; c: number; d: number } | null;
+      }[] = [];
 
       for (let i = 0; i < part1.length; i++) {
         const q = part1[i];
@@ -306,7 +344,12 @@ export function TeacherExamImport() {
           created_by: profile.id,
           source: "word_import",
         });
-        createdIds.push({ question_id: created.id, order_index: i, part: 1 });
+        createdIds.push({
+          question_id: created.id,
+          order_index: i,
+          part: 1,
+          ...(includeCustom ? { custom_points: parsePoint(customPoints[q.id]) } : {}),
+        });
       }
       for (let i = 0; i < part2.length; i++) {
         const q = part2[i];
@@ -326,7 +369,18 @@ export function TeacherExamImport() {
           created_by: profile.id,
           source: "word_import",
         });
-        createdIds.push({ question_id: created.id, order_index: i, part: 2 });
+        const part2Sub = parsePart2(customPart2Points[q.id]);
+        createdIds.push({
+          question_id: created.id,
+          order_index: i,
+          part: 2,
+          ...(includeCustom
+            ? {
+                custom_part2_points: part2Sub,
+                custom_points: part2Sub ? null : parsePoint(customPoints[q.id]),
+              }
+            : {}),
+        });
       }
       for (let i = 0; i < part3.length; i++) {
         const q = part3[i];
@@ -346,7 +400,15 @@ export function TeacherExamImport() {
           created_by: profile.id,
           source: "word_import",
         });
-        createdIds.push({ question_id: created.id, order_index: i, part: 3 });
+        // Phần 3 đã có sẵn ô "điểm" ngay trong form (q.points, dùng làm
+        // default_points) — không thêm ô nhập điểm tuỳ chỉnh trùng lặp ở
+        // đây, chỉ dùng lại đúng giá trị đó làm custom_points khi cần.
+        createdIds.push({
+          question_id: created.id,
+          order_index: i,
+          part: 3,
+          ...(includeCustom ? { custom_points: q.points } : {}),
+        });
       }
 
       const exam = await api.createExam({
@@ -358,6 +420,10 @@ export function TeacherExamImport() {
         term_id: termId,
         drive_link: driveLink.trim() || null,
         mode,
+        assigned_unlock_at: assignEnabled && unlockAt ? new Date(unlockAt).toISOString() : null,
+        assigned_lock_at: assignEnabled && lockAt ? new Date(lockAt).toISOString() : null,
+        scoring_mode: scoringMode,
+        custom_scoring_method: scoringMode === "tuy_chinh" ? customScoringMethod : null,
         created_by: profile.id,
       });
       await api.setExamQuestions(exam.id, createdIds);
@@ -500,6 +566,93 @@ export function TeacherExamImport() {
           </option>
         </select>
       </div>
+      <div className="form-row">
+        <label>
+          <input
+            type="checkbox"
+            checked={assignEnabled}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setAssignEnabled(checked);
+              // Mặc định chuyển sang nghiêm túc khi bật giao đề theo lịch —
+              // giáo viên vẫn có thể đổi lại ở ô chọn phía trên nếu muốn.
+              if (checked && mode === "thoai_mai") setMode("nghiem_tuc");
+            }}
+            style={{ marginRight: 8 }}
+          />
+          Giao đề theo lịch (mở khoá/khoá đúng giờ) — hiện nổi bật ở trang chủ học sinh
+        </label>
+      </div>
+      {assignEnabled && (
+        <div className="form-row" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <label>Mở khoá lúc</label>
+            <input
+              type="datetime-local"
+              value={unlockAt}
+              onChange={(e) => setUnlockAt(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Khoá lúc (không bắt buộc — để trống = không tự khoá)</label>
+            <input
+              type="datetime-local"
+              value={lockAt}
+              onChange={(e) => setLockAt(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+      <div className="form-row">
+        <label>Chế độ tính điểm</label>
+        <select
+          value={scoringMode}
+          onChange={(e) => {
+            const next = e.target.value as "chuan_thpt" | "tuy_chinh";
+            setScoringMode(next);
+            if (next === "tuy_chinh" && !customScoringMethod) setCustomScoringMethod("tu_dong");
+          }}
+          style={{ maxWidth: 320 }}
+        >
+          <option value="chuan_thpt">Chuẩn THPT — barem chính thức (Phần 1/2/3)</option>
+          <option value="tuy_chinh">
+            Tuỳ chỉnh — cho đề không theo cấu trúc chuẩn (kiểm tra 15 phút...)
+          </option>
+        </select>
+      </div>
+      {scoringMode === "tuy_chinh" && (
+        <div className="form-row">
+          <label>
+            <input
+              type="radio"
+              name="customScoringMethod"
+              checked={customScoringMethod === "tu_dong"}
+              onChange={() => setCustomScoringMethod("tu_dong")}
+              style={{ marginRight: 6 }}
+            />
+            Tự động chia đều 10 điểm theo số câu
+          </label>
+          {customScoringMethod === "tu_dong" && (
+            <p className="empty-hint">
+              {part1.length + part2.length + part3.length > 0
+                ? `Mỗi câu tự động được ${(
+                    Math.round((10 / (part1.length + part2.length + part3.length)) * 100) / 100
+                  ).toFixed(2)} điểm (10đ / ${part1.length + part2.length + part3.length} câu).`
+                : "Chưa có câu hỏi nào."}
+            </p>
+          )}
+          <label style={{ display: "block", marginTop: 8 }}>
+            <input
+              type="radio"
+              name="customScoringMethod"
+              checked={customScoringMethod === "thu_cong"}
+              onChange={() => setCustomScoringMethod("thu_cong")}
+              style={{ marginRight: 6 }}
+            />
+            Thủ công — tự nhập điểm từng câu bên dưới (Phần 2 nhập riêng từng ý)
+          </label>
+        </div>
+      )}
       <div className="form-row">
         <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
         <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ maxWidth: 140 }}>
@@ -655,6 +808,22 @@ export function TeacherExamImport() {
                   />
                 </div>
               ))}
+              {scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && (
+                <div className="form-row">
+                  <label>Điểm câu này</label>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min={0}
+                    placeholder="Điểm"
+                    value={customPoints[q.id] ?? ""}
+                    onChange={(e) =>
+                      setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
+                    }
+                    style={{ maxWidth: 90 }}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 className="btn-link btn-danger"
@@ -775,6 +944,36 @@ export function TeacherExamImport() {
                   </label>
                 </div>
               ))}
+              {scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && (
+                <div className="form-row">
+                  <label>Điểm riêng từng ý a/b/c/d</label>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {(["a", "b", "c", "d"] as const).map((k) => (
+                      <input
+                        key={k}
+                        type="number"
+                        step="0.05"
+                        min={0}
+                        placeholder={k}
+                        value={customPart2Points[q.id]?.[k] ?? ""}
+                        onChange={(e) =>
+                          setCustomPart2Points((prev) => ({
+                            ...prev,
+                            [q.id]: {
+                              a: prev[q.id]?.a ?? "",
+                              b: prev[q.id]?.b ?? "",
+                              c: prev[q.id]?.c ?? "",
+                              d: prev[q.id]?.d ?? "",
+                              [k]: e.target.value,
+                            },
+                          }))
+                        }
+                        style={{ maxWidth: 60 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 type="button"
                 className="btn-link btn-danger"

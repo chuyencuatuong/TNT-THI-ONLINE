@@ -92,6 +92,142 @@ export function scorePart3Question(
   return isMatch ? points : 0;
 }
 
+// ---------------------------------------------------------------------------
+// Tính điểm LINH HOẠT (Đợt 3, mục 2) — cho các đề không theo cấu trúc chuẩn
+// THPT (kiểm tra 15 phút, kiểm tra thường xuyên...). CÁC HÀM BAREM CHUẨN Ở
+// TRÊN GIỮ NGUYÊN, KHÔNG SỬA GÌ — mọi hàm dưới đây là hàm MỚI, chỉ được gọi
+// khi exams.scoring_mode = 'tuy_chinh' (xem resolveExamScoring +
+// src/lib/api.ts submitAttempt).
+// ---------------------------------------------------------------------------
+
+export interface Part2SubPoints {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+}
+
+/**
+ * Chấm 1 câu Phần 1 với ĐIỂM TỐI ĐA TUỲ CHỈNH — cùng logic đúng/sai như
+ * scorePart1Question ở trên, chỉ khác điểm thưởng khi đúng là `maxPoints`
+ * bất kỳ thay vì cố định 0.25đ.
+ */
+export function scorePart1Custom(
+  correctAnswer: Part1Answer,
+  studentAnswer: Part1Answer | null | undefined,
+  maxPoints: number,
+): number {
+  if (!studentAnswer) return 0;
+  return studentAnswer === correctAnswer ? maxPoints : 0;
+}
+
+/**
+ * Chấm 1 câu Phần 2 ở chế độ THỦ CÔNG — cộng điểm riêng từng ý đúng
+ * (subPoints), KHÔNG dùng bảng tỉ lệ cố định PART2_SCORE_TABLE (bảng đó là
+ * barem chính thức THPT, chỉ áp dụng ở chế độ chuẩn).
+ */
+export function scorePart2Custom(
+  correctAnswer: Part2SubAnswers,
+  studentAnswer: Partial<Part2SubAnswers> | null | undefined,
+  subPoints: Part2SubPoints,
+): { correctCount: 0 | 1 | 2 | 3 | 4; score: number } {
+  const keys: (keyof Part2SubAnswers)[] = ["a", "b", "c", "d"];
+  let correctCount = 0;
+  let score = 0;
+  for (const k of keys) {
+    const studentVal = studentAnswer?.[k] ?? null;
+    if (studentVal !== null && studentVal === correctAnswer[k]) {
+      correctCount++;
+      score += subPoints[k];
+    }
+  }
+  return { correctCount: correctCount as 0 | 1 | 2 | 3 | 4, score: Math.round(score * 100) / 100 };
+}
+
+/**
+ * Chấm 1 câu Phần 2 ở chế độ TỰ ĐỘNG (chia đều 10đ theo số câu, không nhập
+ * điểm riêng từng ý) — đơn giản hoá thành "đúng cả 4 ý mới được trọn điểm
+ * câu, còn lại 0đ" (không có điểm từng phần), vì chế độ tự động vốn dành cho
+ * những đề đơn giản, không cần chấm chi tiết theo ý. Dùng lại đúng phần đếm
+ * `correctCount` của scorePart2Question (chỉ thay công thức tính điểm).
+ */
+export function scorePart2AllOrNothing(
+  correctAnswer: Part2SubAnswers,
+  studentAnswer: Partial<Part2SubAnswers> | null | undefined,
+  maxPoints: number,
+): { correctCount: 0 | 1 | 2 | 3 | 4; score: number } {
+  const { correctCount } = scorePart2Question(correctAnswer, studentAnswer);
+  return { correctCount, score: correctCount === 4 ? maxPoints : 0 };
+}
+
+export type ScoringMode = "chuan_thpt" | "tuy_chinh";
+export type CustomScoringMethod = "tu_dong" | "thu_cong" | null;
+
+export interface ExamQuestionForScoring {
+  question_id: string;
+  part: 1 | 2 | 3;
+  default_points: number | null;
+  custom_points: number | null;
+  custom_part2_points: Part2SubPoints | null;
+}
+
+export interface ResolvedQuestionScoring {
+  maxScore: number;
+  /** Chỉ có ý nghĩa với Phần 2 — khác null nghĩa là chấm THỦ CÔNG theo từng ý
+   * (scorePart2Custom); null nghĩa là dùng bảng tỉ lệ chuẩn THPT (chế độ
+   * chuẩn) hoặc chấm trọn/không (chế độ tự động). */
+  part2SubPoints: Part2SubPoints | null;
+}
+
+/**
+ * Tính điểm tối đa (và, riêng Phần 2, điểm từng ý nếu có) cho MỌI câu trong
+ * 1 đề — dùng CHUNG cho lúc chấm điểm thật (api.submitAttempt) lẫn lúc chỉ
+ * cần xem trước ở giao diện soạn đề. Ở chế độ "chuan_thpt" (mặc định, MỌI đề
+ * tạo trước Đợt 3), kết quả GIỐNG HỆT barem cũ (0.25đ/câu Phần 1, tối đa
+ * 1.0đ Phần 2 theo bảng tỉ lệ, default_points Phần 3) — không đổi hành vi
+ * chấm điểm hiện có cho các đề đã tồn tại.
+ */
+export function resolveExamScoring(
+  scoringMode: ScoringMode,
+  customScoringMethod: CustomScoringMethod,
+  examQuestions: ExamQuestionForScoring[],
+): Map<string, ResolvedQuestionScoring> {
+  const result = new Map<string, ResolvedQuestionScoring>();
+
+  if (scoringMode !== "tuy_chinh") {
+    for (const eq of examQuestions) {
+      result.set(eq.question_id, {
+        maxScore:
+          eq.part === 1 ? PART1_POINTS_PER_QUESTION : eq.part === 2 ? 1 : eq.default_points ?? 0.5,
+        part2SubPoints: null,
+      });
+    }
+    return result;
+  }
+
+  if (customScoringMethod === "tu_dong") {
+    const per = examQuestions.length > 0 ? Math.round((10 / examQuestions.length) * 100) / 100 : 0;
+    for (const eq of examQuestions) {
+      result.set(eq.question_id, { maxScore: per, part2SubPoints: null });
+    }
+    return result;
+  }
+
+  // "thu_cong" (hoặc chưa chọn cụ thể — coi như thủ công, câu chưa nhập điểm = 0đ)
+  for (const eq of examQuestions) {
+    if (eq.part === 2 && eq.custom_part2_points) {
+      const p = eq.custom_part2_points;
+      result.set(eq.question_id, {
+        maxScore: Math.round((p.a + p.b + p.c + p.d) * 100) / 100,
+        part2SubPoints: p,
+      });
+    } else {
+      result.set(eq.question_id, { maxScore: eq.custom_points ?? 0, part2SubPoints: null });
+    }
+  }
+  return result;
+}
+
 export interface ExamScoreBreakdown {
   part1Score: number;
   part2Score: number;
