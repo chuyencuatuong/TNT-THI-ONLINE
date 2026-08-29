@@ -249,6 +249,22 @@ export function TeacherStudentDetail() {
     );
   }
 
+  // Xoá HẲN 1 kết quả thi (khác "Hủy lượt này" ở trên — cái đó chỉ đánh dấu
+  // không hợp lệ, vẫn giữ dữ liệu). Xoá là VĨNH VIỄN: kéo theo toàn bộ lịch
+  // sử của lượt làm đó (đáp án từng câu, thời gian xem câu, giám sát nghiêm
+  // túc, điểm số) — không thể khôi phục, nên xác nhận 2 bước (gõ đúng "XOA").
+  async function handleDeleteAttempt(attemptId: string, examTitle: string, attemptNumber: number) {
+    const confirmed = confirm(
+      `Xoá VĨNH VIỄN kết quả "${examTitle}" — lần ${attemptNumber}?\n\n` +
+        `Toàn bộ lịch sử của lượt làm này (đáp án từng câu, thời gian làm bài, dữ liệu giám sát) ` +
+        `sẽ bị xoá theo, không thể khôi phục. Nếu chỉ muốn tạm ẩn kết quả này (vẫn xem lại được), ` +
+        `dùng "Hủy lượt này" thay vì xoá.`,
+    );
+    if (!confirmed) return;
+    await api.deleteAttempt(attemptId);
+    setAttempts((prev) => prev.filter((a) => a.id !== attemptId));
+  }
+
   function suspicionLabel(count: number): { text: string; className: string } {
     if (count === 0) return { text: "Bình thường", className: "badge-ok" };
     if (count <= 3) return { text: `Nghi ngờ nhẹ (${count})`, className: "badge-warn" };
@@ -406,6 +422,14 @@ export function TeacherStudentDetail() {
                                 onClick={() => toggleInvalidated(a.id, a.invalidated)}
                               >
                                 {a.invalidated ? "Bỏ huỷ" : "Hủy lượt này"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-link btn-danger"
+                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                onClick={() => handleDeleteAttempt(a.id, g.examTitle, a.attempt_number)}
+                              >
+                                Xoá kết quả này
                               </button>
                             </td>
                             <td>

@@ -792,6 +792,26 @@ export async function setAttemptInvalidated(
   if (error) throw error;
 }
 
+/**
+ * Xoá HẲN 1 kết quả thi (1 lượt làm bài cụ thể) — khác với setAttemptInvalidated
+ * ở trên (chỉ đánh dấu "không hợp lệ", vẫn giữ dữ liệu xem lại được). Xoá
+ * đúng 1 dòng exam_attempts — toàn bộ "lịch sử thi" gắn với lượt làm đó
+ * (answer_events, question_view_events, question_responses, attempt_scores,
+ * proctoring_events) đã khai báo "on delete cascade" theo attempt_id ngay từ
+ * schema.sql gốc nên tự động bị xoá theo, không cần xoá tay từng bảng.
+ * KHÔNG đụng tới nhật ký câu sai kiểu Leitner (wrong_answer_journal) — bảng
+ * đó khoá theo (student_id, question_id), không theo attempt_id, vì nó ghi
+ * nhận "học sinh này từng sai câu này" chứ không phải "của riêng lượt làm
+ * nào" (xem migration_008) — xoá 1 lượt làm không có nghĩa học sinh đột
+ * nhiên chưa từng sai câu đó, nên nhật ký ôn tập giữ nguyên là đúng.
+ * (Cần migration_015 để mở quyền DELETE cho GV trên exam_attempts — bảng
+ * gốc chưa từng có policy nào cho lệnh delete, kể cả cho GV.)
+ */
+export async function deleteAttempt(attemptId: string): Promise<void> {
+  const { error } = await supabase.from("exam_attempts").delete().eq("id", attemptId);
+  if (error) throw error;
+}
+
 export async function getAttempt(
   attemptId: string,
 ): Promise<(ExamAttemptRow & { exam: ExamRow }) | null> {
