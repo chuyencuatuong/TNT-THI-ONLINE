@@ -8,11 +8,18 @@ export const GENDER_LABELS: Record<Gender, string> = {
   khac: "Khác",
 };
 
+export type StudentTier = "gioi" | "kha" | "tb" | "yeu";
+
 export interface Profile {
   id: string;
   role: Role;
   full_name: string;
-  student_class: string | null;
+  /** Lớp học sinh thuộc về (migration_013) — thay cột student_class cũ (đã
+   * xoá, chưa từng có giao diện nhập). Chỉ có nghĩa với role='student'. */
+  class_id: string | null;
+  /** Tầng GV ghi đè tay (migration_013) — null = dùng tầng hệ thống tự tính
+   * theo điểm TB (xem src/lib/studentTier.ts). Chỉ hiển thị phía giáo viên. */
+  manual_tier: StudentTier | null;
   /** Thêm 24/08/2026 (migration_011) — thu thập lần đầu đăng nhập, chỉ áp
    * dụng cho học sinh (xem LoginPage.tsx "Hoàn tất hồ sơ"). Đều nullable vì
    * hồ sơ tạo trước migration này không có các trường này. */
@@ -22,6 +29,43 @@ export interface Profile {
   gender: Gender | null;
   province: string | null;
   created_at: string;
+}
+
+/** Lớp học (migration_013, 28/08/2026) — nền tảng cho quản lý tiến độ/chất
+ * lượng theo từng lớp thay vì gộp chung mọi học sinh (xem TeacherDashboard.tsx). */
+export interface ClassRow {
+  id: string;
+  name: string;
+  grade: 10 | 11 | 12 | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** Buổi học — tạo tay từng buổi (quyết định đã chốt, KHÔNG dùng lịch cố định
+ * tự sinh vì lớp học thêm thực tế hay đổi giờ/nghỉ lễ). external_source/
+ * external_event_id dự trù cho đồng bộ Google Calendar sau này (chưa có logic
+ * đồng bộ thật), luôn null với buổi tạo tay hiện tại. */
+export interface ClassSessionRow {
+  id: string;
+  class_id: string;
+  starts_at: string;
+  ends_at: string;
+  created_by: string | null;
+  created_at: string;
+  external_source: string | null;
+  external_event_id: string | null;
+}
+
+export type AttendanceStatus = "co_mat" | "tre" | "phep" | "vang";
+
+export interface AttendanceRow {
+  id: string;
+  session_id: string;
+  student_id: string;
+  status: AttendanceStatus;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Topic {

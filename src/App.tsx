@@ -15,6 +15,9 @@ import { TeacherExamList } from "./pages/TeacherExamList";
 import { TeacherExamEditor } from "./pages/TeacherExamEditor";
 import { TeacherStudentDetail } from "./pages/TeacherStudentDetail";
 import { TeacherExamStats } from "./pages/TeacherExamStats";
+import { TeacherClassList } from "./pages/TeacherClassList";
+import { TeacherSchedule } from "./pages/TeacherSchedule";
+import { StudentSchedule } from "./pages/StudentSchedule";
 
 // Tách riêng (lazy load) vì trang này kéo theo thư viện đọc file .docx khá nặng
 // (mammoth.js) — chỉ giáo viên mới cần, không nên bắt học sinh tải về mỗi lần vào web.
@@ -94,6 +97,14 @@ export default function App() {
           }
         />
         <Route
+          path="/hoc-sinh/lich-hoc"
+          element={
+            <RequireRole role="student">
+              <StudentSchedule />
+            </RequireRole>
+          }
+        />
+        <Route
           path="/lam-bai/:examId"
           element={
             <RequireRole role="student">
@@ -123,6 +134,22 @@ export default function App() {
           element={
             <RequireRole role="teacher">
               <TeacherQuestionBank />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/lop-hoc"
+          element={
+            <RequireRole role="teacher">
+              <TeacherClassList />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/lich-hoc"
+          element={
+            <RequireRole role="teacher">
+              <TeacherSchedule />
             </RequireRole>
           }
         />

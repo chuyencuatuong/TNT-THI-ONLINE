@@ -72,6 +72,12 @@ export function Layout() {
                     <NavLink to="/giao-vien" end className={navLinkClass}>
                       Tổng quan
                     </NavLink>
+                    <NavLink to="/giao-vien/lop-hoc" className={navLinkClass}>
+                      Lớp học
+                    </NavLink>
+                    <NavLink to="/giao-vien/lich-hoc" className={navLinkClass}>
+                      Lịch học
+                    </NavLink>
                     <NavLink to="/giao-vien/tao-de-tu-word" className={navLinkClass}>
                       + Tạo đề từ PDF/Word
                     </NavLink>
@@ -95,6 +101,9 @@ export function Layout() {
                     </NavLink>
                     <NavLink to="/hoc-sinh/on-tap-cau-sai" className={navLinkClass}>
                       Ôn tập câu sai
+                    </NavLink>
+                    <NavLink to="/hoc-sinh/lich-hoc" className={navLinkClass}>
+                      Lịch học
                     </NavLink>
                   </>
                 )}

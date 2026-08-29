@@ -74,6 +74,20 @@ export function ResultPage() {
   const [review, setReview] = useState<AttemptReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ResultTab>("tong-quan");
+  // Tên lớp cho phiếu kết quả (ResultSlip) — tra qua bảng classes
+  // (migration_013, 28/08/2026), thay cột student_class cũ đã xoá.
+  const [className, setClassName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile?.class_id) {
+      setClassName(null);
+      return;
+    }
+    api
+      .listClasses()
+      .then((classes) => setClassName(classes.find((c) => c.id === profile.class_id)?.name ?? null))
+      .catch((err) => console.error("Không lấy được tên lớp:", err));
+  }, [profile?.class_id]);
 
   useEffect(() => {
     if (!attemptId) return;
@@ -367,7 +381,7 @@ export function ResultPage() {
       {attempt && (
         <ResultSlip
           studentName={profile?.full_name ?? "—"}
-          studentClass={profile?.student_class}
+          studentClass={className}
           examTitle={attempt.exam.title}
           attemptDateLabel={new Date(attempt.started_at).toLocaleDateString("vi-VN")}
           score={score}

@@ -141,6 +141,28 @@ export function TeacherExamImport() {
   const [folders, setFolders] = useState<ExamTag[]>([]);
   const [terms, setTerms] = useState<ExamTag[]>([]);
 
+  // Làm mới giao diện (Nhóm 5, "quản lý lớp học", 28/08/2026 — demo đã duyệt):
+  // câu hỏi thu gọn mặc định, bấm 1 câu để mở form sửa đầy đủ — chỉ 1 câu mở
+  // cùng lúc trên toàn trang, đỡ phải cuộn qua hàng chục form cùng hiện như
+  // trước. Không đổi logic chấm điểm/dữ liệu gì, chỉ đổi cách trình bày.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  function questionKey(part: 1 | 2 | 3, id: string) {
+    return `p${part}-${id}`;
+  }
+  function jumpToQuestion(part: 1 | 2 | 3, id: string) {
+    const key = questionKey(part, id);
+    setExpandedKey(key);
+    setTimeout(() => {
+      document.getElementById(key)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  }
+  /** Xem trước ngắn gọn 1 dòng cho hàng câu hỏi thu gọn — không render MathText ở đây (tránh KaTeX phá dòng khi cắt bằng ellipsis), chỉ hiện chữ thô. */
+  function previewText(raw: string, max = 90) {
+    const flat = raw.trim().replace(/\s+/g, " ");
+    if (!flat) return "(chưa có nội dung)";
+    return flat.length > max ? `${flat.slice(0, max)}…` : flat;
+  }
+
   useEffect(() => {
     api.listTopics().then(setTopics).catch(console.error);
     api.listExamTags("folder").then(setFolders).catch(console.error);
@@ -520,6 +542,10 @@ export function TeacherExamImport() {
     );
   }
 
+  const missingP1 = part1.filter((q) => !q.correct_choice);
+  const missingP2 = part2.filter((q) => !q.correct);
+  const missingP3 = part3.filter((q) => !q.correct_value);
+
   return (
     <div className="teacher-page">
       <h2>Xem trước & xác nhận đề thi</h2>
@@ -535,558 +561,699 @@ export function TeacherExamImport() {
         </div>
       )}
 
-      <div className="form-row">
-        <label>Tên đề thi</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
-      </div>
-      <div className="form-row">
-        <label>Mô tả (không bắt buộc)</label>
-        <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
-      </div>
-      <div className="form-row">
-        <label>Thời gian làm bài (phút, để trống = không giới hạn)</label>
-        <input
-          type="number"
-          min={1}
-          style={{ maxWidth: 140 }}
-          value={durationMinutes}
-          onChange={(e) => setDurationMinutes(e.target.value)}
-        />
-      </div>
-      <div className="form-row">
-        <label>Chế độ phòng thi</label>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value as "thoai_mai" | "nghiem_tuc")}
-          style={{ maxWidth: 280 }}
-        >
-          <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
-          <option value="nghiem_tuc">
-            Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá {AUTO_CANCEL_THRESHOLD} lần
-          </option>
-        </select>
-      </div>
-      <div className="form-row">
-        <label>
-          <input
-            type="checkbox"
-            checked={assignEnabled}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setAssignEnabled(checked);
-              // Mặc định chuyển sang nghiêm túc khi bật giao đề theo lịch —
-              // giáo viên vẫn có thể đổi lại ở ô chọn phía trên nếu muốn.
-              if (checked && mode === "thoai_mai") setMode("nghiem_tuc");
-            }}
-            style={{ marginRight: 8 }}
-          />
-          Giao đề theo lịch (mở khoá/khoá đúng giờ) — hiện nổi bật ở trang chủ học sinh
-        </label>
-      </div>
-      {assignEnabled && (
-        <div className="form-row" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <label>Mở khoá lúc</label>
-            <input
-              type="datetime-local"
-              value={unlockAt}
-              onChange={(e) => setUnlockAt(e.target.value)}
-            />
-          </div>
-          <div>
-            <label>Khoá lúc (không bắt buộc — để trống = không tự khoá)</label>
-            <input
-              type="datetime-local"
-              value={lockAt}
-              onChange={(e) => setLockAt(e.target.value)}
-            />
+      {missingAnswerCount > 0 ? (
+        <div className="status-banner status-banner--warn">
+          <span>⚠️ Còn <strong>{missingAnswerCount} câu</strong> chưa xác nhận đáp án đúng:</span>
+          <div className="status-banner-jump">
+            {missingP1.map((q, i) => (
+              <button key={q.id} onClick={() => jumpToQuestion(1, q.id)}>
+                P1 câu {part1.indexOf(q) + 1}
+              </button>
+            ))}
+            {missingP2.map((q) => (
+              <button key={q.id} onClick={() => jumpToQuestion(2, q.id)}>
+                P2 câu {part2.indexOf(q) + 1}
+              </button>
+            ))}
+            {missingP3.map((q) => (
+              <button key={q.id} onClick={() => jumpToQuestion(3, q.id)}>
+                P3 câu {part3.indexOf(q) + 1}
+              </button>
+            ))}
           </div>
         </div>
+      ) : (
+        <p className="empty-hint">Tất cả câu hỏi đã có đáp án.</p>
       )}
-      <div className="form-row">
-        <label>Chế độ tính điểm</label>
-        <select
-          value={scoringMode}
-          onChange={(e) => {
-            const next = e.target.value as "chuan_thpt" | "tuy_chinh";
-            setScoringMode(next);
-            if (next === "tuy_chinh" && !customScoringMethod) setCustomScoringMethod("tu_dong");
-          }}
-          style={{ maxWidth: 320 }}
-        >
-          <option value="chuan_thpt">Chuẩn THPT — barem chính thức (Phần 1/2/3)</option>
-          <option value="tuy_chinh">
-            Tuỳ chỉnh — cho đề không theo cấu trúc chuẩn (kiểm tra 15 phút...)
-          </option>
-        </select>
-      </div>
-      {scoringMode === "tuy_chinh" && (
-        <div className="form-row">
-          <label>
-            <input
-              type="radio"
-              name="customScoringMethod"
-              checked={customScoringMethod === "tu_dong"}
-              onChange={() => setCustomScoringMethod("tu_dong")}
-              style={{ marginRight: 6 }}
-            />
-            Tự động chia đều 10 điểm theo số câu
-          </label>
-          {customScoringMethod === "tu_dong" && (
-            <p className="empty-hint">
-              {part1.length + part2.length + part3.length > 0
-                ? `Mỗi câu tự động được ${(
-                    Math.round((10 / (part1.length + part2.length + part3.length)) * 100) / 100
-                  ).toFixed(2)} điểm (10đ / ${part1.length + part2.length + part3.length} câu).`
-                : "Chưa có câu hỏi nào."}
-            </p>
-          )}
-          <label style={{ display: "block", marginTop: 8 }}>
-            <input
-              type="radio"
-              name="customScoringMethod"
-              checked={customScoringMethod === "thu_cong"}
-              onChange={() => setCustomScoringMethod("thu_cong")}
-              style={{ marginRight: 6 }}
-            />
-            Thủ công — tự nhập điểm từng câu bên dưới (Phần 2 nhập riêng từng ý)
-          </label>
+
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Thông tin đề thi</h3>
         </div>
-      )}
-      <div className="form-row">
-        <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
-        <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ maxWidth: 140 }}>
-          <option value="">— Chọn khối —</option>
-          <option value="10">Lớp 10</option>
-          <option value="11">Lớp 11</option>
-          <option value="12">Lớp 12</option>
-        </select>
-      </div>
-      <div className="form-row">
-        <label>Chương trình / kỳ thi (không bắt buộc — VD: Giữa kỳ 1, Luyện đề tổng ôn...)</label>
-        <TagPicker
-          kind="term"
-          label="Chương trình"
-          tags={terms}
-          value={termId}
-          onChange={setTermId}
-          onCreated={(t) => setTerms((prev) => [...prev, t])}
-          createdBy={profile?.id ?? ""}
-          placeholder="— Chọn chương trình —"
-        />
-      </div>
-      <div className="form-row">
-        <label>Thư mục / tuyển tập (không bắt buộc — để trống = "Chưa phân loại")</label>
-        <TagPicker
-          kind="folder"
-          label="Thư mục"
-          tags={folders}
-          value={folderId}
-          onChange={setFolderId}
-          onCreated={(t) => setFolders((prev) => [...prev, t])}
-          createdBy={profile?.id ?? ""}
-          placeholder="— Chọn thư mục —"
-        />
-      </div>
-      <div className="form-row">
-        <label>
-          Chương mà đề này bao phủ (đã tự chọn sẵn theo gợi ý AI của từng câu — xem lại/đổi nếu cần,
-          dùng để lọc ở Kho đề)
-        </label>
-        <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
-          {topics.map((t) => (
-            <label key={t.id} className="pickable-item">
-              <input
-                type="checkbox"
-                checked={selectedExamTopicIds.has(t.id)}
-                onChange={() => toggleExamTopic(t.id)}
-              />
-              Lớp {t.grade} · {t.name}
-            </label>
-          ))}
+        <div className="field-grid">
+          <div className="field field-span2">
+            <label>Tên đề thi</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          </div>
+          <div className="field field-span2">
+            <label>Mô tả (không bắt buộc)</label>
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Thời gian làm bài (phút, để trống = không giới hạn)</label>
+            <input
+              type="number"
+              min={1}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
+            <select value={grade} onChange={(e) => setGrade(e.target.value)}>
+              <option value="">— Chọn khối —</option>
+              <option value="10">Lớp 10</option>
+              <option value="11">Lớp 11</option>
+              <option value="12">Lớp 12</option>
+            </select>
+          </div>
         </div>
-      </div>
-      <div className="form-row">
-        <label>Link Google Drive chứa file đề gốc (không bắt buộc — để học sinh tải về)</label>
-        <input
-          type="url"
-          value={driveLink}
-          onChange={(e) => setDriveLink(e.target.value)}
-          placeholder="https://drive.google.com/..."
-        />
       </div>
 
-      <p className={missingAnswerCount > 0 ? "form-error" : "empty-hint"}>
-        {missingAnswerCount > 0
-          ? `Còn ${missingAnswerCount} câu chưa có đáp án đúng — cần chọn trước khi xuất bản.`
-          : "Tất cả câu hỏi đã có đáp án."}
-      </p>
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Lịch thi & chế độ tính điểm</h3>
+        </div>
+        <div className="field-grid">
+          <div className="field">
+            <label>Chế độ phòng thi</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value as "thoai_mai" | "nghiem_tuc")}>
+              <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
+              <option value="nghiem_tuc">
+                Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá {AUTO_CANCEL_THRESHOLD} lần
+              </option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Chế độ tính điểm</label>
+            <select
+              value={scoringMode}
+              onChange={(e) => {
+                const next = e.target.value as "chuan_thpt" | "tuy_chinh";
+                setScoringMode(next);
+                if (next === "tuy_chinh" && !customScoringMethod) setCustomScoringMethod("tu_dong");
+              }}
+            >
+              <option value="chuan_thpt">Chuẩn THPT — barem chính thức (Phần 1/2/3)</option>
+              <option value="tuy_chinh">Tuỳ chỉnh — cho đề không theo cấu trúc chuẩn (kiểm tra 15 phút...)</option>
+            </select>
+          </div>
+          <div className="field field-span2">
+            <label>
+              <input
+                type="checkbox"
+                checked={assignEnabled}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setAssignEnabled(checked);
+                  // Mặc định chuyển sang nghiêm túc khi bật giao đề theo lịch —
+                  // giáo viên vẫn có thể đổi lại ở ô chọn phía trên nếu muốn.
+                  if (checked && mode === "thoai_mai") setMode("nghiem_tuc");
+                }}
+                style={{ marginRight: 8 }}
+              />
+              Giao đề theo lịch (mở khoá/khoá đúng giờ) — hiện nổi bật ở trang chủ học sinh
+            </label>
+          </div>
+          {assignEnabled && (
+            <>
+              <div className="field">
+                <label>Mở khoá lúc</label>
+                <input type="datetime-local" value={unlockAt} onChange={(e) => setUnlockAt(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Khoá lúc (không bắt buộc — để trống = không tự khoá)</label>
+                <input type="datetime-local" value={lockAt} onChange={(e) => setLockAt(e.target.value)} />
+              </div>
+            </>
+          )}
+          {scoringMode === "tuy_chinh" && (
+            <div className="field field-span2">
+              <label style={{ fontWeight: 400 }}>
+                <input
+                  type="radio"
+                  name="customScoringMethod"
+                  checked={customScoringMethod === "tu_dong"}
+                  onChange={() => setCustomScoringMethod("tu_dong")}
+                  style={{ marginRight: 6 }}
+                />
+                Tự động chia đều 10 điểm theo số câu
+              </label>
+              {customScoringMethod === "tu_dong" && (
+                <p className="empty-hint" style={{ marginLeft: 22 }}>
+                  {part1.length + part2.length + part3.length > 0
+                    ? `Mỗi câu tự động được ${(
+                        Math.round((10 / (part1.length + part2.length + part3.length)) * 100) / 100
+                      ).toFixed(2)} điểm (10đ / ${part1.length + part2.length + part3.length} câu).`
+                    : "Chưa có câu hỏi nào."}
+                </p>
+              )}
+              <label style={{ display: "block", marginTop: 8, fontWeight: 400 }}>
+                <input
+                  type="radio"
+                  name="customScoringMethod"
+                  checked={customScoringMethod === "thu_cong"}
+                  onChange={() => setCustomScoringMethod("thu_cong")}
+                  style={{ marginRight: 6 }}
+                />
+                Thủ công — tự nhập điểm từng câu bên dưới (Phần 2 nhập riêng từng ý)
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Chương & phân loại</h3>
+          <div className="section-card-head-sub">AI đã gợi ý sẵn theo nội dung từng câu — xem lại trước khi xuất bản</div>
+        </div>
+        <div className="field-grid">
+          <div className="field">
+            <label>Chương trình / kỳ thi (không bắt buộc)</label>
+            <TagPicker
+              kind="term"
+              label="Chương trình"
+              tags={terms}
+              value={termId}
+              onChange={setTermId}
+              onCreated={(t) => setTerms((prev) => [...prev, t])}
+              createdBy={profile?.id ?? ""}
+              placeholder="— Chọn chương trình —"
+            />
+          </div>
+          <div className="field">
+            <label>Thư mục / tuyển tập (không bắt buộc)</label>
+            <TagPicker
+              kind="folder"
+              label="Thư mục"
+              tags={folders}
+              value={folderId}
+              onChange={setFolderId}
+              onCreated={(t) => setFolders((prev) => [...prev, t])}
+              createdBy={profile?.id ?? ""}
+              placeholder="— Chọn thư mục —"
+            />
+          </div>
+          <div className="field field-span2">
+            <label>Chương mà đề này bao phủ (đã tự chọn sẵn theo gợi ý AI — xem lại/đổi nếu cần)</label>
+            <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
+              {topics.map((t) => (
+                <label key={t.id} className="pickable-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedExamTopicIds.has(t.id)}
+                    onChange={() => toggleExamTopic(t.id)}
+                  />
+                  Lớp {t.grade} · {t.name}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="field field-span2">
+            <label>Link Google Drive chứa file đề gốc (không bắt buộc)</label>
+            <input
+              type="url"
+              value={driveLink}
+              onChange={(e) => setDriveLink(e.target.value)}
+              placeholder="https://drive.google.com/..."
+            />
+          </div>
+        </div>
+      </div>
 
       {part1.length > 0 && (
         <section>
           <h3 className="part-title">Phần 1 — Trắc nghiệm 4 phương án ({part1.length} câu)</h3>
-          {part1.map((q, idx) => (
-            <div key={q.id} className="question-form">
-              <div className="form-row">
-                <label>Câu {idx + 1} (LaTeX)</label>
-                <textarea
-                  rows={2}
-                  value={q.content_latex}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, content_latex: v } : x)));
-                  }}
-                />
-                <div className="latex-preview">
-                  <MathText text={q.content_latex} />
+          <div className="q-list">
+            {part1.map((q, idx) => {
+              const key = questionKey(1, q.id);
+              const missing = !q.correct_choice;
+              if (expandedKey !== key) {
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    id={key}
+                    className="q-row"
+                    onClick={() => setExpandedKey(key)}
+                  >
+                    <span className="q-row-num">{idx + 1}</span>
+                    <span className="q-row-preview">{previewText(q.content_latex)}</span>
+                    {q.ai_suggested_topic_id && <span className="ai-tag">✨ AI gợi ý</span>}
+                    <span className={`q-row-status ${missing ? "q-row-status--missing" : "q-row-status--ok"}`}>
+                      {missing ? "Chưa có đáp án" : "Đã có đáp án"}
+                    </span>
+                    <span className="q-row-chevron">▾</span>
+                  </button>
+                );
+              }
+              return (
+                <div key={q.id} id={key} className="hover-card q-editor">
+                  <div className="q-editor-head">
+                    <div className="q-editor-head-left">
+                      <span className="q-row-num">{idx + 1}</span>
+                      <strong>Câu {idx + 1}</strong>
+                      {q.ai_suggested_topic_id && <span className="ai-tag">✨ AI gợi ý chương</span>}
+                    </div>
+                    <button type="button" className="btn-link" onClick={() => setExpandedKey(null)}>
+                      Thu gọn ▲
+                    </button>
+                  </div>
+                  <div className="form-row">
+                    <label>Nội dung câu hỏi (LaTeX)</label>
+                    <textarea
+                      rows={2}
+                      value={q.content_latex}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, content_latex: v } : x)));
+                      }}
+                    />
+                    <div className="q-editor-preview">
+                      <MathText text={q.content_latex} />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <label>Hình minh hoạ (không bắt buộc)</label>
+                    <ImageUploadField
+                      value={q.image_url}
+                      onChange={(url) =>
+                        setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
+                      }
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+                    <textarea
+                      rows={2}
+                      value={q.solution_latex ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPart1((prev) =>
+                          prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
+                        );
+                      }}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>Chương</label>
+                    <select
+                      value={q.topic_id ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
+                      }}
+                    >
+                      <option value="">— Chưa chọn —</option>
+                      {topics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="opt-grid">
+                    {(["A", "B", "C", "D"] as const).map((c) => (
+                      <div key={c} className={`opt-row ${q.correct_choice === c ? "opt-row--correct" : ""}`}>
+                        <input
+                          type="radio"
+                          checked={q.correct_choice === c}
+                          onChange={() =>
+                            setPart1((prev) =>
+                              prev.map((x) => (x.id === q.id ? { ...x, correct_choice: c } : x)),
+                            )
+                          }
+                        />
+                        <span className="opt-letter">{c}</span>
+                        <input
+                          type="text"
+                          value={q.choices[c]}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setPart1((prev) =>
+                              prev.map((x) =>
+                                x.id === q.id ? { ...x, choices: { ...x.choices, [c]: v } } : x,
+                              ),
+                            );
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && (
+                    <div className="form-row">
+                      <label>Điểm câu này</label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min={0}
+                        placeholder="Điểm"
+                        value={customPoints[q.id] ?? ""}
+                        onChange={(e) =>
+                          setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
+                        }
+                        style={{ maxWidth: 90 }}
+                      />
+                    </div>
+                  )}
+                  <div className="q-editor-foot">
+                    <button
+                      type="button"
+                      className="btn-link btn-danger"
+                      onClick={() => setPart1((prev) => prev.filter((x) => x.id !== q.id))}
+                    >
+                      Xoá câu này
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="form-row">
-                <label>Hình minh hoạ (không bắt buộc)</label>
-                <ImageUploadField
-                  value={q.image_url}
-                  onChange={(url) =>
-                    setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
-                  }
-                />
-              </div>
-              <div className="form-row">
-                <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-                <textarea
-                  rows={2}
-                  value={q.solution_latex ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart1((prev) =>
-                      prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
-                    );
-                  }}
-                />
-              </div>
-              <div className="form-row">
-                <label>
-                  Chương{q.ai_suggested_topic_id ? " (AI gợi ý — xem lại/đổi nếu cần)" : ""}
-                </label>
-                <select
-                  value={q.topic_id ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value || null;
-                    setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
-                  }}
-                >
-                  <option value="">— Chưa chọn —</option>
-                  {topics.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {(["A", "B", "C", "D"] as const).map((c) => (
-                <div key={c} className="option-row">
-                  <input
-                    type="radio"
-                    checked={q.correct_choice === c}
-                    onChange={() =>
-                      setPart1((prev) =>
-                        prev.map((x) => (x.id === q.id ? { ...x, correct_choice: c } : x)),
-                      )
-                    }
-                  />
-                  <span>{c}</span>
-                  <input
-                    type="text"
-                    value={q.choices[c]}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setPart1((prev) =>
-                        prev.map((x) =>
-                          x.id === q.id ? { ...x, choices: { ...x.choices, [c]: v } } : x,
-                        ),
-                      );
-                    }}
-                  />
-                </div>
-              ))}
-              {scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && (
-                <div className="form-row">
-                  <label>Điểm câu này</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min={0}
-                    placeholder="Điểm"
-                    value={customPoints[q.id] ?? ""}
-                    onChange={(e) =>
-                      setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
-                    }
-                    style={{ maxWidth: 90 }}
-                  />
-                </div>
-              )}
-              <button
-                type="button"
-                className="btn-link btn-danger"
-                onClick={() => setPart1((prev) => prev.filter((x) => x.id !== q.id))}
-              >
-                Xoá câu này
-              </button>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </section>
       )}
 
       {part2.length > 0 && (
         <section>
           <h3 className="part-title">Phần 2 — Đúng/Sai ({part2.length} câu)</h3>
-          {part2.map((q, idx) => (
-            <div key={q.id} className="question-form">
-              <div className="form-row">
-                <label>Câu {idx + 1} (LaTeX)</label>
-                <textarea
-                  rows={2}
-                  value={q.content_latex}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, content_latex: v } : x)));
-                  }}
-                />
-                <div className="latex-preview">
-                  <MathText text={q.content_latex} />
-                </div>
-              </div>
-              <div className="form-row">
-                <label>Hình minh hoạ (không bắt buộc)</label>
-                <ImageUploadField
-                  value={q.image_url}
-                  onChange={(url) =>
-                    setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
-                  }
-                />
-              </div>
-              <div className="form-row">
-                <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-                <textarea
-                  rows={2}
-                  value={q.solution_latex ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart2((prev) =>
-                      prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
-                    );
-                  }}
-                />
-              </div>
-              <div className="form-row">
-                <label>
-                  Chương{q.ai_suggested_topic_id ? " (AI gợi ý — xem lại/đổi nếu cần)" : ""}
-                </label>
-                <select
-                  value={q.topic_id ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value || null;
-                    setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
-                  }}
-                >
-                  <option value="">— Chưa chọn —</option>
-                  {topics.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {(["a", "b", "c", "d"] as const).map((k) => (
-                <div key={k} className="option-row">
-                  <input
-                    type="text"
-                    value={q.items[k]}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setPart2((prev) =>
-                        prev.map((x) => (x.id === q.id ? { ...x, items: { ...x.items, [k]: v } } : x)),
-                      );
-                    }}
-                  />
-                  <label className="inline-choice">
-                    <input
-                      type="radio"
-                      name={`p2-${q.id}-${k}`}
-                      checked={q.correct?.[k] === true}
-                      onChange={() =>
-                        setPart2((prev) =>
-                          prev.map((x) =>
-                            x.id === q.id
-                              ? { ...x, correct: { a: false, b: false, c: false, d: false, ...x.correct, [k]: true } }
-                              : x,
-                          ),
-                        )
+          <div className="q-list">
+            {part2.map((q, idx) => {
+              const key = questionKey(2, q.id);
+              const missing = !q.correct;
+              if (expandedKey !== key) {
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    id={key}
+                    className="q-row"
+                    onClick={() => setExpandedKey(key)}
+                  >
+                    <span className="q-row-num">{idx + 1}</span>
+                    <span className="q-row-preview">{previewText(q.content_latex)}</span>
+                    {q.ai_suggested_topic_id && <span className="ai-tag">✨ AI gợi ý</span>}
+                    <span className={`q-row-status ${missing ? "q-row-status--missing" : "q-row-status--ok"}`}>
+                      {missing ? "Chưa có đáp án" : "Đã có đáp án"}
+                    </span>
+                    <span className="q-row-chevron">▾</span>
+                  </button>
+                );
+              }
+              return (
+                <div key={q.id} id={key} className="hover-card q-editor">
+                  <div className="q-editor-head">
+                    <div className="q-editor-head-left">
+                      <span className="q-row-num">{idx + 1}</span>
+                      <strong>Câu {idx + 1}</strong>
+                      {q.ai_suggested_topic_id && <span className="ai-tag">✨ AI gợi ý chương</span>}
+                    </div>
+                    <button type="button" className="btn-link" onClick={() => setExpandedKey(null)}>
+                      Thu gọn ▲
+                    </button>
+                  </div>
+                  <div className="form-row">
+                    <label>Nội dung câu hỏi (LaTeX)</label>
+                    <textarea
+                      rows={2}
+                      value={q.content_latex}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, content_latex: v } : x)));
+                      }}
+                    />
+                    <div className="q-editor-preview">
+                      <MathText text={q.content_latex} />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <label>Hình minh hoạ (không bắt buộc)</label>
+                    <ImageUploadField
+                      value={q.image_url}
+                      onChange={(url) =>
+                        setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
                       }
                     />
-                    Đúng
-                  </label>
-                  <label className="inline-choice">
-                    <input
-                      type="radio"
-                      name={`p2-${q.id}-${k}`}
-                      checked={q.correct?.[k] === false}
-                      onChange={() =>
+                  </div>
+                  <div className="form-row">
+                    <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+                    <textarea
+                      rows={2}
+                      value={q.solution_latex ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setPart2((prev) =>
-                          prev.map((x) =>
-                            x.id === q.id
-                              ? { ...x, correct: { a: false, b: false, c: false, d: false, ...x.correct, [k]: false } }
-                              : x,
-                          ),
-                        )
-                      }
+                          prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
+                        );
+                      }}
                     />
-                    Sai
-                  </label>
-                </div>
-              ))}
-              {scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && (
-                <div className="form-row">
-                  <label>Điểm riêng từng ý a/b/c/d</label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  </div>
+                  <div className="form-row">
+                    <label>Chương</label>
+                    <select
+                      value={q.topic_id ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
+                      }}
+                    >
+                      <option value="">— Chưa chọn —</option>
+                      {topics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="opt-grid">
                     {(["a", "b", "c", "d"] as const).map((k) => (
-                      <input
-                        key={k}
-                        type="number"
-                        step="0.05"
-                        min={0}
-                        placeholder={k}
-                        value={customPart2Points[q.id]?.[k] ?? ""}
-                        onChange={(e) =>
-                          setCustomPart2Points((prev) => ({
-                            ...prev,
-                            [q.id]: {
-                              a: prev[q.id]?.a ?? "",
-                              b: prev[q.id]?.b ?? "",
-                              c: prev[q.id]?.c ?? "",
-                              d: prev[q.id]?.d ?? "",
-                              [k]: e.target.value,
-                            },
-                          }))
-                        }
-                        style={{ maxWidth: 60 }}
-                      />
+                      <div key={k} className="opt-row">
+                        <input
+                          type="text"
+                          value={q.items[k]}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setPart2((prev) =>
+                              prev.map((x) => (x.id === q.id ? { ...x, items: { ...x.items, [k]: v } } : x)),
+                            );
+                          }}
+                        />
+                        <label className="inline-choice">
+                          <input
+                            type="radio"
+                            name={`p2-${q.id}-${k}`}
+                            checked={q.correct?.[k] === true}
+                            onChange={() =>
+                              setPart2((prev) =>
+                                prev.map((x) =>
+                                  x.id === q.id
+                                    ? { ...x, correct: { a: false, b: false, c: false, d: false, ...x.correct, [k]: true } }
+                                    : x,
+                                ),
+                              )
+                            }
+                          />
+                          Đúng
+                        </label>
+                        <label className="inline-choice">
+                          <input
+                            type="radio"
+                            name={`p2-${q.id}-${k}`}
+                            checked={q.correct?.[k] === false}
+                            onChange={() =>
+                              setPart2((prev) =>
+                                prev.map((x) =>
+                                  x.id === q.id
+                                    ? { ...x, correct: { a: false, b: false, c: false, d: false, ...x.correct, [k]: false } }
+                                    : x,
+                                ),
+                              )
+                            }
+                          />
+                          Sai
+                        </label>
+                      </div>
                     ))}
                   </div>
+                  {scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && (
+                    <div className="form-row">
+                      <label>Điểm riêng từng ý a/b/c/d</label>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {(["a", "b", "c", "d"] as const).map((k) => (
+                          <input
+                            key={k}
+                            type="number"
+                            step="0.05"
+                            min={0}
+                            placeholder={k}
+                            value={customPart2Points[q.id]?.[k] ?? ""}
+                            onChange={(e) =>
+                              setCustomPart2Points((prev) => ({
+                                ...prev,
+                                [q.id]: {
+                                  a: prev[q.id]?.a ?? "",
+                                  b: prev[q.id]?.b ?? "",
+                                  c: prev[q.id]?.c ?? "",
+                                  d: prev[q.id]?.d ?? "",
+                                  [k]: e.target.value,
+                                },
+                              }))
+                            }
+                            style={{ maxWidth: 60 }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="q-editor-foot">
+                    <button
+                      type="button"
+                      className="btn-link btn-danger"
+                      onClick={() => setPart2((prev) => prev.filter((x) => x.id !== q.id))}
+                    >
+                      Xoá câu này
+                    </button>
+                  </div>
                 </div>
-              )}
-              <button
-                type="button"
-                className="btn-link btn-danger"
-                onClick={() => setPart2((prev) => prev.filter((x) => x.id !== q.id))}
-              >
-                Xoá câu này
-              </button>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </section>
       )}
 
       {part3.length > 0 && (
         <section>
           <h3 className="part-title">Phần 3 — Trả lời ngắn ({part3.length} câu)</h3>
-          {part3.map((q, idx) => (
-            <div key={q.id} className="question-form">
-              <div className="form-row">
-                <label>Câu {idx + 1} (LaTeX)</label>
-                <textarea
-                  rows={2}
-                  value={q.content_latex}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, content_latex: v } : x)));
-                  }}
-                />
-                <div className="latex-preview">
-                  <MathText text={q.content_latex} />
+          <div className="q-list">
+            {part3.map((q, idx) => {
+              const key = questionKey(3, q.id);
+              const missing = !q.correct_value;
+              if (expandedKey !== key) {
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    id={key}
+                    className="q-row"
+                    onClick={() => setExpandedKey(key)}
+                  >
+                    <span className="q-row-num">{idx + 1}</span>
+                    <span className="q-row-preview">{previewText(q.content_latex)}</span>
+                    {q.ai_suggested_topic_id && <span className="ai-tag">✨ AI gợi ý</span>}
+                    <span className={`q-row-status ${missing ? "q-row-status--missing" : "q-row-status--ok"}`}>
+                      {missing ? "Chưa có đáp án" : "Đã có đáp án"}
+                    </span>
+                    <span className="q-row-chevron">▾</span>
+                  </button>
+                );
+              }
+              return (
+                <div key={q.id} id={key} className="hover-card q-editor">
+                  <div className="q-editor-head">
+                    <div className="q-editor-head-left">
+                      <span className="q-row-num">{idx + 1}</span>
+                      <strong>Câu {idx + 1}</strong>
+                      {q.ai_suggested_topic_id && <span className="ai-tag">✨ AI gợi ý chương</span>}
+                    </div>
+                    <button type="button" className="btn-link" onClick={() => setExpandedKey(null)}>
+                      Thu gọn ▲
+                    </button>
+                  </div>
+                  <div className="form-row">
+                    <label>Nội dung câu hỏi (LaTeX)</label>
+                    <textarea
+                      rows={2}
+                      value={q.content_latex}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, content_latex: v } : x)));
+                      }}
+                    />
+                    <div className="q-editor-preview">
+                      <MathText text={q.content_latex} />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <label>Hình minh hoạ (không bắt buộc)</label>
+                    <ImageUploadField
+                      value={q.image_url}
+                      onChange={(url) =>
+                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
+                      }
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
+                    <textarea
+                      rows={2}
+                      value={q.solution_latex ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPart3((prev) =>
+                          prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
+                        );
+                      }}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>Chương</label>
+                    <select
+                      value={q.topic_id ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
+                      }}
+                    >
+                      <option value="">— Chưa chọn —</option>
+                      {topics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="opt-row">
+                    <input
+                      type="text"
+                      placeholder="Đáp án đúng"
+                      value={q.correct_value ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, correct_value: v } : x)));
+                      }}
+                    />
+                    <input
+                      type="number"
+                      step="0.05"
+                      style={{ width: 90 }}
+                      value={q.points}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, points: v } : x)));
+                      }}
+                    />
+                    <span>điểm</span>
+                  </div>
+                  <div className="q-editor-foot">
+                    <button
+                      type="button"
+                      className="btn-link btn-danger"
+                      onClick={() => setPart3((prev) => prev.filter((x) => x.id !== q.id))}
+                    >
+                      Xoá câu này
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="form-row">
-                <label>Hình minh hoạ (không bắt buộc)</label>
-                <ImageUploadField
-                  value={q.image_url}
-                  onChange={(url) =>
-                    setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, image_url: url } : x)))
-                  }
-                />
-              </div>
-              <div className="form-row">
-                <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-                <textarea
-                  rows={2}
-                  value={q.solution_latex ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart3((prev) =>
-                      prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
-                    );
-                  }}
-                />
-              </div>
-              <div className="form-row">
-                <label>
-                  Chương{q.ai_suggested_topic_id ? " (AI gợi ý — xem lại/đổi nếu cần)" : ""}
-                </label>
-                <select
-                  value={q.topic_id ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value || null;
-                    setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
-                  }}
-                >
-                  <option value="">— Chưa chọn —</option>
-                  {topics.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="option-row">
-                <input
-                  type="text"
-                  placeholder="Đáp án đúng"
-                  value={q.correct_value ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, correct_value: v } : x)));
-                  }}
-                />
-                <input
-                  type="number"
-                  step="0.05"
-                  style={{ width: 90 }}
-                  value={q.points}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, points: v } : x)));
-                  }}
-                />
-                <span>điểm</span>
-              </div>
-              <button
-                type="button"
-                className="btn-link btn-danger"
-                onClick={() => setPart3((prev) => prev.filter((x) => x.id !== q.id))}
-              >
-                Xoá câu này
-              </button>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </section>
       )}
 
-      <div className="page-header-row" style={{ marginTop: 20 }}>
-        <button className="btn-secondary" onClick={() => setStage("upload")}>
-          ← Tải file khác
-        </button>
-        <button className="btn-primary" onClick={handlePublish} disabled={publishing}>
-          {publishing ? "Đang xuất bản..." : "Xuất bản đề thi"}
-        </button>
+      <div className="hover-card sticky-footer">
+        <div className="sticky-footer-info">
+          {part1.length + part2.length + part3.length} câu ·{" "}
+          {missingAnswerCount > 0
+            ? `còn ${missingAnswerCount} câu chưa có đáp án`
+            : "đã xác nhận đủ đáp án"}
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn-secondary" onClick={() => setStage("upload")}>
+            ← Tải file khác
+          </button>
+          <button className="btn-primary" onClick={handlePublish} disabled={publishing}>
+            {publishing ? "Đang xuất bản..." : "Xuất bản đề thi"}
+          </button>
+        </div>
       </div>
     </div>
   );

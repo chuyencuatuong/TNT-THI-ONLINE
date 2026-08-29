@@ -49,6 +49,12 @@ export function TeacherExamEditor() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [allQuestions, setAllQuestions] = useState<QuestionRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Làm mới giao diện (Nhóm 5, "quản lý lớp học", 28/08/2026 — demo đã duyệt):
+  // thêm tìm kiếm + lọc theo chương cho ngân hàng câu hỏi — trước đây phải
+  // cuộn qua toàn bộ danh sách mới tìm được câu cần. Không đổi logic chọn
+  // câu (selected vẫn giữ nguyên id kể cả khi câu đang bị lọc khỏi tầm nhìn).
+  const [qSearch, setQSearch] = useState("");
+  const [qTopicFilter, setQTopicFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [currentExamId, setCurrentExamId] = useState<string | null>(
@@ -232,7 +238,13 @@ export function TeacherExamEditor() {
 
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
-  const questionsByPart = (part: 1 | 2 | 3) => allQuestions.filter((q) => q.part === part);
+  const questionsByPart = (part: 1 | 2 | 3) =>
+    allQuestions
+      .filter((q) => q.part === part)
+      .filter((q) => !qTopicFilter || q.topic_id === qTopicFilter)
+      .filter(
+        (q) => !qSearch.trim() || q.content_latex.toLowerCase().includes(qSearch.trim().toLowerCase()),
+      );
   const summary = { 1: 0, 2: 0, 3: 0 };
   for (const id of selected) {
     const q = allQuestions.find((x) => x.id === id);
@@ -243,197 +255,225 @@ export function TeacherExamEditor() {
     <div className="teacher-page">
       <h2>{isNew ? "Tạo đề thi mới" : "Chỉnh sửa đề thi"}</h2>
 
-      <div className="form-row">
-        <label>Tên đề thi</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Thông tin đề thi</h3>
+        </div>
+        <div className="field-grid">
+          <div className="field field-span2">
+            <label>Tên đề thi</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          </div>
+          <div className="field field-span2">
+            <label>Mô tả (không bắt buộc)</label>
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Thời gian làm bài (phút, để trống = không giới hạn)</label>
+            <input
+              type="number"
+              min={1}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+              placeholder="vd: 90"
+            />
+          </div>
+          <div className="field">
+            <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
+            <select value={grade} onChange={(e) => setGrade(e.target.value)}>
+              <option value="">— Chọn khối —</option>
+              <option value="10">Lớp 10</option>
+              <option value="11">Lớp 11</option>
+              <option value="12">Lớp 12</option>
+            </select>
+          </div>
+        </div>
       </div>
-      <div className="form-row">
-        <label>Mô tả (không bắt buộc)</label>
-        <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
-      </div>
-      <div className="form-row">
-        <label>Thời gian làm bài (phút, để trống = không giới hạn)</label>
-        <input
-          type="number"
-          min={1}
-          style={{ maxWidth: 140 }}
-          value={durationMinutes}
-          onChange={(e) => setDurationMinutes(e.target.value)}
-          placeholder="vd: 90"
-        />
-      </div>
-      <div className="form-row">
-        <label>Khối (không bắt buộc — dùng để lọc ở Kho đề)</label>
-        <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ maxWidth: 140 }}>
-          <option value="">— Chọn khối —</option>
-          <option value="10">Lớp 10</option>
-          <option value="11">Lớp 11</option>
-          <option value="12">Lớp 12</option>
-        </select>
-      </div>
-      <div className="form-row">
-        <label>Chương trình / kỳ thi (không bắt buộc — VD: Giữa kỳ 1, Luyện đề tổng ôn...)</label>
-        <TagPicker
-          kind="term"
-          label="Chương trình"
-          tags={terms}
-          value={termId}
-          onChange={setTermId}
-          onCreated={(t) => setTerms((prev) => [...prev, t])}
-          createdBy={profile?.id ?? ""}
-          placeholder="— Chọn chương trình —"
-        />
-      </div>
-      <div className="form-row">
-        <label>Thư mục / tuyển tập (không bắt buộc — để trống = "Chưa phân loại")</label>
-        <TagPicker
-          kind="folder"
-          label="Thư mục"
-          tags={folders}
-          value={folderId}
-          onChange={setFolderId}
-          onCreated={(t) => setFolders((prev) => [...prev, t])}
-          createdBy={profile?.id ?? ""}
-          placeholder="— Chọn thư mục —"
-        />
-      </div>
-      <div className="form-row">
-        <label>Chương mà đề này bao phủ (không bắt buộc — có thể chọn nhiều, dùng để lọc ở Kho đề)</label>
-        <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
-          {topics.length === 0 && <p className="empty-hint">Chưa có chương nào trong khung kiến thức.</p>}
-          {topics.map((t) => (
-            <label key={t.id} className="pickable-item">
+
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Lịch thi & chế độ tính điểm</h3>
+        </div>
+        <div className="field-grid">
+          <div className="field">
+            <label>Chế độ phòng thi</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value as "thoai_mai" | "nghiem_tuc")}>
+              <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
+              <option value="nghiem_tuc">
+                Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá {AUTO_CANCEL_THRESHOLD} lần
+              </option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Chế độ tính điểm</label>
+            <select
+              value={scoringMode}
+              onChange={(e) => {
+                const next = e.target.value as "chuan_thpt" | "tuy_chinh";
+                setScoringMode(next);
+                if (next === "tuy_chinh" && !customScoringMethod) setCustomScoringMethod("tu_dong");
+              }}
+            >
+              <option value="chuan_thpt">Chuẩn THPT — barem chính thức (Phần 1/2/3)</option>
+              <option value="tuy_chinh">Tuỳ chỉnh — cho đề không theo cấu trúc chuẩn (kiểm tra 15 phút...)</option>
+            </select>
+          </div>
+          <div className="field field-span2">
+            <label>
               <input
                 type="checkbox"
-                checked={selectedTopicIds.has(t.id)}
-                onChange={() => toggleTopic(t.id)}
+                checked={assignEnabled}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setAssignEnabled(checked);
+                  // Mặc định chuyển sang nghiêm túc khi bật giao đề theo lịch —
+                  // giáo viên vẫn có thể đổi lại ở ô chọn phía trên nếu muốn.
+                  if (checked && mode === "thoai_mai") setMode("nghiem_tuc");
+                }}
+                style={{ marginRight: 8 }}
               />
-              Lớp {t.grade} · {t.name}
+              Giao đề theo lịch (mở khoá/khoá đúng giờ) — hiện nổi bật ở trang chủ học sinh
             </label>
-          ))}
-        </div>
-      </div>
-      <div className="form-row">
-        <label>Link Google Drive chứa file đề gốc (không bắt buộc — để học sinh tải về)</label>
-        <input
-          type="url"
-          value={driveLink}
-          onChange={(e) => setDriveLink(e.target.value)}
-          placeholder="https://drive.google.com/..."
-        />
-      </div>
-
-      <div className="form-row">
-        <label>Chế độ phòng thi</label>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value as "thoai_mai" | "nghiem_tuc")}
-          style={{ maxWidth: 280 }}
-        >
-          <option value="thoai_mai">Thoải mái — luyện tập bình thường</option>
-          <option value="nghiem_tuc">
-            Nghiêm túc — bắt buộc toàn màn hình, tự huỷ nếu rời trang quá {AUTO_CANCEL_THRESHOLD} lần
-          </option>
-        </select>
-      </div>
-
-      <div className="form-row">
-        <label>Chế độ tính điểm</label>
-        <select
-          value={scoringMode}
-          onChange={(e) => {
-            const next = e.target.value as "chuan_thpt" | "tuy_chinh";
-            setScoringMode(next);
-            if (next === "tuy_chinh" && !customScoringMethod) setCustomScoringMethod("tu_dong");
-          }}
-          style={{ maxWidth: 320 }}
-        >
-          <option value="chuan_thpt">Chuẩn THPT — barem chính thức (Phần 1/2/3)</option>
-          <option value="tuy_chinh">
-            Tuỳ chỉnh — cho đề không theo cấu trúc chuẩn (kiểm tra 15 phút...)
-          </option>
-        </select>
-      </div>
-      {scoringMode === "tuy_chinh" && (
-        <div className="form-row">
-          <label>
-            <input
-              type="radio"
-              name="customScoringMethod"
-              checked={customScoringMethod === "tu_dong"}
-              onChange={() => setCustomScoringMethod("tu_dong")}
-              style={{ marginRight: 6 }}
-            />
-            Tự động chia đều 10 điểm theo số câu
-          </label>
-          {customScoringMethod === "tu_dong" && (
-            <p className="empty-hint">
-              {selected.size > 0
-                ? `Mỗi câu tự động được ${(Math.round((10 / selected.size) * 100) / 100).toFixed(2)} điểm (10đ / ${selected.size} câu).`
-                : "Chọn câu hỏi bên dưới để xem điểm mỗi câu."}
-            </p>
+          </div>
+          {assignEnabled && (
+            <>
+              <div className="field">
+                <label>Mở khoá lúc</label>
+                <input type="datetime-local" value={unlockAt} onChange={(e) => setUnlockAt(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Khoá lúc (không bắt buộc — để trống = không tự khoá)</label>
+                <input type="datetime-local" value={lockAt} onChange={(e) => setLockAt(e.target.value)} />
+              </div>
+            </>
           )}
-          <label style={{ display: "block", marginTop: 8 }}>
-            <input
-              type="radio"
-              name="customScoringMethod"
-              checked={customScoringMethod === "thu_cong"}
-              onChange={() => setCustomScoringMethod("thu_cong")}
-              style={{ marginRight: 6 }}
-            />
-            Thủ công — tự nhập điểm từng câu (Phần 2 nhập riêng từng ý)
-          </label>
+          {scoringMode === "tuy_chinh" && (
+            <div className="field field-span2">
+              <label style={{ fontWeight: 400 }}>
+                <input
+                  type="radio"
+                  name="customScoringMethod"
+                  checked={customScoringMethod === "tu_dong"}
+                  onChange={() => setCustomScoringMethod("tu_dong")}
+                  style={{ marginRight: 6 }}
+                />
+                Tự động chia đều 10 điểm theo số câu
+              </label>
+              {customScoringMethod === "tu_dong" && (
+                <p className="empty-hint" style={{ marginLeft: 22 }}>
+                  {selected.size > 0
+                    ? `Mỗi câu tự động được ${(Math.round((10 / selected.size) * 100) / 100).toFixed(2)} điểm (10đ / ${selected.size} câu).`
+                    : "Chọn câu hỏi bên dưới để xem điểm mỗi câu."}
+                </p>
+              )}
+              <label style={{ display: "block", marginTop: 8, fontWeight: 400 }}>
+                <input
+                  type="radio"
+                  name="customScoringMethod"
+                  checked={customScoringMethod === "thu_cong"}
+                  onChange={() => setCustomScoringMethod("thu_cong")}
+                  style={{ marginRight: 6 }}
+                />
+                Thủ công — tự nhập điểm từng câu (Phần 2 nhập riêng từng ý)
+              </label>
+            </div>
+          )}
         </div>
-      )}
-
-      <div className="form-row">
-        <label>
-          <input
-            type="checkbox"
-            checked={assignEnabled}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setAssignEnabled(checked);
-              // Mặc định chuyển sang nghiêm túc khi bật giao đề theo lịch —
-              // giáo viên vẫn có thể đổi lại ở ô chọn phía trên nếu muốn.
-              if (checked && mode === "thoai_mai") setMode("nghiem_tuc");
-            }}
-            style={{ marginRight: 8 }}
-          />
-          Giao đề theo lịch (mở khoá/khoá đúng giờ) — hiện nổi bật ở trang chủ học sinh
-        </label>
       </div>
-      {assignEnabled && (
-        <div className="form-row" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <label>Mở khoá lúc</label>
-            <input
-              type="datetime-local"
-              value={unlockAt}
-              onChange={(e) => setUnlockAt(e.target.value)}
+
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Chương & phân loại</h3>
+        </div>
+        <div className="field-grid">
+          <div className="field">
+            <label>Chương trình / kỳ thi (không bắt buộc)</label>
+            <TagPicker
+              kind="term"
+              label="Chương trình"
+              tags={terms}
+              value={termId}
+              onChange={setTermId}
+              onCreated={(t) => setTerms((prev) => [...prev, t])}
+              createdBy={profile?.id ?? ""}
+              placeholder="— Chọn chương trình —"
             />
           </div>
-          <div>
-            <label>Khoá lúc (không bắt buộc — để trống = không tự khoá)</label>
+          <div className="field">
+            <label>Thư mục / tuyển tập (không bắt buộc)</label>
+            <TagPicker
+              kind="folder"
+              label="Thư mục"
+              tags={folders}
+              value={folderId}
+              onChange={setFolderId}
+              onCreated={(t) => setFolders((prev) => [...prev, t])}
+              createdBy={profile?.id ?? ""}
+              placeholder="— Chọn thư mục —"
+            />
+          </div>
+          <div className="field field-span2">
+            <label>Chương mà đề này bao phủ (không bắt buộc — có thể chọn nhiều, dùng để lọc ở Kho đề)</label>
+            <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
+              {topics.length === 0 && <p className="empty-hint">Chưa có chương nào trong khung kiến thức.</p>}
+              {topics.map((t) => (
+                <label key={t.id} className="pickable-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedTopicIds.has(t.id)}
+                    onChange={() => toggleTopic(t.id)}
+                  />
+                  Lớp {t.grade} · {t.name}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="field field-span2">
+            <label>Link Google Drive chứa file đề gốc (không bắt buộc — để học sinh tải về)</label>
             <input
-              type="datetime-local"
-              value={lockAt}
-              onChange={(e) => setLockAt(e.target.value)}
+              type="url"
+              value={driveLink}
+              onChange={(e) => setDriveLink(e.target.value)}
+              placeholder="https://drive.google.com/..."
             />
           </div>
         </div>
-      )}
+      </div>
 
       <p className="exam-summary">
         Đã chọn: {summary[1]} câu Phần 1 · {summary[2]} câu Phần 2 · {summary[3]} câu Phần 3
       </p>
+
+      <div className="qbank-toolbar">
+        <input
+          type="text"
+          value={qSearch}
+          onChange={(e) => setQSearch(e.target.value)}
+          placeholder="Tìm câu hỏi theo nội dung..."
+        />
+        <select value={qTopicFilter} onChange={(e) => setQTopicFilter(e.target.value)}>
+          <option value="">Tất cả chương</option>
+          {topics.map((t) => (
+            <option key={t.id} value={t.id}>
+              Lớp {t.grade} · {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {(qSearch.trim() || qTopicFilter) && (
+        <p className="qbank-more-hint">
+          Đang lọc ngân hàng câu hỏi — câu đã chọn trước đó vẫn được giữ dù đang bị ẩn khỏi danh sách.
+        </p>
+      )}
 
       {([1, 2, 3] as const).map((part) => (
         <section key={part}>
           <h3 className="part-title">Phần {part}</h3>
           {questionsByPart(part).length === 0 && (
             <p className="empty-hint">
-              Chưa có câu hỏi Phần {part} trong ngân hàng. Vào "Ngân hàng câu hỏi" để thêm.
+              {qSearch.trim() || qTopicFilter
+                ? "Không có câu nào khớp với bộ lọc hiện tại."
+                : `Chưa có câu hỏi Phần ${part} trong ngân hàng. Vào "Ngân hàng câu hỏi" để thêm.`}
             </p>
           )}
           <div className="pickable-list">
@@ -497,9 +537,14 @@ export function TeacherExamEditor() {
         </section>
       ))}
 
-      <button className="btn-primary" onClick={handleSave} disabled={saving}>
-        {saving ? "Đang lưu..." : "Lưu đề thi"}
-      </button>
+      <div className="hover-card sticky-footer">
+        <div className="sticky-footer-info">
+          Đã chọn: {summary[1]} câu Phần 1 · {summary[2]} câu Phần 2 · {summary[3]} câu Phần 3
+        </div>
+        <button className="btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? "Đang lưu..." : "Lưu đề thi"}
+        </button>
+      </div>
     </div>
   );
 }

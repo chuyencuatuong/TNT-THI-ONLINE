@@ -23,14 +23,23 @@ import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
 import { QuestionReview } from "../components/QuestionReview";
 import { BLANK_REASON_LABELS, type BlankQuestionSummary } from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
+import { resolveTier, TIER_LABELS } from "../lib/studentTier";
 import {
   GENDER_LABELS,
   type AttemptScoreRow,
+  type ClassRow,
   type ExamAttemptRow,
   type ExamRow,
   type Profile,
   type ProctoringEventRow,
 } from "../lib/types";
+
+const TIER_BADGE_CLASS: Record<string, string> = {
+  gioi: "tier-badge--gioi",
+  kha: "tier-badge--kha",
+  tb: "tier-badge--tb",
+  yeu: "tier-badge--yeu",
+};
 
 const PROCTORING_EVENT_LABELS: Record<ProctoringEventRow["event_type"], string> = {
   tab_hidden: "Rời tab/cửa sổ làm bài",
@@ -75,6 +84,7 @@ function groupByExam(attempts: ScoredAttempt[]): ExamGroup[] {
 export function TeacherStudentDetail() {
   const { studentId } = useParams<{ studentId: string }>();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [classesById, setClassesById] = useState<Map<string, ClassRow>>(new Map());
   const [attempts, setAttempts] = useState<
     (ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null })[]
   >([]);
@@ -129,6 +139,10 @@ export function TeacherStudentDetail() {
       );
       const studentProfile = await api.getProfile(studentId);
       setProfile(studentProfile);
+      api
+        .listClasses()
+        .then((classes) => setClassesById(new Map(classes.map((c) => [c.id, c]))))
+        .catch((err) => console.error("Không lấy được danh sách lớp:", err));
       api
         .getProctoringCounts(scoredAttempts.map((a) => a.id))
         .then(setProctoringCounts)
@@ -250,15 +264,14 @@ export function TeacherStudentDetail() {
     .reverse()
     .map((a, i) => ({ name: `Lần ${i + 1}`, score: a.score!.total_score }));
 
-  // Dải thông tin hồ sơ đọc-only (24/08/2026, migration_011) — gồm cả
-  // student_class vốn đã tồn tại trong schema từ trước nhưng CHƯA TỪNG được
-  // hiển thị ở đâu trong toàn bộ ứng dụng (đã grep xác nhận lúc audit "check
-  // full"); tiện tay hiển thị luôn ở đây cùng các trường hồ sơ mới. Chỉ hiện
-  // từng dòng khi có dữ liệu — hồ sơ tạo trước migration này sẽ thiếu phần lớn,
-  // không có gì bắt buộc phải điền lại.
+  // Dải thông tin hồ sơ đọc-only (24/08/2026, migration_011) — "Lớp" giờ tra
+  // qua bảng classes (migration_013, 28/08/2026) thay vì cột student_class cũ
+  // (đã xoá, chưa từng có giao diện nhập nên không mất dữ liệu thật gì). Chỉ
+  // hiện từng dòng khi có dữ liệu.
+  const className = profile?.class_id ? classesById.get(profile.class_id)?.name : null;
   const profileFields = profile
     ? [
-        profile.student_class && { label: "Lớp", value: profile.student_class },
+        className && { label: "Lớp", value: className },
         profile.date_of_birth && {
           label: "Ngày sinh",
           value: new Date(profile.date_of_birth).toLocaleDateString("vi-VN"),
@@ -270,9 +283,25 @@ export function TeacherStudentDetail() {
       ].filter((f): f is { label: string; value: string } => Boolean(f))
     : [];
 
+  // Tầng học sinh (Đợt 2, phân tầng) — tự tính theo điểm TB, GV ghi đè tay
+  // được qua profile.manual_tier. Chỉ hiện phía GV (đúng trang này).
+  const averageScoreForTier =
+    attempts.length > 0
+      ? attempts.reduce((sum, a) => sum + a.score!.total_score, 0) / attempts.length
+      : null;
+  const { tier, isOverride } = resolveTier(profile?.manual_tier ?? null, averageScoreForTier);
+
   return (
     <div className="teacher-page">
-      <h2>{profile?.full_name}</h2>
+      <h2>
+        {profile?.full_name}
+        {tier && (
+          <span className={`tier-badge ${TIER_BADGE_CLASS[tier]}`} style={{ marginLeft: 10, verticalAlign: "middle" }}>
+            {TIER_LABELS[tier]}
+            {isOverride && <span title="Giáo viên đã ghi đè tay"> ✎</span>}
+          </span>
+        )}
+      </h2>
       {profileFields.length > 0 && (
         <div className="student-profile-strip">
           {profileFields.map((f) => (

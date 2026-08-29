@@ -23,7 +23,16 @@ import {
   truncateChapterLabel,
   type ChapterStat,
 } from "../lib/chapterStats";
-import type { Profile } from "../lib/types";
+import { AVATAR_PALETTE, initialsOf } from "../lib/avatar";
+import { resolveTier, TIER_LABELS } from "../lib/studentTier";
+import type { ClassRow, Profile } from "../lib/types";
+
+const TIER_BADGE_CLASS: Record<string, string> = {
+  gioi: "tier-badge--gioi",
+  kha: "tier-badge--kha",
+  tb: "tier-badge--tb",
+  yeu: "tier-badge--yeu",
+};
 
 interface StudentSummary {
   profile: Profile;
@@ -32,23 +41,8 @@ interface StudentSummary {
   lastScore: number | null;
 }
 
-/** Màu vòng tròn viết tắt tên học sinh, xoay vòng theo thứ tự danh sách (không
- * gắn với trạng thái đang chọn) — chỉ để dễ phân biệt các dòng, không mang ý
- * nghĩa xếp hạng hay đánh giá. */
-const AVATAR_PALETTE = [
-  { bg: "var(--color-subtle-bg)", text: "var(--color-text)" },
-  { bg: "var(--color-accent-light)", text: "#7a5a19" },
-  { bg: "var(--color-pine-light)", text: "var(--color-pine-text)" },
-  { bg: "var(--color-clay-light)", text: "var(--color-clay-text)" },
-];
-
-/** "Nguyễn An" → "NA" — chữ đầu của từ đầu + chữ đầu của từ cuối trong tên. */
-function initialsOf(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+// AVATAR_PALETTE/initialsOf chuyển sang src/lib/avatar.ts (28/08/2026, đợt
+// "quản lý lớp học") để dùng lại được ở các trang mới (Quản lý lớp, Lịch học).
 
 /**
  * Dashboard tổng quan giáo viên — 3 cột (mục 19.4 tài liệu đề xuất, Đợt 3):
@@ -84,6 +78,12 @@ export function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadedAt] = useState(() => new Date());
   const [reviewSessionsThisWeek, setReviewSessionsThisWeek] = useState<number | null>(null);
+  // Bộ lọc theo LỚP (Nhóm 1, "quản lý lớp học", 28/08/2026) — trước đây trang
+  // này gộp chung TẤT CẢ học sinh của mọi lớp thực tế vào 1 "cả lớp" vô nghĩa
+  // (Thầy Tường có 4 lớp <5 HS mỗi lớp, tiến độ khác nhau hẳn nhau). null =
+  // xem tất cả (giữ hành vi cũ làm lựa chọn rõ ràng, không ngầm định).
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   // Chuyển đổi cột/radar cho card "Năng lực theo chương" (nâng cấp giao diện
   // dashboard, demo đã duyệt) — mặc định vẫn "cot" (giữ nguyên hành vi cũ),
   // radar là lựa chọn THÊM để nhìn nhiều chương cùng lúc gọn hơn khi chương
@@ -92,7 +92,10 @@ export function TeacherDashboard() {
 
   useEffect(() => {
     (async () => {
-      const students = await api.listStudents();
+      const [students] = await Promise.all([
+        api.listStudents(),
+        api.listClasses().then(setClasses),
+      ]);
       const sevenDaysAgo = new Date(loadedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const [summaryResults, chapterResults] = await Promise.all([
         Promise.all(
@@ -123,12 +126,27 @@ export function TeacherDashboard() {
     })();
   }, [loadedAt]);
 
+  // Lọc học sinh theo lớp đang chọn — ảnh hưởng TOÀN BỘ số liệu bên dưới
+  // (danh sách, điểm TB, biểu đồ chương) thay vì chỉ lọc mỗi danh sách hiển
+  // thị, đúng nỗi đau Thầy Tường nêu ("điểm trung bình của tất cả sẽ vô nghĩa").
+  const filteredSummaries = useMemo(
+    () =>
+      selectedClassId === null
+        ? summaries
+        : summaries.filter((s) => s.profile.class_id === selectedClassId),
+    [summaries, selectedClassId],
+  );
+  const selectedClass = classes.find((c) => c.id === selectedClassId) ?? null;
+
   const classStats = useMemo(
-    () => mergeChapterStats(Array.from(chapterStatsByStudent.values())),
-    [chapterStatsByStudent],
+    () =>
+      mergeChapterStats(
+        filteredSummaries.map((s) => chapterStatsByStudent.get(s.profile.id) ?? []),
+      ),
+    [filteredSummaries, chapterStatsByStudent],
   );
   const selectedStats = selectedId ? chapterStatsByStudent.get(selectedId) ?? [] : null;
-  const selectedSummary = summaries.find((s) => s.profile.id === selectedId) ?? null;
+  const selectedSummary = filteredSummaries.find((s) => s.profile.id === selectedId) ?? null;
 
   const chapterChartData = useMemo(() => {
     const stats = selectedStats ?? classStats;
@@ -149,12 +167,17 @@ export function TeacherDashboard() {
     [classStats, selectedStats],
   );
 
-  const totalAttempts = summaries.reduce((sum, s) => sum + s.attemptCount, 0);
+  const totalAttempts = filteredSummaries.reduce((sum, s) => sum + s.attemptCount, 0);
   const classAverageScore = useMemo(() => {
-    const scored = summaries.filter((s) => s.averageScore !== null);
+    const scored = filteredSummaries.filter((s) => s.averageScore !== null);
     if (scored.length === 0) return null;
     return scored.reduce((sum, s) => sum + s.averageScore!, 0) / scored.length;
-  }, [summaries]);
+  }, [filteredSummaries]);
+
+  function selectClassFilter(classId: string | null) {
+    setSelectedClassId(classId);
+    setSelectedId(null); // tránh học sinh đang chọn thuộc lớp khác lớp vừa lọc
+  }
 
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
@@ -162,7 +185,7 @@ export function TeacherDashboard() {
     <div className="teacher-page">
       <div className="page-header-row">
         <div>
-          <h2 style={{ marginBottom: 4 }}>Tổng quan lớp</h2>
+          <h2 style={{ marginBottom: 4 }}>Tổng quan {selectedClass ? selectedClass.name : "lớp"}</h2>
           <div className="empty-hint" style={{ padding: 0 }}>
             Cập nhật lúc {loadedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })},{" "}
             {loadedAt.toLocaleDateString("vi-VN")}
@@ -170,17 +193,38 @@ export function TeacherDashboard() {
         </div>
       </div>
 
+      {classes.length > 0 && (
+        <div className="dash-filter-row">
+          <span className="dash-filter-label">Xem theo:</span>
+          <button
+            className={`class-filter-chip ${selectedClassId === null ? "class-filter-chip--active" : ""}`}
+            onClick={() => selectClassFilter(null)}
+          >
+            Tất cả ({summaries.length} HS)
+          </button>
+          {classes.map((c) => (
+            <button
+              key={c.id}
+              className={`class-filter-chip ${selectedClassId === c.id ? "class-filter-chip--active" : ""}`}
+              onClick={() => selectClassFilter(c.id)}
+            >
+              {c.name} ({summaries.filter((s) => s.profile.class_id === c.id).length} HS)
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="student-stat-strip">
         <div className="student-stat-cell">
           <div className="student-stat-cell-label">Học sinh đang theo dõi</div>
-          <div className="student-stat-cell-value">{summaries.length}</div>
+          <div className="student-stat-cell-value">{filteredSummaries.length}</div>
         </div>
         <div className="student-stat-cell">
           <div className="student-stat-cell-label">Tổng lượt làm bài</div>
           <div className="student-stat-cell-value">{totalAttempts}</div>
         </div>
         <div className="student-stat-cell">
-          <div className="student-stat-cell-label">Điểm trung bình lớp</div>
+          <div className="student-stat-cell-label">Điểm trung bình{selectedClass ? " lớp" : ""}</div>
           <div className="student-stat-cell-value student-stat-cell-value--muted">
             {classAverageScore === null ? "—" : classAverageScore.toFixed(2)}
           </div>
@@ -196,10 +240,11 @@ export function TeacherDashboard() {
       <div className="teacher-dashboard-3col">
         <section className="dashboard-col dashboard-col--students hover-card">
           <h3>Học sinh</h3>
-          {summaries.length === 0 ? (
+          {filteredSummaries.length === 0 ? (
             <p className="empty-hint">
-              Chưa có học sinh nào đăng ký. Gửi link website cho học sinh để họ đăng nhập bằng
-              email.
+              {summaries.length === 0
+                ? "Chưa có học sinh nào đăng ký. Gửi link website cho học sinh để họ đăng nhập bằng email."
+                : "Lớp này chưa có học sinh nào — vào \"Quản lý lớp\" để thêm."}
             </p>
           ) : (
             <ul className="student-picker-list">
@@ -209,13 +254,14 @@ export function TeacherDashboard() {
                   onClick={() => setSelectedId(null)}
                 >
                   <span className="student-picker-item-text">
-                    <strong>Tổng quan cả lớp</strong>
-                    <span className="empty-hint" style={{ padding: 0 }}>{summaries.length} học sinh</span>
+                    <strong>Tổng quan {selectedClass ? selectedClass.name : "cả lớp"}</strong>
+                    <span className="empty-hint" style={{ padding: 0 }}>{filteredSummaries.length} học sinh</span>
                   </span>
                 </button>
               </li>
-              {summaries.map((s, i) => {
+              {filteredSummaries.map((s, i) => {
                 const palette = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                const { tier } = resolveTier(s.profile.manual_tier, s.averageScore);
                 return (
                   <li key={s.profile.id}>
                     <button
@@ -234,6 +280,11 @@ export function TeacherDashboard() {
                           {s.attemptCount} lượt · TB {s.averageScore?.toFixed(2) ?? "—"}
                         </span>
                       </span>
+                      {tier && (
+                        <span className={`tier-badge ${TIER_BADGE_CLASS[tier]}`} style={{ marginLeft: "auto" }}>
+                          {TIER_LABELS[tier]}
+                        </span>
+                      )}
                     </button>
                     <Link className="student-picker-detail-link" to={`/giao-vien/hoc-sinh/${s.profile.id}`}>
                       Xem chi tiết →

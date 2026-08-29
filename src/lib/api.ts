@@ -20,6 +20,10 @@ import { applyReviewResult, markWrongFromExam, type JournalStreakState } from ".
 import { mergeChapterStats, type ChapterStat } from "./chapterStats";
 import type {
   AttemptScoreRow,
+  AttendanceRow,
+  AttendanceStatus,
+  ClassRow,
+  ClassSessionRow,
   Difficulty,
   ExamAttemptRow,
   ExamQuestionRow,
@@ -38,6 +42,7 @@ import type {
   QuestionViewEventRow,
   ReviewSessionRow,
   StudentPlaylistRow,
+  StudentTier,
   Topic,
   WrongAnswerJournalRow,
 } from "./types";
@@ -896,6 +901,173 @@ export async function listStudents(): Promise<Profile[]> {
     .order("full_name");
   if (error) throw error;
   return data as Profile[];
+}
+
+// ---------------------------------------------------------------------------
+// QUẢN LÝ LỚP HỌC & PHÂN TẦNG (migration_013, 28/08/2026) — xem tài liệu dự
+// án "de-xuat-quan-ly-lop-hoc-v1" cho bối cảnh đầy đủ.
+// ---------------------------------------------------------------------------
+
+export async function listClasses(): Promise<ClassRow[]> {
+  const { data, error } = await supabase.from("classes").select("*").order("name");
+  if (error) throw error;
+  return data as ClassRow[];
+}
+
+export async function createClass(name: string, grade: 10 | 11 | 12 | null): Promise<ClassRow> {
+  const { data, error } = await supabase.from("classes").insert({ name, grade }).select().single();
+  if (error) throw error;
+  return data as ClassRow;
+}
+
+export async function updateClass(
+  id: string,
+  fields: Partial<Pick<ClassRow, "name" | "grade">>,
+): Promise<void> {
+  const { error } = await supabase.from("classes").update(fields).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteClass(id: string): Promise<void> {
+  const { error } = await supabase.from("classes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Gán/bỏ gán học sinh vào 1 lớp — classId = null nghĩa là bỏ khỏi lớp hiện tại. */
+export async function setStudentClass(studentId: string, classId: string | null): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ class_id: classId }).eq("id", studentId);
+  if (error) throw error;
+}
+
+/** Ghi đè tay tầng học sinh (Đợt 2, phân tầng) — null = quay về dùng tầng hệ
+ * thống tự tính theo điểm TB (xem src/lib/studentTier.ts). */
+export async function setManualTier(studentId: string, tier: StudentTier | null): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ manual_tier: tier }).eq("id", studentId);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// LỊCH HỌC & ĐIỂM DANH (migration_013, 28/08/2026) — tạo tay từng buổi
+// (quyết định đã chốt, xem comment migration_013). createRecurringClassSessions
+// chỉ là công cụ tạo HÀNG LOẠT cho tiện, mỗi buổi vẫn là 1 bản ghi riêng, sửa/
+// xoá độc lập được — không phải lịch cố định tự sinh mãi mãi.
+// ---------------------------------------------------------------------------
+
+/** Buổi học trong khoảng [fromIso, toIso) — không truyền classId để lấy TẤT
+ * CẢ lớp (dùng cho lịch tổng thể của giáo viên). */
+export async function listClassSessions(
+  fromIso: string,
+  toIso: string,
+  classId?: string,
+): Promise<ClassSessionRow[]> {
+  let query = supabase
+    .from("class_sessions")
+    .select("*")
+    .gte("starts_at", fromIso)
+    .lt("starts_at", toIso)
+    .order("starts_at");
+  if (classId) query = query.eq("class_id", classId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as ClassSessionRow[];
+}
+
+export async function createClassSession(
+  classId: string,
+  startsAtIso: string,
+  endsAtIso: string,
+): Promise<ClassSessionRow> {
+  const { data, error } = await supabase
+    .from("class_sessions")
+    .insert({ class_id: classId, starts_at: startsAtIso, ends_at: endsAtIso })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ClassSessionRow;
+}
+
+/**
+ * Tạo NHIỀU buổi học cùng lúc theo các thứ trong tuần lặp lại trong 1 khoảng
+ * ngày — vẫn ghi ra N bản ghi class_sessions RIÊNG BIỆT (sửa/xoá độc lập từng
+ * buổi được), chỉ là công cụ tạo hàng loạt cho tiện.
+ */
+export async function createRecurringClassSessions(
+  classId: string,
+  daysOfWeek: number[], // 0=Thứ 2 ... 6=Chủ nhật
+  startTime: string, // "HH:MM"
+  endTime: string, // "HH:MM"
+  fromDate: string, // "YYYY-MM-DD"
+  toDate: string, // "YYYY-MM-DD"
+): Promise<ClassSessionRow[]> {
+  const dowSet = new Set(daysOfWeek);
+  const rows: { class_id: string; starts_at: string; ends_at: string }[] = [];
+  const cur = new Date(fromDate + "T00:00:00");
+  const end = new Date(toDate + "T00:00:00");
+  while (cur <= end) {
+    const jsDow = (cur.getDay() + 6) % 7; // 0=Thứ 2 ... 6=Chủ nhật
+    if (dowSet.has(jsDow)) {
+      const dateStr = cur.toISOString().slice(0, 10);
+      rows.push({
+        class_id: classId,
+        starts_at: new Date(`${dateStr}T${startTime}:00`).toISOString(),
+        ends_at: new Date(`${dateStr}T${endTime}:00`).toISOString(),
+      });
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (rows.length === 0) return [];
+  const { data, error } = await supabase.from("class_sessions").insert(rows).select();
+  if (error) throw error;
+  return data as ClassSessionRow[];
+}
+
+export async function deleteClassSession(id: string): Promise<void> {
+  const { error } = await supabase.from("class_sessions").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listAttendanceForSession(sessionId: string): Promise<AttendanceRow[]> {
+  const { data, error } = await supabase.from("attendance").select("*").eq("session_id", sessionId);
+  if (error) throw error;
+  return data as AttendanceRow[];
+}
+
+/** Ghi/sửa điểm danh 1 học sinh trong 1 buổi — upsert theo (session_id, student_id). */
+export async function setAttendance(
+  sessionId: string,
+  studentId: string,
+  status: AttendanceStatus,
+): Promise<void> {
+  const { error } = await supabase
+    .from("attendance")
+    .upsert(
+      { session_id: sessionId, student_id: studentId, status, updated_at: new Date().toISOString() },
+      { onConflict: "session_id,student_id" },
+    );
+  if (error) throw error;
+}
+
+/** Lịch sử điểm danh của 1 học sinh (mới nhất trước), kèm buổi học liên quan
+ * — dùng cho trang "Lịch học của em". */
+export async function listAttendanceHistoryForStudent(
+  studentId: string,
+  limit = 20,
+): Promise<(AttendanceRow & { session: ClassSessionRow })[]> {
+  const { data, error } = await supabase
+    .from("attendance")
+    .select("*, session:class_sessions(*)")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as unknown as (AttendanceRow & { session: ClassSessionRow })[];
+}
+
+/** % chuyên cần = số buổi "có mặt" hoặc "trễ" / tổng số buổi đã điểm danh. */
+export function computeAttendanceRate(records: { status: AttendanceStatus }[]): number | null {
+  if (records.length === 0) return null;
+  const present = records.filter((r) => r.status === "co_mat" || r.status === "tre").length;
+  return Math.round((present / records.length) * 100);
 }
 
 /**
