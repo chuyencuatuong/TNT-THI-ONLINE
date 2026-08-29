@@ -3021,6 +3021,8 @@ a {
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   text-align: left;
+  font-family: inherit;
+  color: inherit;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .class-card:hover { box-shadow: var(--shadow-md); }
@@ -3258,7 +3260,7 @@ a {
 }
 .modal-head { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; }
 .modal-head h3 { margin: 0; font-size: var(--font-size-lg); }
-.modal-close { border: none; background: none; font-size: 18px; cursor: pointer; color: var(--color-text-muted); }
+.modal-close { border: none; background: none; font-size: 18px; cursor: pointer; color: var(--color-text-muted); font-family: inherit; }
 .modal-body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
 .modal-mode-tabs { display: flex; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
 .modal-mode-tab {
