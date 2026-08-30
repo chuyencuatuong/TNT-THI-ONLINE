@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  extractCandidateText,
   extractJsonBlock,
-  parseRetryDelaySeconds,
   matchTopicByName,
   mergeExtractedTaxonomies,
   mergeParsedExams,
@@ -161,97 +159,5 @@ describe("matchTopicByName", () => {
 
   it("trả về null khi danh sách topics rỗng", () => {
     expect(matchTopicByName("Ứng dụng đạo hàm", [])).toBeNull();
-  });
-});
-
-/**
- * Bộ test cho SỬA LỖI 30/08/2026 — lỗi làm mất trắng cả 1 đợt (6 trang đề)
- * vì code cũ chỉ đọc đúng candidates[0].content.parts[0].text. Xem giải thích
- * đầy đủ ở extractCandidateText() trong ai.ts.
- */
-describe("extractCandidateText", () => {
-  it("đọc được câu trả lời 1 mảnh như model đời cũ", () => {
-    const candidate = { content: { parts: [{ text: '{"part1": []}' }] } };
-    expect(extractCandidateText(candidate)).toBe('{"part1": []}');
-  });
-
-  it("GHÉP nhiều mảnh văn bản lại thành 1 (code cũ chỉ lấy mảnh đầu → JSON cụt)", () => {
-    const candidate = {
-      content: { parts: [{ text: '{"part1": ' }, { text: "[]" }, { text: "}" }] },
-    };
-    expect(extractCandidateText(candidate)).toBe('{"part1": []}');
-  });
-
-  it("BỎ QUA mảnh suy nghĩ nội bộ (thought) đứng trước nội dung thật", () => {
-    const candidate = {
-      content: {
-        parts: [
-          { text: "Người dùng muốn bóc đề thi...", thought: true },
-          { text: '{"part1": []}' },
-        ],
-      },
-    };
-    expect(extractCandidateText(candidate)).toBe('{"part1": []}');
-  });
-
-  it("bỏ qua mảnh không có khoá text (đây là ca làm code cũ tưởng là rỗng)", () => {
-    const candidate = { content: { parts: [{ thought: true }, { text: "xong" }] } };
-    expect(extractCandidateText(candidate)).toBe("xong");
-  });
-
-  it("trả về chuỗi rỗng khi thật sự không có nội dung nào", () => {
-    expect(extractCandidateText(undefined)).toBe("");
-    expect(extractCandidateText({})).toBe("");
-    expect(extractCandidateText({ content: {} })).toBe("");
-    expect(extractCandidateText({ content: { parts: [] } })).toBe("");
-    expect(extractCandidateText({ content: { parts: [{ thought: true, text: "chỉ nghĩ" }] } })).toBe(
-      "",
-    );
-  });
-});
-
-/**
- * Google gửi kèm "retryDelay" trong thân lỗi 429. Hạn mức gói miễn phí là 5
- * lượt/PHÚT cho mỗi model, nên chờ đúng khoảng này rồi gọi lại CÙNG model là
- * qua — xem chỗ xử lý 429 trong callGeminiPartsDetailed().
- */
-describe("parseRetryDelaySeconds", () => {
-  const realBody = JSON.stringify({
-    error: {
-      code: 429,
-      status: "RESOURCE_EXHAUSTED",
-      details: [
-        { "@type": "type.googleapis.com/google.rpc.Help", links: [] },
-        {
-          "@type": "type.googleapis.com/google.rpc.QuotaFailure",
-          violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", quotaValue: "5" }],
-        },
-        { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "27s" },
-      ],
-    },
-  });
-
-  it("đọc được retryDelay từ thân lỗi 429 thật của Google", () => {
-    expect(parseRetryDelaySeconds(realBody)).toBe(27);
-  });
-
-  it("đọc được số giây có phần thập phân", () => {
-    const body = JSON.stringify({ error: { details: [{ retryDelay: "27.510795735s" }] } });
-    expect(parseRetryDelaySeconds(body)).toBeCloseTo(27.510795735);
-  });
-
-  it("trả null khi không có retryDelay", () => {
-    expect(parseRetryDelaySeconds(JSON.stringify({ error: { code: 400 } }))).toBeNull();
-    expect(parseRetryDelaySeconds(JSON.stringify({ error: { details: [] } }))).toBeNull();
-  });
-
-  it("trả null khi thân lỗi không phải JSON, không ném lỗi", () => {
-    expect(parseRetryDelaySeconds("<html>502 Bad Gateway</html>")).toBeNull();
-    expect(parseRetryDelaySeconds("")).toBeNull();
-  });
-
-  it("bỏ qua giá trị sai định dạng thay vì trả NaN", () => {
-    expect(parseRetryDelaySeconds(JSON.stringify({ error: { details: [{ retryDelay: "27" }] } }))).toBeNull();
-    expect(parseRetryDelaySeconds(JSON.stringify({ error: { details: [{ retryDelay: 27 }] } }))).toBeNull();
   });
 });

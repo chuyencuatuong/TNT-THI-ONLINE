@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import * as api from "../lib/api";
+import { extractDocx } from "../lib/wordImport";
 import { renderPdfToImages } from "../lib/pdfImport";
 import {
+  extractQuestionTypesFromDocument,
   extractQuestionTypesFromPdfPages,
   type ExtractedQuestionTypeCandidate,
 } from "../lib/ai";
@@ -104,6 +106,51 @@ export function TeacherQuestionTypeImport() {
     }
   }
 
+  /** Dự phòng — đọc thẳng .docx, không đọc được công thức MathType (xem wordImport.ts). */
+  async function handleDocxSelected(file: File) {
+    if (!topicId) {
+      setError("Chọn chương trước khi tải file lên.");
+      return;
+    }
+    setError(null);
+    setFileName(file.name);
+    setStage("analyzing");
+    try {
+      const { plainText, images, unsupportedImageCount } = await extractDocx(file);
+      if (!plainText.trim() && images.length === 0) {
+        setError("Không đọc được nội dung nào từ file này. Hãy thử lưu lại file .docx rồi tải lên lại.");
+        setStage("upload");
+        return;
+      }
+      const taxonomy = await extractQuestionTypesFromDocument(plainText, images, selectedTopic?.name ?? null);
+      // Xem chú thích ở TeacherExamImport.tsx — cùng lý do: báo cho giáo viên
+      // biết có ảnh (thường EMF/WMF từ Visio/Excel) không đọc tự động được.
+      withIds(
+        unsupportedImageCount > 0
+          ? {
+              ...taxonomy,
+              warnings: [
+                `Có ${unsupportedImageCount} hình ảnh (thường là bản vẽ/đồ thị dạng EMF/WMF, hay gặp khi dán từ Visio/Excel) không đọc tự động được — tìm dòng ghi chú "(có hình ảnh định dạng... không đọc tự động được)" ở bước xem trước để dán tay lại bằng Ctrl+V.`,
+                ...taxonomy.warnings,
+              ],
+            }
+          : taxonomy,
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Có lỗi khi đọc file .docx. Hãy chắc chắn đây là file Word hợp lệ (.docx, không phải .doc cũ).");
+      setStage("upload");
+    }
+  }
+
+  function handleFilePicked(file: File) {
+    if (file.name.toLowerCase().endsWith(".pdf")) {
+      handlePdfSelected(file);
+    } else {
+      handleDocxSelected(file);
+    }
+  }
+
   function updateCandidate(id: string, patch: Partial<EditableCandidate>) {
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
@@ -157,9 +204,8 @@ export function TeacherQuestionTypeImport() {
         <p className="empty-hint">
           Tải lên 1 file "tài liệu dạng bài tập" (khác với đề thi) — AI sẽ đọc và trích ra danh
           sách dạng bài có trong tài liệu (dựa theo các tiêu đề "Dạng 1: ...", "Dạng 2: ..." nếu
-          có), bạn xem lại/sửa/xoá trước khi lưu vào hệ thống. Tài liệu cần ở dạng{" "}
-          <strong>PDF</strong> (xuất từ Word ra PDF là được — cách này đọc chính xác công thức và
-          bảng biến thiên, việc đọc thẳng file .docx đã bỏ vì không đọc được công thức MathType).
+          có), bạn xem lại/sửa/xoá trước khi lưu vào hệ thống. Ưu tiên tải file <strong>PDF</strong>{" "}
+          (đọc chính xác công thức/bảng biến thiên hơn file Word).
         </p>
 
         <div className="filter-row">
@@ -179,11 +225,11 @@ export function TeacherQuestionTypeImport() {
         <div style={{ marginTop: 16 }}>
           <input
             type="file"
-            accept=".pdf"
+            accept=".pdf,.docx"
             disabled={!topicId}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handlePdfSelected(file);
+              if (file) handleFilePicked(file);
               e.target.value = "";
             }}
           />

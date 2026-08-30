@@ -1585,40 +1585,6 @@ a {
   border-style: solid;
   color: var(--color-primary-dark);
 }
-
-/* Ô nhập lời giải thủ công (SolutionField) — textarea + nhắc cú pháp + xem
-   trước LaTeX/ảnh xếp dọc, cách nhau đều. */
-.solution-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.solution-field textarea {
-  width: 100%;
-  box-sizing: border-box;
-}
-.solution-field .empty-hint {
-  margin: 0;
-  font-size: 13px;
-}
-.solution-field .empty-hint code {
-  background: var(--color-subtle-bg);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
-/* Ảnh chèn giữa văn bản qua cú pháp ![](...) — xem MathText.tsx. Hiện thành
-   khối riêng một dòng, không bao giờ tràn ngang ra ngoài khung chứa. */
-.mathtext-image {
-  display: block;
-  max-width: 100%;
-  max-height: 420px;
-  height: auto;
-  margin: 8px 0;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: white;
-}
 .badge {
   display: inline-block;
   font-size: 12px;

@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
-import { matchTopicByName, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
+import { extractDocx } from "../lib/wordImport";
+import { matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
 import { renderPdfToImages } from "../lib/pdfImport";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
-import { SolutionField } from "../components/SolutionField";
 import { TagPicker } from "../components/TagPicker";
 import type { ExamTag, Topic } from "../lib/types";
 
@@ -219,16 +219,12 @@ export function TeacherExamImport() {
         return;
       }
       setAnalyzingProgress(`Đang gửi ${pageImages.length} trang cho AI phân tích...`);
-      const startedAt = Date.now();
       const { parsed, failedChunks, totalChunks, chunkErrors } = await parseExamFromPdfPages(
         pageImages,
         undefined,
-        // Các đợt chạy SONG SONG nên "đợt 2/4 xong" không có nghĩa là đã đi
-        // được nửa đường về thời gian — hiện thêm số giây đã trôi để biết
-        // thật sự đang nhanh hay chậm, thay vì đoán qua con số đợt.
         (done, total) =>
           setAnalyzingProgress(
-            `Đã xong ${done}/${total} đợt (${Math.round((Date.now() - startedAt) / 1000)} giây)...`,
+            `Đang phân tích đợt ${done}/${total} (mỗi đợt khoảng 20-40 giây)...`,
           ),
         topics,
       );
@@ -252,6 +248,45 @@ export function TeacherExamImport() {
       setStage("upload");
     } finally {
       setAnalyzingProgress("");
+    }
+  }
+
+  /** Cách dự phòng: đọc thẳng .docx bằng mammoth.js — không đọc được công thức MathType (xem wordImport.ts). */
+  async function handleFileSelected(file: File) {
+    setError(null);
+    setFileName(file.name);
+    setStage("analyzing");
+    try {
+      const { plainText, images, unsupportedImageCount } = await extractDocx(file);
+      if (!plainText.trim() && images.length === 0) {
+        setError("Không đọc được nội dung nào từ file này. Hãy thử lưu lại file .docx rồi tải lên lại.");
+        setStage("upload");
+        return;
+      }
+      const parsed = await parseExamFromDocument(plainText, images, topics);
+      if (!parsed) {
+        setError(
+          "AI chưa phân tích được đề này (có thể do thiếu API key hoặc lỗi kết nối). Bạn có thể dán JSON đã xử lý sẵn ở ô bên dưới, hoặc thử lại.",
+        );
+        setStage("upload");
+        return;
+      }
+      // THÊM 25/08/2026: báo cho giáo viên biết có ảnh (thường là bản vẽ OLE
+      // dạng EMF/WMF — Visio, Excel, "Paste Special > Enhanced Metafile") đã
+      // bị bỏ qua vì Gemini không đọc được định dạng này — xem wordImport.ts.
+      // Không báo thì giáo viên không biết vì sao thiếu hình ở 1 vài câu.
+      const warningsWithSkippedImages =
+        unsupportedImageCount > 0
+          ? [
+              `Có ${unsupportedImageCount} hình ảnh (thường là bản vẽ/đồ thị dạng EMF/WMF, hay gặp khi dán từ Visio/Excel) không đọc tự động được — tìm dòng ghi chú "(có hình ảnh định dạng... không đọc tự động được)" ở bước xem trước để dán tay lại bằng Ctrl+V.`,
+              ...parsed.warnings,
+            ]
+          : parsed.warnings;
+      loadParsed({ ...parsed, warnings: warningsWithSkippedImages }, file.name.replace(/\.docx$/i, ""));
+    } catch (err) {
+      console.error(err);
+      setError("Có lỗi khi đọc file .docx. Hãy chắc chắn đây là file Word hợp lệ (.docx, không phải .doc cũ).");
+      setStage("upload");
     }
   }
 
@@ -429,15 +464,14 @@ export function TeacherExamImport() {
       <div className="teacher-page">
         <h2>Tạo đề thi mới</h2>
         <p className="empty-hint">
-          Tải lên file <strong>PDF</strong> của đề thi (xuất từ Word ra PDF, giữ nguyên công
-          thức MathType — không cần chỉnh sửa gì thêm). AI đọc trực tiếp từng trang như đọc ảnh
-          nên không bỏ sót công thức MathType, và tự nhận diện đáp án đúng qua mọi tín hiệu
-          thường gặp (tô màu, gạch chân, in đậm, dấu "*", ghi chú "Đáp án:", hoặc đáp số nằm
-          trong phần lời giải) — nhưng bạn vẫn cần xem lại và xác nhận từng câu ở bước tiếp theo
-          trước khi xuất bản. Hai thứ AI <strong>không</strong> tự lấy, bạn tự thêm ở bước xem
-          trước: <em>ảnh minh hoạ</em> (đồ thị, bảng biến thiên — AI sẽ đánh dấu câu nào có hình)
-          và <em>lời giải chi tiết</em> (ô nhập lời giải có sẵn xem trước LaTeX và cho dán ảnh
-          chụp màn hình bằng Ctrl+V).
+          Cách nhanh và chính xác nhất: tải lên file <strong>PDF</strong> của đề thi (xuất từ Word
+          ra PDF, giữ nguyên công thức MathType — không cần chỉnh sửa gì thêm). AI đọc trực tiếp
+          từng trang như đọc ảnh, nên không bị giới hạn "bỏ sót công thức MathType" như khi đọc
+          thẳng file .docx. AI cũng tự nhận diện đáp án đúng (tô màu/gạch chân/in đậm/dấu "*"/ghi
+          chú "Đáp án:"...) và lời giải chi tiết nếu đề có ghi sẵn — nhưng bạn vẫn cần xem lại và
+          xác nhận từng câu ở bước tiếp theo trước khi xuất bản. Ảnh minh hoạ (đồ thị, bảng biến
+          thiên...) chưa tự động lấy được — AI sẽ đánh dấu câu nào có hình để bạn dán tay lại bằng
+          Ctrl+V ở bước xem trước.
         </p>
         {error && <p className="form-error">{error}</p>}
 
@@ -469,6 +503,31 @@ export function TeacherExamImport() {
                 Dùng JSON này
               </button>
             </div>
+
+            <details style={{ marginTop: 20 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+                Đọc thẳng file Word (.docx) — kém chính xác hơn với công thức MathType
+              </summary>
+              <div style={{ marginTop: 12 }}>
+                <p className="ai-hint">
+                  Nếu đề dùng công cụ gõ công thức có sẵn của Word (Equation/MathType), cách này có
+                  thể bỏ sót công thức (giới hạn kỹ thuật của thư viện đọc file .docx, không đọc
+                  được đối tượng OLE mà MathType tạo ra) — bạn sẽ thấy rõ ở bước xem trước và cần
+                  gõ tay lại bằng LaTeX cho câu đó. Nên ưu tiên tải PDF ở trên thay vì cách này.
+                </p>
+                <div className="form-row">
+                  <label>Chọn file .docx</label>
+                  <input
+                    type="file"
+                    accept=".docx"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileSelected(f);
+                    }}
+                  />
+                </div>
+              </div>
+            </details>
           </div>
         </details>
       </div>
@@ -776,13 +835,15 @@ export function TeacherExamImport() {
                   </div>
                   <div className="form-row">
                     <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-                    <SolutionField
+                    <textarea
+                      rows={2}
                       value={q.solution_latex ?? ""}
-                      onChange={(v) =>
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setPart1((prev) =>
                           prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
-                        )
-                      }
+                        );
+                      }}
                     />
                   </div>
                   <div className="form-row">
@@ -925,13 +986,15 @@ export function TeacherExamImport() {
                   </div>
                   <div className="form-row">
                     <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-                    <SolutionField
+                    <textarea
+                      rows={2}
                       value={q.solution_latex ?? ""}
-                      onChange={(v) =>
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setPart2((prev) =>
                           prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
-                        )
-                      }
+                        );
+                      }}
                     />
                   </div>
                   <div className="form-row">
@@ -1110,13 +1173,15 @@ export function TeacherExamImport() {
                   </div>
                   <div className="form-row">
                     <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-                    <SolutionField
+                    <textarea
+                      rows={2}
                       value={q.solution_latex ?? ""}
-                      onChange={(v) =>
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setPart3((prev) =>
                           prev.map((x) => (x.id === q.id ? { ...x, solution_latex: v || null } : x)),
-                        )
-                      }
+                        );
+                      }}
                     />
                   </div>
                   <div className="form-row">
