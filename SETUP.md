@@ -291,6 +291,16 @@ lên cần bạn làm bằng tay, nhưng vẫn chỉ là kéo-thả, không cầ
    báo 503 "quá tải" ở gói miễn phí, để nó làm model chính khiến mọi lượt
    import đều phải chờ vô ích rồi mới tự chuyển sang model kia).
 
+   **Hạn mức gói miễn phí cần biết (đo được từ lỗi thật ngày 30/08/2026):**
+   `5 lượt gọi mỗi PHÚT` cho mỗi model (`quotaId` là
+   `GenerateRequestsPerMinutePerProjectPerModel-FreeTier`). Đây là hạn mức
+   theo phút, không phải theo ngày — nên nếu gặp lỗi 429 thì chỉ cần đợi
+   khoảng 1 phút là dùng lại được, hệ thống cũng tự đợi đúng số giây Google
+   yêu cầu rồi gọi lại. Vì hạn mức tính theo SỐ LƯỢT chứ không phải độ dài
+   câu trả lời, đề được chia 8 trang/đợt và chỉ chạy 2 đợt song song, để 1 đề
+   thường chỉ tốn 2-3 lượt. Nếu import 2-3 đề liên tiếp trong cùng 1 phút thì
+   vẫn có thể chạm hạn mức — đợi một chút rồi làm tiếp.
+
 Sau khi lưu xong secret thứ 3, vào tab **Actions** ở repo, bạn sẽ thấy 1
 workflow đang chạy (biểu tượng vàng đang xoay). Đợi khoảng 1-2 phút tới khi
 nó chuyển thành dấu tích xanh — lúc đó website đã lên rồi, mở tại:
