@@ -44,13 +44,18 @@ duy nhất).
   toàn bộ chữ từ ảnh, nên nhẹ/nhanh/chính xác hơn hẳn cách đọc ảnh toàn trang
   trước đây, đồng thời né được giới hạn "bỏ sót công thức MathType" của việc
   đọc thẳng file .docx. AI tự nhận diện đáp án đúng theo nhiều quy ước trình
-  bày khác nhau (tô màu/gạch chân/in đậm/dấu "*"/ghi chú "Đáp án:"...) và lấy
-  luôn lời giải nếu đề có ghi sẵn, tách câu hỏi theo 3 phần — giáo viên luôn
-  xem trước & xác nhận đáp án trước khi xuất bản. AI cũng **tự gợi ý chương**
+  bày khác nhau (tô màu/gạch chân/in đậm/dấu "*"/ghi chú "Đáp án:", kể cả đáp
+  số nằm trong phần lời giải), tách câu hỏi theo 3 phần — giáo viên luôn
+  xem trước & xác nhận đáp án trước khi xuất bản. Từ 30/08/2026 AI **không**
+  chép lại lời giải nữa (bỏ đi để mỗi lượt gọi nhẹ và nhanh hơn nhiều lần);
+  lời giải nhập tay ở màn hình xem trước, ô nhập có xem trước LaTeX và cho
+  dán ảnh chụp màn hình bằng Ctrl+V ngay giữa lời giải. AI cũng **tự gợi ý chương**
   phù hợp cho từng câu (dựa trên khung chương có sẵn) ngay ở màn hình xem
   trước — giáo viên xem lại/đổi trước khi xuất bản, không tự động gán. Cách
-  đọc thẳng file `.docx` (kém chính xác hơn với MathType) và cách dán JSON
-  đã xử lý sẵn vẫn còn, dùng khi không có file PDF. Ngoài ra có ngân hàng câu
+  dán JSON đã xử lý sẵn vẫn còn, dùng khi muốn kiểm soát thủ công hoàn toàn
+  (đường đọc thẳng file `.docx` đã gỡ bỏ 30/08/2026 — thư viện đọc .docx
+  không đọc được công thức MathType nên chưa bao giờ dùng được thật cho đề
+  Toán). Ngoài ra có ngân hàng câu
   hỏi thủ công (gán chủ đề/dạng bài/mức độ tư duy, có gợi ý gán dạng bài và
   chương bằng AI, kèm nút "Phân loại lại chương bằng AI" hàng loạt cho câu cũ
   chưa có chương), đặt thời gian làm bài cho từng đề, xem thống kê điểm và tỉ
@@ -93,7 +98,7 @@ duy nhất).
 
 - `src/lib/scoring.ts` — bộ máy chấm điểm 3 phần (18 unit test, xem `scoring.test.ts`).
 - `src/lib/diagnosis.ts` — chẩn đoán mức độ nắm vững theo dạng bài + tính thời gian tập trung từng câu (15 unit test).
-- `src/lib/wordImport.ts` — trích xuất văn bản/hình ảnh từ file `.docx` bằng mammoth.js (6 unit test, cách dự phòng — không đọc được công thức MathType).
+- `src/lib/concurrency.ts` — chạy nhiều đợt gọi AI song song có giới hạn, giữ đúng thứ tự kết quả (6 unit test) — thứ giúp thời gian phân tích đề giảm từ tổng các đợt xuống còn xấp xỉ đợt chậm nhất.
 - `src/lib/pdfImport.ts` — với mỗi trang PDF: render thành ảnh + đọc văn bản thật (pdf.js) ngay trên trình duyệt (cách chính để tạo đề).
 - `src/lib/pdfTextLayout.ts` — hàm thuần ghép các mục text rời rạc (kèm toạ độ) mà pdf.js trả về thành đoạn văn bản đọc được, tách riêng để unit-test không cần môi trường trình duyệt, 6 unit test.
 - `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.

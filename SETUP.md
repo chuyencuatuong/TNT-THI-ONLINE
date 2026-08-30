@@ -282,10 +282,14 @@ lên cần bạn làm bằng tay, nhưng vẫn chỉ là kéo-thả, không cầ
    | `VITE_SUPABASE_ANON_KEY` | anon public key lấy ở Supabase Settings > API |
    | `VITE_GEMINI_API_KEY`    | API key lấy ở aistudio.google.com/apikey |
 
-   Có thể thêm 1 secret **không bắt buộc** thứ 4, `VITE_GEMINI_MODEL`, nếu
-   sau này thấy báo lỗi gọi AI (model không khả dụng) — điền đúng tên model
-   bạn thấy khả dụng trong tài khoản Google AI Studio của mình. Nếu không
-   thêm, hệ thống tự dùng model mặc định đã cấu hình sẵn trong code.
+   Có thể thêm 2 secret **không bắt buộc**, `VITE_GEMINI_MODEL` và
+   `VITE_GEMINI_FALLBACK_MODEL`, nếu sau này thấy báo lỗi gọi AI (model không
+   khả dụng) — điền đúng tên model bạn thấy khả dụng trong tài khoản Google
+   AI Studio của mình. Nếu không thêm, hệ thống tự dùng model mặc định đã cấu
+   hình sẵn trong code: model chính là `gemini-3.6-flash`, model dự phòng là
+   `gemini-3.7-flash` (đổi vai trò ngày 30/08/2026 — `3.7-flash` gần như luôn
+   báo 503 "quá tải" ở gói miễn phí, để nó làm model chính khiến mọi lượt
+   import đều phải chờ vô ích rồi mới tự chuyển sang model kia).
 
 Sau khi lưu xong secret thứ 3, vào tab **Actions** ở repo, bạn sẽ thấy 1
 workflow đang chạy (biểu tượng vàng đang xoay). Đợi khoảng 1-2 phút tới khi
@@ -321,10 +325,13 @@ không cần bấm thêm gì ở phần Settings > Pages.
   thiên/đồ thị, AI chưa tự lấy được ảnh đó — sẽ ghi chú rõ câu nào cần dán
   tay ở phần "AI lưu ý", dùng ô "Hình minh hoạ" ở mỗi câu để dán ảnh: **copy
   ảnh trong Word (Ctrl+C) rồi bấm vào ô đó dán luôn (Ctrl+V)**, không cần
-  lưu file ảnh ra máy trước. Cách dán JSON đã xử lý sẵn và cách đọc thẳng
-  file .docx (kém chính xác hơn với MathType) vẫn còn, nằm trong mục
-  "Cách khác" (bấm để mở ra) — dùng khi không có file PDF hoặc muốn kiểm
-  soát thủ công hoàn toàn. Ở màn hình xem trước, mỗi câu còn có ô "Chương" đã
+  lưu file ảnh ra máy trước. Lời giải chi tiết cũng nhập ở đây (AI không tự
+  lấy nữa từ 30/08/2026): ô "Lời giải chi tiết" hiểu công thức LaTeX trong
+  cặp `$...$` và hiện xem trước ngay bên dưới, đồng thời cho **chụp màn hình
+  rồi Ctrl+V thẳng vào giữa lời giải** để chèn hình đúng chỗ con trỏ. Cách
+  dán JSON đã xử lý sẵn vẫn còn, nằm trong mục "Cách khác" (bấm để mở ra) —
+  dùng khi muốn kiểm soát thủ công hoàn toàn. Đường đọc thẳng file .docx đã
+  gỡ bỏ (thư viện đọc .docx không đọc được công thức MathType). Ở màn hình xem trước, mỗi câu còn có ô "Chương" đã
   điền sẵn theo gợi ý AI — xem lại/đổi nếu cần. Khi đặt tên đề, có thêm ô
   "Thư mục" (gõ tên tuỳ ý để nhóm đề lại, vd "Đề giữa kỳ") và "Link Google
   Drive" (dán link file đề gốc để học sinh tải về).
