@@ -4,6 +4,7 @@ import * as api from "../lib/api";
 import { suggestQuestionTopic, suggestQuestionType } from "../lib/ai";
 import { MathText } from "./MathText";
 import { ImageUploadField } from "./ImageUploadField";
+import { SolutionField } from "./SolutionField";
 import type { Difficulty, QuestionType, Topic } from "../lib/types";
 import { DIFFICULTY_LABELS } from "../lib/types";
 
@@ -217,17 +218,7 @@ export function QuestionEditorForm({
 
       <div className="form-row">
         <label>Lời giải chi tiết (không bắt buộc — chỉ hiện cho học sinh SAU khi nộp bài)</label>
-        <textarea
-          value={solution}
-          onChange={(e) => setSolution(e.target.value)}
-          rows={3}
-          placeholder="Các bước giải, dùng $...$ cho công thức."
-        />
-        {solution && (
-          <div className="latex-preview">
-            <MathText text={solution} />
-          </div>
-        )}
+        <SolutionField value={solution} onChange={setSolution} rows={3} />
       </div>
 
       {part === 1 && (

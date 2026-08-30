@@ -19,12 +19,12 @@ import { TeacherClassList } from "./pages/TeacherClassList";
 import { TeacherSchedule } from "./pages/TeacherSchedule";
 import { StudentSchedule } from "./pages/StudentSchedule";
 
-// Tách riêng (lazy load) vì trang này kéo theo thư viện đọc file .docx khá nặng
-// (mammoth.js) — chỉ giáo viên mới cần, không nên bắt học sinh tải về mỗi lần vào web.
+// Tách riêng (lazy load) vì trang này kéo theo thư viện đọc file PDF khá nặng
+// (pdf.js) — chỉ giáo viên mới cần, không nên bắt học sinh tải về mỗi lần vào web.
 const TeacherExamImport = lazy(() =>
   import("./pages/TeacherExamImport").then((m) => ({ default: m.TeacherExamImport })),
 );
-// Cùng lý do — trang này cũng đọc PDF/.docx (pdf.js/mammoth.js), chỉ giáo viên cần.
+// Cùng lý do — trang này cũng đọc PDF (pdf.js), chỉ giáo viên cần.
 const TeacherQuestionTypeImport = lazy(() =>
   import("./pages/TeacherQuestionTypeImport").then((m) => ({
     default: m.TeacherQuestionTypeImport,

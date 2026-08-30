@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractCandidateText,
   extractJsonBlock,
   matchTopicByName,
   mergeExtractedTaxonomies,
@@ -159,5 +160,51 @@ describe("matchTopicByName", () => {
 
   it("trả về null khi danh sách topics rỗng", () => {
     expect(matchTopicByName("Ứng dụng đạo hàm", [])).toBeNull();
+  });
+});
+
+/**
+ * Bộ test cho SỬA LỖI 30/08/2026 — lỗi làm mất trắng cả 1 đợt (6 trang đề)
+ * vì code cũ chỉ đọc đúng candidates[0].content.parts[0].text. Xem giải thích
+ * đầy đủ ở extractCandidateText() trong ai.ts.
+ */
+describe("extractCandidateText", () => {
+  it("đọc được câu trả lời 1 mảnh như model đời cũ", () => {
+    const candidate = { content: { parts: [{ text: '{"part1": []}' }] } };
+    expect(extractCandidateText(candidate)).toBe('{"part1": []}');
+  });
+
+  it("GHÉP nhiều mảnh văn bản lại thành 1 (code cũ chỉ lấy mảnh đầu → JSON cụt)", () => {
+    const candidate = {
+      content: { parts: [{ text: '{"part1": ' }, { text: "[]" }, { text: "}" }] },
+    };
+    expect(extractCandidateText(candidate)).toBe('{"part1": []}');
+  });
+
+  it("BỎ QUA mảnh suy nghĩ nội bộ (thought) đứng trước nội dung thật", () => {
+    const candidate = {
+      content: {
+        parts: [
+          { text: "Người dùng muốn bóc đề thi...", thought: true },
+          { text: '{"part1": []}' },
+        ],
+      },
+    };
+    expect(extractCandidateText(candidate)).toBe('{"part1": []}');
+  });
+
+  it("bỏ qua mảnh không có khoá text (đây là ca làm code cũ tưởng là rỗng)", () => {
+    const candidate = { content: { parts: [{ thought: true }, { text: "xong" }] } };
+    expect(extractCandidateText(candidate)).toBe("xong");
+  });
+
+  it("trả về chuỗi rỗng khi thật sự không có nội dung nào", () => {
+    expect(extractCandidateText(undefined)).toBe("");
+    expect(extractCandidateText({})).toBe("");
+    expect(extractCandidateText({ content: {} })).toBe("");
+    expect(extractCandidateText({ content: { parts: [] } })).toBe("");
+    expect(extractCandidateText({ content: { parts: [{ thought: true, text: "chỉ nghĩ" }] } })).toBe(
+      "",
+    );
   });
 });

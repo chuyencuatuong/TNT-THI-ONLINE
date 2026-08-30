@@ -8,8 +8,8 @@
  */
 
 import type { QuestionType, Topic } from "./types";
-import type { ExtractedImage } from "./wordImport";
 import { chunkArray } from "./chunk";
+import { mapWithConcurrency } from "./concurrency";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
   | string
@@ -33,8 +33,17 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
 // hạn mức/giá nâng cấp thật, hoặc (b) đổi tạm qua biến môi trường
 // VITE_GEMINI_MODEL sang model khác (vd. "gemini-3.6-flash") mà không cần
 // sửa code.
+// ĐỔI LẠI 30/08/2026 (ĐỔI VAI TRÒ 2 MODEL): thực tế dùng nhiều lần cho thấy
+// "gemini-3.7-flash" gần như LUÔN trả 503 UNAVAILABLE ở gói miễn phí — nghĩa
+// là mỗi đợt phân tích đều phải đốt 3 lần gọi hỏng + ~11 giây chờ giữa các
+// lần rồi mới chịu chuyển sang model dự phòng. Đó là thời gian chờ VÔ ÍCH
+// cộng vào MỌI đợt, và là nguyên nhân chính khiến import 1 đề mất vài phút.
+// Model thật sự chạy được là "3.6-flash" (vốn đang nằm ở vai dự phòng), nên
+// đảo vai trò: "3.6-flash" làm CHÍNH, "3.7-flash" lùi về dự phòng (vẫn giữ
+// vì hạn mức free tier tính RIÊNG từng model — khi 3.6 hết lượt/ngày thì 3.7
+// còn nguyên lượt của nó, đáng thử nốt trước khi báo lỗi hẳn).
 const GEMINI_MODEL =
-  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-3.7-flash";
+  (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-3.6-flash";
 // THÊM 25/08/2026: ngay sau khi đổi lại sang "gemini-3.7-flash" (theo quyết
 // định của Thầy ở trên), gặp thật lỗi 503 UNAVAILABLE ("This model is
 // currently experiencing high demand") — khác hẳn 2 lỗi trước đó (404 model
@@ -49,7 +58,7 @@ const GEMINI_MODEL =
 // cao hơn), vừa không bị "đứng hình" khi Google quá tải.
 const GEMINI_FALLBACK_MODEL =
   (import.meta.env.VITE_GEMINI_FALLBACK_MODEL as string | undefined) ||
-  "gemini-3.6-flash";
+  "gemini-3.7-flash";
 
 function geminiEndpoint(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -64,7 +73,12 @@ type GeminiPart =
  * giới hạn này, nếu mạng/API bị treo, giao diện sẽ đứng ở "đang phân tích"
  * vô thời hạn mà không có cách nào báo lỗi cho giáo viên biết để thử lại.
  */
-const GEMINI_TIMEOUT_MS = 90_000;
+// GIẢM 30/08/2026: 90s là quá dài. Vì các đợt giờ chạy SONG SONG (xem
+// parseExamFromPdfPages) và mỗi đợt chỉ còn 4 trang + KHÔNG trích lời giải,
+// 1 đợt bình thường trả lời trong ~10-20s. Đợt nào quá 45s gần như chắc chắn
+// là đã hỏng/treo, chờ tiếp chỉ tốn thời gian — huỷ sớm rồi thử lại nhanh
+// tổng cộng vẫn nhanh hơn ngồi đợi hết 90s.
+const GEMINI_TIMEOUT_MS = 45_000;
 
 /**
  * Google thỉnh thoảng trả lỗi 503 "quá tải" hoặc 429 "vượt giới hạn tốc độ"
@@ -72,7 +86,11 @@ const GEMINI_TIMEOUT_MS = 90_000;
  * giây thường sẽ qua. Không thử lại quá nhiều lần để tránh treo lâu vô ích.
  */
 const GEMINI_MAX_ATTEMPTS = 3;
-const GEMINI_RETRY_DELAYS_MS = [3000, 8000];
+// GIẢM 30/08/2026: từ [3000, 8000] xuống [1200, 3000]. Chờ 11 giây cho MỖI
+// đợt trước khi chịu đổi model là quá đắt khi model chính đang hỏng hàng
+// loạt; 503 do quá tải tức thời thường qua ngay ở nhịp thử lại kế tiếp, chờ
+// lâu hơn không làm tăng tỉ lệ thành công tương xứng.
+const GEMINI_RETRY_DELAYS_MS = [1200, 3000];
 /** Số lần thử ở ĐỢT DỰ PHÒNG (model dự phòng) — cố tình ít hơn model chính, để
  * khi cả 2 model đều đang có vấn đề, tổng thời gian chờ không bị nhân đôi. */
 const GEMINI_FALLBACK_MAX_ATTEMPTS = 2;
@@ -117,65 +135,229 @@ interface GeminiCallResult {
 }
 
 /**
- * maxAttemptsForModel: số lần thử tối đa CHO MODEL HIỆN TẠI của lệnh gọi này
- * (không tính đợt dự phòng riêng) — model dự phòng dùng số lần thử ít hơn
- * (GEMINI_FALLBACK_MAX_ATTEMPTS) để không kéo dài gấp đôi thời gian chờ khi
- * cả 2 model đều đang có vấn đề.
- * isFallback: true khi lệnh gọi này đã là đợt dùng model dự phòng — để không
- * dự phòng lồng dự phòng (chỉ đổi model đúng 1 lần).
+ * Các mảnh có thể có trong 1 câu trả lời của Gemini. Model đời mới có thể trả
+ * về NHIỀU mảnh, và mảnh "suy nghĩ nội bộ" (thought) không phải nội dung trả
+ * lời — xem extractCandidateText() ngay bên dưới.
  */
+export interface GeminiCandidatePart {
+  text?: string;
+  thought?: boolean;
+}
+export interface GeminiCandidate {
+  content?: { parts?: GeminiCandidatePart[] };
+  finishReason?: string;
+}
+
+/**
+ * SỬA LỖI 30/08/2026 — đây là nguyên nhân thật của lỗi "AI trả lời rỗng,
+ * không có nội dung để đọc" làm MẤT TRẮNG cả 1 đợt (6 trang đề) dù Google trả
+ * về HTTP 200 bình thường.
+ *
+ * Code cũ đọc đúng MỘT chỗ duy nhất: candidates[0].content.parts[0].text.
+ * Cách đọc đó chỉ đúng với model đời cũ luôn trả về đúng 1 mảnh văn bản. Model
+ * đời mới (dòng 3.x có cơ chế "thinking") có thể trả về:
+ *   - nhiều mảnh văn bản liên tiếp, cần GHÉP lại mới thành câu trả lời đầy đủ;
+ *   - hoặc mảnh đầu tiên là phần "suy nghĩ" (thought: true) chứ không phải nội
+ *     dung, thậm chí là mảnh KHÔNG có khoá text nào cả.
+ * Cả 2 trường hợp đều làm parts[0].text ra rỗng → code cũ kết luận "AI trả
+ * lời rỗng" và VỨT NGUYÊN ĐỢT, dù dữ liệu thật vẫn nằm ở các mảnh sau.
+ *
+ * Hàm này ghép TOÀN BỘ mảnh văn bản (bỏ qua mảnh suy nghĩ nội bộ) theo đúng
+ * thứ tự. Tách thành hàm thuần để unit-test được mà không cần gọi API thật.
+ */
+export function extractCandidateText(candidate: GeminiCandidate | undefined): string {
+  const parts = candidate?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  return parts
+    .filter((p) => p?.thought !== true && typeof p?.text === "string")
+    .map((p) => p.text as string)
+    .join("")
+    .trim();
+}
+
+/**
+ * Diễn giải finishReason khi Google dừng câu trả lời vì lý do KHÁC "xong bình
+ * thường" (STOP) và "quá dài" (MAX_TOKENS). Code cũ không đọc trường này nên
+ * mọi trường hợp bị chặn đều hiện ra cùng một câu "AI trả lời rỗng" vô nghĩa,
+ * không có cách nào biết vì sao để mà xử lý.
+ * retriable=false nghĩa là thử lại y hệt cũng vô ích (bị chặn nội dung), đừng
+ * tốn thêm thời gian chờ.
+ */
+function describeFinishReason(
+  reason: string | undefined,
+): { message: string; retriable: boolean } | null {
+  switch (reason) {
+    case "SAFETY":
+      return {
+        message:
+          "Google chặn câu trả lời vì bộ lọc an toàn (SAFETY) — thường do 1 trang có hình/chữ bị hiểu nhầm. Thử tách riêng các trang đó ra rồi tải lại.",
+        retriable: false,
+      };
+    case "RECITATION":
+      return {
+        message:
+          "Google chặn câu trả lời vì nghi trùng nguồn có bản quyền (RECITATION) — thử lại, nếu vẫn lặp lại thì tách nhỏ file ra.",
+        retriable: false,
+      };
+    case "PROHIBITED_CONTENT":
+    case "BLOCKLIST":
+    case "SPII":
+      return {
+        message: `Google chặn câu trả lời cho đợt này (${reason}).`,
+        retriable: false,
+      };
+    case "OTHER":
+      return {
+        message: "Google dừng câu trả lời không rõ lý do (OTHER) — thường là lỗi tạm thời.",
+        retriable: true,
+      };
+    default:
+      return null;
+  }
+}
+
+interface GeminiCallOptions {
+  /** Lần thử thứ mấy cho lỗi HTTP tạm thời (503/timeout) ở model hiện tại. */
+  attempt?: number;
+  model?: string;
+  /**
+   * Số lần thử tối đa CHO MODEL HIỆN TẠI của lệnh gọi này (không tính đợt dự
+   * phòng riêng) — model dự phòng dùng số lần thử ít hơn
+   * (GEMINI_FALLBACK_MAX_ATTEMPTS) để không kéo dài gấp đôi thời gian chờ khi
+   * cả 2 model đều đang có vấn đề.
+   */
+  maxAttemptsForModel?: number;
+  /** true khi lệnh gọi này đã là đợt dùng model dự phòng — để không dự phòng lồng dự phòng (chỉ đổi model đúng 1 lần). */
+  isFallback?: boolean;
+  /**
+   * true (mặc định) = gửi kèm 2 tuỳ chọn mới giúp nhanh và chắc hơn hẳn:
+   * thinkingConfig.thinkingBudget = 0 và responseMimeType application/json
+   * (xem chỗ dùng bên dưới). Tự đặt lại thành false và gọi lại đúng 1 lần nếu
+   * Google trả 400 — phòng trường hợp model đang cấu hình không hiểu 2 tuỳ
+   * chọn này, để không làm chết hẳn đường import chỉ vì tên model thay đổi.
+   */
+  useModernConfig?: boolean;
+  /** Số lần đã thử lại RIÊNG cho trường hợp trả lời rỗng (khác hẳn lỗi HTTP). */
+  emptyRetry?: number;
+  /**
+   * true = lệnh gọi này MONG ĐỢI câu trả lời là JSON, nên bật chế độ JSON
+   * thuần của Google (responseMimeType). MẶC ĐỊNH false vì KHÔNG phải lệnh
+   * gọi nào cũng cần JSON: generateReportSummary() xin về 1 ĐOẠN VĂN nhận xét
+   * gửi phụ huynh — ép nó trả JSON thì hỏng hẳn tính năng đó. Chỉ bật ở các
+   * chỗ thật sự đọc kết quả bằng JSON.parse().
+   */
+  expectJson?: boolean;
+}
+
+/**
+ * Trả lời rỗng gần như luôn là trục trặc nhất thời phía Google (đợt y hệt gọi
+ * lại thường ra kết quả bình thường). Code cũ KHÔNG thử lại lần nào trong
+ * trường hợp này — mất trắng nguyên đợt. Cho thử lại, nhưng chỉ 1 lần để
+ * không kéo dài thời gian chờ.
+ */
+const GEMINI_MAX_EMPTY_RETRIES = 1;
+
 async function callGeminiPartsDetailed(
   parts: GeminiPart[],
   maxOutputTokens: number,
-  attempt = 1,
-  model: string = GEMINI_MODEL,
-  maxAttemptsForModel: number = GEMINI_MAX_ATTEMPTS,
-  isFallback = false,
+  opts: GeminiCallOptions = {},
 ): Promise<GeminiCallResult> {
+  const {
+    attempt = 1,
+    model = GEMINI_MODEL,
+    maxAttemptsForModel = GEMINI_MAX_ATTEMPTS,
+    isFallback = false,
+    useModernConfig = true,
+    emptyRetry = 0,
+    expectJson = false,
+  } = opts;
+
   if (!GEMINI_API_KEY) {
     return { text: null, errorMessage: "Thiếu VITE_GEMINI_API_KEY — chưa cấu hình API key cho AI." };
   }
+
+  /** Gọi lại chính hàm này với model dự phòng — gom 1 chỗ vì có 3 nhánh cần dùng. */
+  const retryWithFallbackModel = () =>
+    callGeminiPartsDetailed(parts, maxOutputTokens, {
+      model: GEMINI_FALLBACK_MODEL,
+      maxAttemptsForModel: GEMINI_FALLBACK_MAX_ATTEMPTS,
+      isFallback: true,
+      useModernConfig,
+      expectJson,
+    });
+  const canFallBack = !isFallback && model !== GEMINI_FALLBACK_MODEL;
+
+  const generationConfig: Record<string, unknown> = { temperature: 0.2, maxOutputTokens };
+  if (useModernConfig) {
+    // TẮT HẲN "THINKING" (30/08/2026) — thay đổi có tác động lớn nhất tới tốc
+    // độ. Model dòng 3.x mặc định tự "suy nghĩ" trước khi trả lời: phần suy
+    // nghĩ đó vừa CHIẾM THỜI GIAN (thường gấp 2-3 lần thời gian trả lời), vừa
+    // ĂN VÀO chính hạn mức maxOutputTokens gửi lên — nên có trường hợp model
+    // nghĩ hết sạch token rồi không còn chỗ viết câu trả lời, trả về đúng một
+    // câu trả lời RỖNG (chính là lỗi đã gặp). Việc ở đây là bóc dữ liệu có
+    // cấu trúc từ văn bản + ảnh đã cho sẵn, không phải bài toán cần suy luận
+    // nhiều bước — tắt thinking gần như không ảnh hưởng chất lượng mà nhanh
+    // hơn hẳn.
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    // BẮT TRẢ VỀ JSON THUẦN (30/08/2026), chỉ ở những lệnh gọi thật sự đọc
+    // kết quả bằng JSON.parse (xem GeminiCallOptions.expectJson): Google tự
+    // đảm bảo đầu ra là JSON hợp lệ, không bọc trong code fence, không kèm
+    // lời dẫn "Đây là kết quả:..." — bỏ được phần lớn rủi ro hỏng JSON khiến
+    // mất cả đợt. extractJsonBlock() và sanitizeJsonEscapes() vẫn giữ nguyên
+    // làm lưới an toàn cho đường dự phòng (useModernConfig=false) và cho
+    // model không tôn trọng tuỳ chọn này.
+    if (expectJson) generationConfig.responseMimeType = "application/json";
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
   try {
     const res = await fetch(`${geminiEndpoint(model)}?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { temperature: 0.2, maxOutputTokens },
-      }),
+      body: JSON.stringify({ contents: [{ parts }], generationConfig }),
       signal: controller.signal,
     });
     if (!res.ok) {
       const bodyText = await res.text();
       console.error(`Gemini API lỗi (model ${model}):`, res.status, bodyText);
+      // 400 khi đang bật tuỳ chọn mới: nhiều khả năng model này không hiểu
+      // thinkingConfig/responseMimeType. Gọi lại đúng 1 lần với cấu hình tối
+      // giản trước khi kết luận là lỗi thật — xem GeminiCallOptions.useModernConfig.
+      if (res.status === 400 && useModernConfig) {
+        console.warn(
+          `Model "${model}" từ chối tuỳ chọn thinkingConfig/responseMimeType (lỗi 400) — gọi lại với cấu hình tối giản.`,
+        );
+        return callGeminiPartsDetailed(parts, maxOutputTokens, {
+          ...opts,
+          attempt: 1,
+          model,
+          useModernConfig: false,
+        });
+      }
       // 503/5xx là quá tải TẠM THỜI phía Google — đáng thử lại cùng model vài
       // giây sau, thường sẽ qua.
       // 429 (RESOURCE_EXHAUSTED) THỰC TẾ gặp 25/08/2026 lại là hết hạn mức
       // THEO NGÀY (quotaId "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
-      // response còn kèm "retryDelay" ~30-45s) — đợi 3s/8s tại chỗ rồi gọi lại
-      // CÙNG model gần như chắc chắn vẫn lỗi (chỉ tốn thêm thời gian chờ vô
-      // ích), nên KHÔNG thử lại cùng model khi gặp 429, chuyển thẳng sang
-      // model dự phòng (hạn mức free tier tính RIÊNG theo từng model, nên còn
-      // nguyên 20 lượt/ngày).
+      // response còn kèm retryDelay ~30-45s) — đợi tại chỗ rồi gọi lại CÙNG
+      // model gần như chắc chắn vẫn lỗi (chỉ tốn thêm thời gian chờ vô ích),
+      // nên KHÔNG thử lại cùng model khi gặp 429, chuyển thẳng sang model dự
+      // phòng (hạn mức free tier tính RIÊNG theo từng model).
       const serverOverload = res.status === 503 || res.status >= 500;
       const quotaExhausted = res.status === 429;
-      const retriableSameModel = serverOverload && attempt < maxAttemptsForModel;
-      if (retriableSameModel) {
-        await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] ?? 8000);
-        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
+      if (serverOverload && attempt < maxAttemptsForModel) {
+        await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] ?? 3000);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, {
+          ...opts,
+          attempt: attempt + 1,
+          model,
+        });
       }
-      if (!isFallback && (serverOverload || quotaExhausted) && model !== GEMINI_FALLBACK_MODEL) {
-        console.warn(`Model "${model}" ${quotaExhausted ? "hết hạn mức/ngày" : "quá tải"} sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
-        return callGeminiPartsDetailed(
-          parts,
-          maxOutputTokens,
-          1,
-          GEMINI_FALLBACK_MODEL,
-          GEMINI_FALLBACK_MAX_ATTEMPTS,
-          true,
+      if (canFallBack && (serverOverload || quotaExhausted)) {
+        console.warn(
+          `Model "${model}" ${quotaExhausted ? "hết hạn mức/ngày" : "quá tải"} sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`,
         );
+        return retryWithFallbackModel();
       }
       const base = describeGeminiHttpError(res.status);
       return {
@@ -185,38 +367,80 @@ async function callGeminiPartsDetailed(
           : base,
       };
     }
+
     const json = await res.json();
-    const candidate = json?.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text as string | undefined;
+    const candidate = json?.candidates?.[0] as GeminiCandidate | undefined;
+    // Ghép TOÀN BỘ mảnh văn bản thay vì chỉ đọc parts[0] — xem extractCandidateText().
+    const text = extractCandidateText(candidate);
+    const finishReason = candidate?.finishReason;
     // "MAX_TOKENS" = Gemini dừng sinh chữ giữa chừng vì chạm giới hạn
     // maxOutputTokens gửi lên — xem GeminiCallResult.truncated ở trên.
-    const truncated = candidate?.finishReason === "MAX_TOKENS";
-    if (!text?.trim()) {
-      if (truncated) {
-        return {
-          text: null,
-          errorMessage: "AI bị dừng ngang do vượt giới hạn độ dài phản hồi (MAX_TOKENS) trước khi viết được nội dung nào — đợt này có thể quá dài, thử lại sau hoặc chia nhỏ hơn.",
-          truncated: true,
-        };
-      }
-      return { text: null, errorMessage: "AI trả lời rỗng, không có nội dung để đọc." };
+    const truncated = finishReason === "MAX_TOKENS";
+
+    if (text) return { text, errorMessage: null, truncated };
+
+    // --- Từ đây trở xuống: Google trả 200 nhưng không có chữ nào đọc được ---
+    // In nguyên văn phần trả về để lần sau còn truy được nguyên nhân thật, thay
+    // vì chỉ thấy đúng 1 dòng "AI trả lời rỗng" không có manh mối nào.
+    console.error(
+      `Gemini (model ${model}) trả về 200 nhưng không có nội dung. finishReason=${finishReason ?? "(không có)"}. Nguyên văn:`,
+      JSON.stringify(json)?.slice(0, 2000),
+      json?.promptFeedback,
+    );
+
+    if (truncated) {
+      return {
+        text: null,
+        errorMessage:
+          "AI bị dừng ngang do vượt giới hạn độ dài phản hồi (MAX_TOKENS) trước khi viết được nội dung nào — đợt này có thể quá dài, thử lại hoặc chia nhỏ hơn.",
+        truncated: true,
+      };
     }
-    return { text: text.trim(), errorMessage: null, truncated };
+
+    const blocked = describeFinishReason(finishReason);
+    if (blocked && !blocked.retriable) {
+      // Bị chặn nội dung — thử lại y hệt cũng vô ích, nhưng model KHÁC có
+      // ngưỡng lọc khác nên vẫn đáng thử đúng 1 lần ở model dự phòng.
+      if (canFallBack) return retryWithFallbackModel();
+      return { text: null, errorMessage: blocked.message };
+    }
+
+    // Rỗng không rõ lý do (hoặc finishReason OTHER): coi như trục trặc nhất
+    // thời — thử lại rồi mới đổi model, thay vì vứt nguyên đợt như code cũ.
+    if (emptyRetry < GEMINI_MAX_EMPTY_RETRIES) {
+      console.warn(`Gọi lại model "${model}" vì lần trước trả lời rỗng.`);
+      await sleep(1000);
+      return callGeminiPartsDetailed(parts, maxOutputTokens, {
+        ...opts,
+        attempt: 1,
+        model,
+        emptyRetry: emptyRetry + 1,
+      });
+    }
+    if (canFallBack) {
+      console.warn(
+        `Model "${model}" liên tục trả lời rỗng — chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`,
+      );
+      return retryWithFallbackModel();
+    }
+    return {
+      text: null,
+      errorMessage: `${blocked?.message ?? "AI trả lời rỗng, không có nội dung để đọc"} (đã thử lại và đã thử cả model dự phòng "${GEMINI_FALLBACK_MODEL}").`,
+    };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       if (attempt < maxAttemptsForModel) {
-        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, {
+          ...opts,
+          attempt: attempt + 1,
+          model,
+        });
       }
-      if (!isFallback && model !== GEMINI_FALLBACK_MODEL) {
-        console.warn(`Model "${model}" liên tục timeout sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
-        return callGeminiPartsDetailed(
-          parts,
-          maxOutputTokens,
-          1,
-          GEMINI_FALLBACK_MODEL,
-          GEMINI_FALLBACK_MAX_ATTEMPTS,
-          true,
+      if (canFallBack) {
+        console.warn(
+          `Model "${model}" liên tục timeout sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`,
         );
+        return retryWithFallbackModel();
       }
       return {
         text: null,
@@ -230,16 +454,19 @@ async function callGeminiPartsDetailed(
   }
 }
 
+
 async function callGeminiParts(
   parts: GeminiPart[],
   maxOutputTokens = 500,
+  expectJson = false,
 ): Promise<string | null> {
-  const { text } = await callGeminiPartsDetailed(parts, maxOutputTokens);
+  const { text } = await callGeminiPartsDetailed(parts, maxOutputTokens, { expectJson });
   return text;
 }
 
-async function callGemini(prompt: string): Promise<string | null> {
-  return callGeminiParts([{ text: prompt }], 500);
+/** expectJson: xem GeminiCallOptions.expectJson — phải để false cho lệnh xin về văn xuôi. */
+async function callGemini(prompt: string, expectJson = false): Promise<string | null> {
+  return callGeminiParts([{ text: prompt }], 500, expectJson);
 }
 
 /**
@@ -353,7 +580,7 @@ Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào kh
 {"id": "<id của dạng bài đã chọn>", "reasoning": "<giải thích ngắn gọn 1 câu bằng tiếng Việt>"}
 Nếu không dạng nào phù hợp, trả về {"id": null, "reasoning": "..."}`;
 
-  const raw = await callGemini(prompt);
+  const raw = await callGemini(prompt, true);
   if (!raw) {
     return {
       question_type_id: null,
@@ -423,7 +650,7 @@ Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào kh
 {"id": "<id của chương đã chọn>", "reasoning": "<giải thích ngắn gọn 1 câu bằng tiếng Việt>"}
 Nếu không chương nào phù hợp, trả về {"id": null, "reasoning": "..."}`;
 
-  const raw = await callGemini(prompt);
+  const raw = await callGemini(prompt, true);
   if (!raw) {
     return {
       topic_id: null,
@@ -515,17 +742,31 @@ Không dùng markdown, không dùng emoji.`;
 }
 
 // ---------------------------------------------------------------------------
-// Tạo đề từ file Word: AI đọc văn bản (đã trích bằng mammoth.js ở wordImport.ts)
-// + các hình ảnh nhúng (nếu có), trả về cấu trúc câu hỏi đã LaTeX hoá.
-// Giáo viên LUÔN phải xem lại và xác nhận đáp án trước khi xuất bản — AI ở đây
-// chỉ hỗ trợ soạn nháp, không tự động công bố đề.
+// Cấu trúc 1 đề thi sau khi AI đọc xong. Giáo viên LUÔN phải xem lại và xác
+// nhận đáp án trước khi xuất bản — AI ở đây chỉ hỗ trợ soạn nháp, không tự
+// động công bố đề.
+//
+// BỎ 30/08/2026: đường đọc thẳng file .docx (parseExamFromDocument +
+// wordImport.ts + mammoth.js) đã gỡ hẳn. Lý do: chính thư viện mammoth KHÔNG
+// đọc được công thức gõ bằng Equation/MathType (định dạng OMML/OLE) — nó bỏ
+// qua ÂM THẦM, nên đề nào cũng thiếu công thức và giáo viên phải gõ tay lại,
+// tức là đường này chưa bao giờ dùng được thật cho đề Toán. Giữ lại chỉ tổ
+// làm rối màn hình chọn file và bắt mọi người tải thêm 1 thư viện nặng.
+// Đường DUY NHẤT giờ là PDF (xem parseExamFromPdfPages bên dưới) — vốn đã là
+// đường khuyến nghị, và xử lý công thức tốt hơn hẳn.
 // ---------------------------------------------------------------------------
 
 export interface ParsedPart1Question {
   content_latex: string;
   choices: { A: string; B: string; C: string; D: string };
   correct_choice: "A" | "B" | "C" | "D" | null;
-  /** Lời giải chi tiết (LaTeX), nếu đề có ghi sẵn ngay dưới câu hỏi. Không bắt buộc. */
+  /**
+   * Lời giải chi tiết (LaTeX). BỎ 30/08/2026 khỏi phần AI trích: AI KHÔNG còn
+   * điền trường này nữa (luôn để trống), giáo viên tự nhập ở màn hình xem
+   * trước — xem ghi chú ở buildExamParseFromImagesPrompt(). Vẫn giữ trường ở
+   * đây vì đường "dán JSON đã xử lý sẵn" có thể có, và vì cột solution_latex
+   * trong CSDL vẫn dùng bình thường cho phần nhập tay.
+   */
   solution_latex?: string | null;
   /** Tên chương AI gợi ý (khớp đúng tên 1 trong danh sách topics đã gửi) — null nếu không chắc. Ánh xạ sang topic_id bằng matchTopicByName(). */
   topic_name?: string | null;
@@ -553,7 +794,7 @@ export interface ParsedExam {
 
 /**
  * Danh sách chương gửi kèm prompt + đoạn hướng dẫn gợi ý chương — dùng chung
- * cho cả 2 prompt (đọc .docx và đọc ảnh PDF) để không lặp lại nội dung.
+ * cho prompt đọc ảnh PDF và prompt trích dạng bài, để không lặp lại nội dung.
  * Trống (topics rỗng) thì bỏ qua hẳn yêu cầu này, không ép AI đoán mò khi
  * giáo viên chưa gieo chương nào.
  */
@@ -567,67 +808,6 @@ function topicClassificationBlock(topics: Topic[]): {
     ruleText: `\nGỢI Ý CHƯƠNG: với mỗi câu, chọn ĐÚNG MỘT chương phù hợp nhất trong danh sách sau (ghi lại ĐÚNG NGUYÊN VĂN tên chương, không tự bịa chương mới, không dịch/viết tắt khác đi): ${topicList}. Nếu không chương nào phù hợp hoặc không chắc chắn, để "topic_name" là null — không đoán bừa.\n`,
     jsonExample: `, "topic_name": "..." | null`,
   };
-}
-
-function buildExamParsePrompt(topics: Topic[]): string {
-  const { ruleText, jsonExample } = topicClassificationBlock(topics);
-  return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là văn bản trích từ 1 file Word chứa đề thi, cùng với các hình ảnh nhúng trong file (nếu có) được gửi kèm — mỗi hình có placeholder dạng [HINH_n] xuất hiện trong văn bản, hình gửi kèm theo ĐÚNG thứ tự đó.
-
-Đề thi có 3 phần theo cấu trúc chuẩn:
-- Phần 1: trắc nghiệm 4 phương án (A, B, C, D), chỉ 1 phương án đúng.
-- Phần 2: mỗi câu có 4 ý nhỏ (a, b, c, d), mỗi ý là 1 mệnh đề Đúng/Sai độc lập.
-- Phần 3: trả lời ngắn (điền số hoặc chuỗi ngắn), không có phương án cho sẵn.
-
-YÊU CẦU:
-1. Xác định đúng từng câu thuộc phần nào, theo đúng thứ tự xuất hiện trong văn bản.
-2. Chuyển TOÀN BỘ công thức Toán sang LaTeX, đặt trong cặp dấu $...$ (công thức trong dòng). Không dùng \\[ \\] hay các cú pháp khác.
-3. Với mỗi placeholder [HINH_n]: nếu hình đó là 1 công thức Toán (chụp/dán ảnh), hãy đọc và chuyển thành LaTeX chèn thẳng vào đúng vị trí (không giữ lại placeholder). Nếu hình là đồ thị/hình vẽ minh hoạ (không phải công thức đơn thuần), GIỮ NGUYÊN placeholder đó trong content_latex kèm chú thích "(xem hình)" ngay sau — KHÔNG được tự vẽ lại hay đoán nội dung hình.
-4. CHỈ điền đáp án đúng (correct_choice / correct / correct_value) khi có bằng chứng rõ ràng trong văn bản — ví dụ phương án được đánh dấu **in đậm** (là quy ước in đậm = đáp án đúng), hoặc có ghi chú "Đáp án:" ngay sau câu. Nếu KHÔNG chắc chắn, để giá trị đó là null — TUYỆT ĐỐI không tự đoán đáp án khi không có căn cứ, vì đoán sai sẽ làm chấm điểm sai cho học sinh.
-5. Với Phần 3, "points" là thang điểm của câu đó nếu đề có ghi rõ, nếu không có thì để mặc định 0.5.
-6. Nếu đề có ghi lời giải chi tiết ngay dưới mỗi câu (thường thấy ở bản dành cho giáo viên), hãy chuyển lời giải đó sang "solution_latex" (cùng quy ước LaTeX như content_latex, giữ nguyên các bước giải, không tự tóm tắt hay bịa thêm). Nếu đề không có lời giải cho câu nào, để "solution_latex" là null cho câu đó — KHÔNG tự viết lời giải khi đề gốc không có.
-7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) bất kỳ điều gì không chắc chắn: câu thiếu công thức nghi do định dạng gốc không đọc được, câu không xác định được phần nào, hình ảnh không rõ nội dung, v.v.
-${ruleText}
-QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: trong mọi chuỗi (content_latex, solution_latex...), dấu chéo ngược '\' của LaTeX (vd '\frac', '\lim', '\infty', '\left(') PHẢI viết thành HAI dấu chéo ngược liên tiếp '\\' (vd '\\frac', '\\lim', '\\infty') để là JSON hợp lệ — 1 dấu chéo ngược đơn lẻ đứng trước 1 chữ cái sẽ làm hỏng toàn bộ JSON và mất hết câu hỏi trong đợt này. Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
-{
-  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null${jsonExample}}],
-  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null${jsonExample}}],
-  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null${jsonExample}}],
-  "warnings": ["..."]
-}
-
-Văn bản đề thi (in đậm được đánh dấu bằng **...**):
-"""
-`;
-}
-
-export async function parseExamFromDocument(
-  plainText: string,
-  images: ExtractedImage[],
-  topics: Topic[] = [],
-): Promise<ParsedExam | null> {
-  const parts: GeminiPart[] = [{ text: buildExamParsePrompt(topics) + plainText + '\n"""' }];
-  for (const img of images) {
-    parts.push({ text: `\nHình ảnh cho placeholder ${img.placeholder}:` });
-    parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
-  }
-
-  // Nâng lên 16384 cùng lý do với parseExamFromImages (đợt dài dễ bị Google
-  // cắt ngang giữa chừng do chạm giới hạn maxOutputTokens cũ 8192).
-  const raw = await callGeminiParts(parts, 16384);
-  if (!raw) return null;
-
-  try {
-    const parsed = extractJsonBlock(raw) as Partial<ParsedExam>;
-    return {
-      part1: Array.isArray(parsed.part1) ? parsed.part1 : [],
-      part2: Array.isArray(parsed.part2) ? parsed.part2 : [],
-      part3: Array.isArray(parsed.part3) ? parsed.part3 : [],
-      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
-    };
-  } catch (err) {
-    console.error("Không đọc được JSON từ AI khi phân tích đề:", err, raw);
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -650,6 +830,22 @@ export async function parseExamFromDocument(
 // bản, vì AI đọc ảnh vẫn có thể đọc sai màu/nét mờ.
 // ---------------------------------------------------------------------------
 
+/**
+ * BỎ TRÍCH LỜI GIẢI (30/08/2026) — quyết định của Thầy, nhằm giảm tải:
+ * "solution_latex" là trường TỐN TOKEN NHẤT trong cả câu trả lời (1 lời giải
+ * Toán viết bằng LaTeX thường dài gấp 2-3 lần chính nội dung câu hỏi, mà mỗi
+ * đợt lại có hàng chục câu). Đây chính là nguyên nhân số 1 khiến Google cắt
+ * ngang giữa chừng vì chạm maxOutputTokens (finishReason MAX_TOKENS) làm JSON
+ * hỏng và mất trắng cả đợt, đồng thời cũng là phần kéo dài thời gian trả lời
+ * nhiều nhất. Bỏ đi thì mỗi đợt trả lời ngắn hơn nhiều lần → nhanh và chắc
+ * hơn hẳn.
+ *
+ * NHƯNG vẫn phải NHẬN DIỆN ĐÁP ÁN ĐÚNG như cũ (yêu cầu rõ của Thầy): với
+ * nhiều đề, đáp án CHỈ xuất hiện ở cuối phần lời giải chứ không đánh dấu trên
+ * phương án — nên prompt vẫn bắt AI ĐỌC lời giải để lấy đáp án, chỉ cấm CHÉP
+ * LẠI lời giải vào câu trả lời (xem mục 4 bên dưới). Giáo viên nhập lời giải
+ * bằng tay ở màn hình xem trước, nơi đã hỗ trợ LaTeX + dán ảnh Ctrl+V.
+ */
 function buildExamParseFromImagesPrompt(topics: Topic[]): string {
   const { ruleText, jsonExample } = topicClassificationBlock(topics);
   return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu của từng trang 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang. Mỗi trang gồm 2 phần:
@@ -669,16 +865,16 @@ YÊU CẦU:
    - Phần 2: đáp án Đúng/Sai của từng ý có thể ghi dưới dạng bảng gọn (vd: a-Đ, b-S...) HOẶC dưới dạng văn xuôi trong phần lời giải (vd: "a) Đúng: vì...", "b) Sai: vì...") — đọc kỹ phần lời giải nếu không thấy bảng.
    - Phần 3: đáp số cuối câu có thể ghi bằng nhiều nhãn khác nhau: "Đáp số:", "Đs:", "Đáp án:", hoặc dạng "<key=...>" — coi tất cả các nhãn này là chỉ báo đáp án đúng.
    Nếu xem xét đủ các tín hiệu trên mà vẫn KHÔNG chắc chắn, để giá trị đáp án (correct_choice / correct / correct_value) là null — TUYỆT ĐỐI không tự đoán, vì đoán sai sẽ làm chấm điểm sai cho học sinh.
-4. Nếu trang có ghi lời giải chi tiết ngay dưới câu hỏi (thường thấy ở bản dành cho giáo viên), chuyển lời giải đó sang "solution_latex" — giữ nguyên các bước giải, không tự tóm tắt hay bịa thêm. Nếu không có lời giải cho câu nào, để "solution_latex" là null cho câu đó.
+4. QUAN TRỌNG — nếu trang có ghi LỜI GIẢI chi tiết dưới câu hỏi (thường thấy ở bản dành cho giáo viên): hãy ĐỌC KỸ lời giải đó để lấy ĐÁP ÁN ĐÚNG ở mục 3 (rất nhiều đề chỉ ghi đáp án ở cuối lời giải, không đánh dấu gì trên phương án). NHƯNG TUYỆT ĐỐI KHÔNG chép lại nội dung lời giải vào câu trả lời — không có trường nào để chứa nó. Chỉ lấy KẾT LUẬN (đáp án), bỏ toàn bộ các bước giải.
 5. Nếu câu có hình minh hoạ (đồ thị, bảng biến thiên, hình vẽ...) không phải là công thức Toán đơn thuần: KHÔNG cố mô tả lại hay tự vẽ hình đó bằng LaTeX. Ghi chú "(có hình minh hoạ — cần dán thủ công)" ngay trong content_latex tại vị trí hình xuất hiện, VÀ thêm 1 dòng vào "warnings" nêu rõ câu nào (Phần mấy, thứ tự xuất hiện) có hình cần giáo viên tự dán lại bằng Ctrl+V ở bước xem trước.
 6. Với Phần 3, "points" là thang điểm nếu đề ghi rõ, mặc định 0.5 nếu không có.
 7. Liệt kê vào "warnings" (mảng chuỗi tiếng Việt ngắn) mọi điều không chắc chắn khác: câu không xác định được thuộc phần nào, chữ mờ/khó đọc, nghi ngờ đọc sai công thức, trang bị thiếu/lệch thứ tự, v.v.
 ${ruleText}
 QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: trong mọi chuỗi (content_latex, solution_latex...), dấu chéo ngược '\' của LaTeX (vd '\frac', '\lim', '\infty', '\left(') PHẢI viết thành HAI dấu chéo ngược liên tiếp '\\' (vd '\\frac', '\\lim', '\\infty') để là JSON hợp lệ — 1 dấu chéo ngược đơn lẻ đứng trước 1 chữ cái sẽ làm hỏng toàn bộ JSON và mất hết câu hỏi trong đợt này. Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
 {
-  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null, "solution_latex": "..." | null${jsonExample}}],
-  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null, "solution_latex": "..." | null${jsonExample}}],
-  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5, "solution_latex": "..." | null${jsonExample}}],
+  "part1": [{"content_latex": "...", "choices": {"A":"...","B":"...","C":"...","D":"..."}, "correct_choice": "A" | null${jsonExample}}],
+  "part2": [{"content_latex": "...", "items": {"a":"...","b":"...","c":"...","d":"..."}, "correct": {"a":true,"b":false,"c":true,"d":false} | null${jsonExample}}],
+  "part3": [{"content_latex": "...", "correct_value": "..." | null, "points": 0.5${jsonExample}}],
   "warnings": ["..."]
 }`;
 }
@@ -718,6 +914,14 @@ export async function parseExamFromImages(
   pageImages: PageImageInput[],
   pageNumbers?: number[],
   topics: Topic[] = [],
+  /**
+   * THÊM 30/08/2026 — dùng nội bộ khi tự gọi lại lần 2 vì lần 1 đọc JSON
+   * hỏng. Trước đây JSON hỏng là mất trắng cả đợt ngay lần đầu, dù chỉ cần
+   * hỏi lại 1 lần là thường ra kết quả đúng (AI sinh chữ có tính ngẫu nhiên,
+   * lần sau không lặp lại đúng chỗ sai đó). Chỉ cho thử lại 1 lần để không
+   * kéo dài thời gian chờ.
+   */
+  isJsonRetry = false,
 ): Promise<ParsedExam> {
   const parts: GeminiPart[] = [{ text: buildExamParseFromImagesPrompt(topics) }];
   pageImages.forEach((img, i) => {
@@ -737,7 +941,14 @@ export async function parseExamFromImages(
   // mất trắng cả đợt dù nội dung AI đọc được thực ra đúng. Cả 2 model đều hỗ
   // trợ tới 65536 token/lượt trả lời nên còn nhiều dư địa để nâng thêm nếu
   // vẫn gặp lại.
-  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 16384);
+  // GIỮ NGUYÊN 16384 (30/08/2026) dù đợt giờ chỉ còn 4 trang và không còn
+  // trích lời giải: đây là mức TRẦN, không phải lượng token thật sự tiêu tốn
+  // — đặt cao không làm chậm hay tốn thêm gì, chỉ để chắc chắn không bao giờ
+  // chạm trần nữa. Việc tắt "thinking" ở callGeminiPartsDetailed() cũng đã
+  // giải phóng toàn bộ hạn mức này cho phần nội dung thật.
+  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 16384, {
+    expectJson: true,
+  });
   if (!raw) {
     return emptyParsedExamWithError(pageNumbers, errorMessage ?? "AI không trả lời.");
   }
@@ -752,11 +963,18 @@ export async function parseExamFromImages(
     };
   } catch (err) {
     console.error("Không đọc được JSON từ AI khi phân tích ảnh trang PDF:", err, raw);
+    // Hỏi lại đúng 1 lần trước khi bỏ cuộc — xem tham số isJsonRetry ở trên.
+    // Không thử lại khi bị CẮT NGANG do quá dài (truncated): lỗi đó lặp lại y
+    // hệt vì nguyên nhân là độ dài đợt, hỏi lại chỉ tốn thêm thời gian.
+    if (!isJsonRetry && !truncated) {
+      console.warn("Gọi lại đợt này 1 lần nữa vì JSON lần trước không đọc được.");
+      return parseExamFromImages(pageImages, pageNumbers, topics, true);
+    }
     return emptyParsedExamWithError(
       pageNumbers,
       truncated
         ? "AI bị cắt ngang do vượt giới hạn độ dài phản hồi (đợt này có quá nhiều câu/công thức dài) — thử lại, hoặc báo lại nếu vẫn lặp lại nhiều lần."
-        : "AI trả lời nhưng không đúng định dạng JSON mong đợi.",
+        : "AI trả lời nhưng không đúng định dạng JSON mong đợi (đã tự hỏi lại 1 lần).",
     );
   }
 }
@@ -785,17 +1003,34 @@ export interface ParseFromPdfResult {
 }
 
 /**
- * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI
- * (mặc định 6 trang/đợt — nhỏ hơn hẳn 1 lần gọi cho cả đề dài, để mỗi đợt trả
- * lời nhanh hơn, đỡ có cảm giác "đứng hình" lâu, và nếu 1 đợt bị lỗi/timeout
- * thì các đợt còn lại vẫn tiếp tục chạy thay vì mất trắng toàn bộ). Ghép kết
- * quả các đợt lại theo thứ tự trang. Nếu đề dài phải chia đợt, 1 câu hỏi lỡ
- * nằm vắt ngang ranh giới 2 trang ở đúng điểm chia có thể bị đọc thiếu —
- * trường hợp này hiếm nhưng giáo viên vẫn cần xem lại ở bước xác nhận.
+ * Số đợt gọi AI được chạy CÙNG LÚC. Xem giải thích đầy đủ vì sao phải giới
+ * hạn (chứ không bắn hết 1 lượt) ở mapWithConcurrency() trong concurrency.ts.
+ * Chọn 3: đủ để 1 đề 12-16 trang xong trong 1 lượt chờ duy nhất, mà vẫn cách
+ * xa hạn mức lượt/phút của gói miễn phí.
+ */
+const EXAM_PARSE_CONCURRENCY = 3;
+
+/**
+ * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI rồi
+ * ghép kết quả lại theo đúng thứ tự trang. Nếu 1 đợt bị lỗi/timeout thì các
+ * đợt còn lại vẫn có kết quả bình thường thay vì mất trắng toàn bộ.
+ *
+ * ĐỔI 30/08/2026 (2 thay đổi, đều nhằm rút thời gian chờ xuống dưới 1 phút):
+ *  1. Các đợt giờ chạy SONG SONG (tối đa EXAM_PARSE_CONCURRENCY đợt cùng lúc)
+ *     thay vì tuần tự. Trước đây đợi xong đợt 1 mới bắt đầu đợt 2, nên tổng
+ *     thời gian là TỔNG các đợt; giờ chỉ còn xấp xỉ đợt chậm nhất.
+ *  2. Mặc định 4 trang/đợt thay vì 6. Đợt nhỏ hơn thì mỗi câu trả lời ngắn
+ *     hơn → về nhanh hơn, và khi có nhiều đợt chạy song song thì chia nhỏ
+ *     cũng đồng nghĩa tận dụng được nhiều làn hơn. Đổi lại là nhiều lượt gọi
+ *     hơn, nhưng vẫn trong hạn mức.
+ *
+ * LƯU Ý CÒN LẠI (không đổi): 1 câu hỏi lỡ nằm vắt ngang đúng ranh giới chia
+ * đợt có thể bị đọc thiếu — hiếm, nhưng giáo viên vẫn cần xem lại số câu ở
+ * bước xác nhận.
  */
 export async function parseExamFromPdfPages(
   pageImages: PageImageInput[],
-  chunkSize = 6,
+  chunkSize = 4,
   onProgress?: (done: number, total: number) => void,
   topics: Topic[] = [],
 ): Promise<ParseFromPdfResult> {
@@ -805,12 +1040,20 @@ export async function parseExamFromPdfPages(
   );
   const imageChunks = chunkArray(pageImages, chunkSize);
 
-  const results: ParsedExam[] = [];
-  for (let i = 0; i < imageChunks.length; i++) {
-    const r = await parseExamFromImages(imageChunks[i], pageNumberChunks[i], topics);
-    results.push(r);
-    onProgress?.(i + 1, imageChunks.length);
-  }
+  // Đếm số đợt ĐÃ XONG để báo tiến độ. Chạy song song nên các đợt không xong
+  // theo thứ tự — dùng biến đếm tăng dần thay vì chỉ số vòng lặp, nếu không
+  // thanh tiến độ sẽ nhảy lung tung (vd. "3/4" rồi tụt về "2/4").
+  let doneCount = 0;
+  const results = await mapWithConcurrency(
+    imageChunks,
+    EXAM_PARSE_CONCURRENCY,
+    async (chunk, i) => {
+      const r = await parseExamFromImages(chunk, pageNumberChunks[i], topics);
+      doneCount += 1;
+      onProgress?.(doneCount, imageChunks.length);
+      return r;
+    },
+  );
 
   const chunkErrors = results
     .flatMap((r) => r.warnings)
@@ -915,7 +1158,9 @@ export async function extractQuestionTypesFromImages(
   // Nâng từ 4096 lên 8192 cùng lý do với parseExamFromImages (đợt dài dễ bị
   // cắt ngang do chạm giới hạn maxOutputTokens) — tài liệu dạng bài thường
   // ngắn hơn đề thi nhưng vẫn có thể dài nếu gộp nhiều dạng/ví dụ trong 1 file.
-  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 8192);
+  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 8192, {
+    expectJson: true,
+  });
   if (!raw) {
     return {
       candidates: [],
@@ -981,12 +1226,19 @@ export async function extractQuestionTypesFromPdfPages(
   );
   const imageChunks = chunkArray(pageImages, chunkSize);
 
-  const results: ExtractedTaxonomy[] = [];
-  for (let i = 0; i < imageChunks.length; i++) {
-    const r = await extractQuestionTypesFromImages(imageChunks[i], topicName, pageNumberChunks[i]);
-    results.push(r);
-    onProgress?.(i + 1, imageChunks.length);
-  }
+  // Chạy song song có giới hạn, cùng lý do và cùng cách đếm tiến độ như
+  // parseExamFromPdfPages() ở trên.
+  let doneCount = 0;
+  const results = await mapWithConcurrency(
+    imageChunks,
+    EXAM_PARSE_CONCURRENCY,
+    async (chunk, i) => {
+      const r = await extractQuestionTypesFromImages(chunk, topicName, pageNumberChunks[i]);
+      doneCount += 1;
+      onProgress?.(doneCount, imageChunks.length);
+      return r;
+    },
+  );
 
   const chunkErrors = results
     .flatMap((r) => r.warnings)
@@ -1007,47 +1259,4 @@ export async function extractQuestionTypesFromPdfPages(
     ];
   }
   return { taxonomy: merged, failedChunks, totalChunks: imageChunks.length, chunkErrors };
-}
-
-/** Đường dự phòng đọc từ .docx (mammoth.js) — cùng nguyên tắc như parseExamFromDocument, ưu tiên dùng đường PDF ở trên khi có thể vì chính xác hơn với công thức/bảng biến thiên. */
-export async function extractQuestionTypesFromDocument(
-  plainText: string,
-  images: ExtractedImage[],
-  topicName: string | null = null,
-): Promise<ExtractedTaxonomy> {
-  const parts: GeminiPart[] = [
-    {
-      text:
-        buildQuestionTypeExtractionPrompt(topicName) +
-        `\n\nVăn bản tài liệu (in đậm được đánh dấu bằng **...**):\n"""\n` +
-        plainText +
-        '\n"""',
-    },
-  ];
-  for (const img of images) {
-    parts.push({ text: `\nHình ảnh cho placeholder ${img.placeholder}:` });
-    parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
-  }
-
-  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 8192);
-  if (!raw) {
-    return { candidates: [], warnings: [errorMessage ?? "AI không trả lời."] };
-  }
-  try {
-    const parsed = extractJsonBlock(raw) as Partial<ExtractedTaxonomy>;
-    return {
-      candidates: Array.isArray(parsed.candidates) ? parsed.candidates : [],
-      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
-    };
-  } catch (err) {
-    console.error("Không đọc được JSON từ AI khi trích taxonomy dạng bài (docx):", err, raw);
-    return {
-      candidates: [],
-      warnings: [
-        truncated
-          ? "AI bị cắt ngang do vượt giới hạn độ dài phản hồi."
-          : "AI trả lời nhưng không đúng định dạng JSON mong đợi.",
-      ],
-    };
-  }
 }

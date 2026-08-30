@@ -68,12 +68,19 @@ export async function renderPdfToImages(
   file: File,
   opts: RenderPdfOptions = {},
 ): Promise<PdfPageImage[]> {
+  // GIẢM 30/08/2026 (maxWidthPx 1100 → 950, quality 0.7 → 0.62): ảnh gửi lên
+  // là phần NẶNG NHẤT của mỗi lượt gọi AI, và thời gian tải nó lên cộng thẳng
+  // vào thời gian giáo viên phải ngồi chờ. Vì ảnh ở đây KHÔNG phải nguồn đọc
+  // chữ (chữ đã có sẵn, chính xác 100%, từ lớp text của PDF — xem đầu file),
+  // nó chỉ cần đủ rõ để nhìn ra công thức, hình vẽ và màu đánh dấu đáp án —
+  // mức này vẫn thừa sức cho việc đó. Giảm được khoảng 35-40% dung lượng mỗi
+  // trang, tức là mỗi đợt gửi đi nhanh hơn tương ứng.
   const {
     scale = 1.2,
     mimeType = "image/jpeg",
-    quality = 0.7,
+    quality = 0.62,
     maxPages = 60,
-    maxWidthPx = 1100,
+    maxWidthPx = 950,
   } = opts;
 
   const arrayBuffer = await file.arrayBuffer();
