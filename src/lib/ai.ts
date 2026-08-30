@@ -78,7 +78,11 @@ type GeminiPart =
 // 1 đợt bình thường trả lời trong ~10-20s. Đợt nào quá 45s gần như chắc chắn
 // là đã hỏng/treo, chờ tiếp chỉ tốn thời gian — huỷ sớm rồi thử lại nhanh
 // tổng cộng vẫn nhanh hơn ngồi đợi hết 90s.
-const GEMINI_TIMEOUT_MS = 45_000;
+// NÂNG LẠI 30/08/2026 (lần 2): 45s hoá ra quá ngắn sau khi tăng số trang mỗi
+// đợt lên 8 (xem parseExamFromPdfPages) — đợt to thì vừa tải ảnh lên lâu hơn
+// vừa sinh chữ lâu hơn. Log thật đã gặp "Gọi AI quá 45s không có phản hồi" ở
+// 2/3 đợt. 60s là mức vừa đủ rộng cho đợt 8 trang mà vẫn cắt sớm hơn 90s cũ.
+const GEMINI_TIMEOUT_MS = 60_000;
 
 /**
  * Google thỉnh thoảng trả lỗi 503 "quá tải" hoặc 429 "vượt giới hạn tốc độ"
@@ -104,7 +108,11 @@ function describeGeminiHttpError(status: number): string {
     return "Google đang quá tải (lỗi 503 UNAVAILABLE) — đã tự thử lại vài lần nhưng vẫn lỗi. Đây là lỗi tạm thời từ phía Google, đợi vài phút rồi thử lại.";
   }
   if (status === 429) {
-    return "Đã gọi AI quá nhiều lần trong thời gian ngắn (lỗi 429 — vượt giới hạn tốc độ của gói miễn phí). Đợi 1-2 phút rồi thử lại.";
+    // Gói miễn phí giới hạn 5 LƯỢT/PHÚT cho mỗi model (quotaId
+    // GenerateRequestsPerMinutePerProjectPerModel-FreeTier) — nói rõ con số
+    // để biết đây là hạn mức theo phút (đợi 1 phút là hết) chứ không phải
+    // theo ngày (phải đợi sang hôm sau).
+    return "Đã gọi AI quá nhanh (lỗi 429 — gói miễn phí chỉ cho 5 lượt/phút cho mỗi model). Đợi khoảng 1 phút rồi thử lại; nếu đợi cả phút vẫn báo lỗi này thì đã hết hạn mức theo ngày.";
   }
   if (status === 404) {
     return "Không tìm thấy model AI (lỗi 404) — có thể tên model đang cấu hình không đúng hoặc chưa khả dụng cho API key này. Kiểm tra lại VITE_GEMINI_MODEL hoặc để trống dùng mặc định.";
@@ -230,13 +238,10 @@ interface GeminiCallOptions {
   /** true khi lệnh gọi này đã là đợt dùng model dự phòng — để không dự phòng lồng dự phòng (chỉ đổi model đúng 1 lần). */
   isFallback?: boolean;
   /**
-   * true (mặc định) = gửi kèm 2 tuỳ chọn mới giúp nhanh và chắc hơn hẳn:
-   * thinkingConfig.thinkingBudget = 0 và responseMimeType application/json
-   * (xem chỗ dùng bên dưới). Tự đặt lại thành false và gọi lại đúng 1 lần nếu
-   * Google trả 400 — phòng trường hợp model đang cấu hình không hiểu 2 tuỳ
-   * chọn này, để không làm chết hẳn đường import chỉ vì tên model thay đổi.
+   * Mức cấu hình đang dùng cho lệnh gọi này — xem GeminiConfigLevel. Bỏ trống
+   * thì lấy mức đã "thương lượng" được ở negotiatedConfigLevel.
    */
-  useModernConfig?: boolean;
+  configLevel?: GeminiConfigLevel;
   /** Số lần đã thử lại RIÊNG cho trường hợp trả lời rỗng (khác hẳn lỗi HTTP). */
   emptyRetry?: number;
   /**
@@ -257,6 +262,87 @@ interface GeminiCallOptions {
  */
 const GEMINI_MAX_EMPTY_RETRIES = 1;
 
+/**
+ * Mức tuỳ chọn gửi kèm mỗi lệnh gọi, xếp từ nhanh nhất xuống an toàn nhất:
+ *  - "full": thinkingConfig.thinkingBudget = 0 (tắt suy nghĩ, nhanh nhất) +
+ *    responseMimeType JSON.
+ *  - "json-only": bỏ thinkingConfig, giữ responseMimeType.
+ *  - "minimal": không gửi tuỳ chọn nào ngoài temperature/maxOutputTokens.
+ *
+ * SỬA 30/08/2026 (lần 2) — log thật cho thấy "gemini-3.6-flash" TỪ CHỐI gói
+ * tuỳ chọn đầy đủ bằng lỗi 400 "Request contains an invalid argument". Bản
+ * trước hạ thẳng từ "full" xuống "minimal", tức là VỨT LUÔN cả chế độ JSON
+ * thuần dù rất có thể model chỉ không hiểu mỗi thinkingConfig (đây là tuỳ
+ * chọn mới và phụ thuộc từng model, còn responseMimeType đã có từ lâu). Giờ
+ * hạ TỪNG NẤC để giữ lại được nhiều nhất có thể.
+ */
+type GeminiConfigLevel = "full" | "json-only" | "minimal";
+
+/**
+ * Mức cấu hình dùng chung cho cả phiên làm việc, tự hạ xuống khi bị Google từ
+ * chối. ĐÂY LÀ SỬA LỖI QUAN TRỌNG NHẤT VỀ HẠN MỨC: bản trước dò lại mức cấu
+ * hình cho TỪNG lệnh gọi, nên mỗi đợt đều tốn 1 lượt gọi hỏng (400) rồi mới
+ * gọi lượt thật — tức là NHÂN ĐÔI số lượt gọi. Với hạn mức thật của gói miễn
+ * phí là 5 LƯỢT/PHÚT (quotaId GenerateRequestsPerMinutePerProjectPerModel-
+ * FreeTier), 3 đợt chạy song song hoá thành 6 lượt bắn cùng lúc → dính 429
+ * ngay lập tức. Nhớ lại mức đã dò được thì từ đợt thứ 2 trở đi không tốn lượt
+ * gọi hỏng nào nữa.
+ *
+ * GIỚI HẠN ĐÃ BIẾT (chấp nhận): lỗi 400 cũng có thể do nguyên nhân khác (vd.
+ * 1 tấm ảnh hỏng), lúc đó ta hạ mức "oan" và mất phần tăng tốc cho tới khi
+ * tải lại trang. Đây chỉ là mất tốc độ, không sai kết quả — đổi lại tránh
+ * được việc đốt gấp đôi hạn mức, vốn làm hỏng hẳn cả lượt import.
+ */
+let negotiatedConfigLevel: GeminiConfigLevel = ((): GeminiConfigLevel => {
+  // BẮT ĐẦU TỪ "json-only", KHÔNG PHẢI "full" — có lý do, đừng đổi nếu chưa
+  // đọc hết đoạn này:
+  // Log thật ngày 30/08/2026 cho thấy "gemini-3.6-flash" TỪ CHỐI thinkingConfig
+  // bằng lỗi 400. Nếu vẫn để mặc định "full", mỗi lần mở trang lại tốn 1 lượt
+  // gọi hỏng CHO MỖI ĐỢT chỉ để dò lại đúng cái điều đã biết chắc là hỏng —
+  // với hạn mức 5 lượt/PHÚT thì 2 đợt song song đã ngốn mất 2/5 lượt vào việc
+  // vô ích, chưa kể nếu "json-only" cũng hỏng thì thành 4/5 lượt. Không đáng.
+  // Vẫn GIỮ NGUYÊN mức "full" trong kiểu dữ liệu và toàn bộ cơ chế hạ nấc:
+  // khi nào Google mở thinkingConfig cho model đang dùng (hoặc đổi sang model
+  // khác qua VITE_GEMINI_MODEL), chỉ cần sửa dòng này thành "full" là bật lại
+  // được phần tăng tốc đó, không phải viết lại gì.
+  return "json-only";
+})();
+
+/** Mức thấp hơn kế tiếp, null nếu đã ở đáy. */
+function lowerConfigLevel(level: GeminiConfigLevel): GeminiConfigLevel | null {
+  if (level === "full") return "json-only";
+  if (level === "json-only") return "minimal";
+  return null;
+}
+
+/**
+ * Đọc "retryDelay" Google gửi kèm lỗi 429 (vd. "27s") thành số giây.
+ * Trả null nếu không có/không đọc được.
+ */
+export function parseRetryDelaySeconds(bodyText: string): number | null {
+  try {
+    const details = (JSON.parse(bodyText) as { error?: { details?: unknown[] } })?.error?.details;
+    if (!Array.isArray(details)) return null;
+    for (const d of details) {
+      const raw = (d as { retryDelay?: unknown })?.retryDelay;
+      if (typeof raw === "string") {
+        const m = raw.match(/^(\d+(?:\.\d+)?)s$/);
+        if (m) return Number(m[1]);
+      }
+    }
+  } catch {
+    // Thân lỗi không phải JSON — bỏ qua, coi như Google không nói gì.
+  }
+  return null;
+}
+
+/**
+ * Chờ tối đa bao lâu khi Google bảo "thử lại sau N giây" (lỗi 429). Hạn mức
+ * theo PHÚT nên N thường ~27-30s, chờ là qua. Nếu N lớn hơn mức này thì gần
+ * như chắc là hạn mức theo NGÀY — chờ vô nghĩa, chuyển model dự phòng luôn.
+ */
+const GEMINI_MAX_RETRY_DELAY_S = 40;
+
 async function callGeminiPartsDetailed(
   parts: GeminiPart[],
   maxOutputTokens: number,
@@ -267,7 +353,7 @@ async function callGeminiPartsDetailed(
     model = GEMINI_MODEL,
     maxAttemptsForModel = GEMINI_MAX_ATTEMPTS,
     isFallback = false,
-    useModernConfig = true,
+    configLevel = negotiatedConfigLevel,
     emptyRetry = 0,
     expectJson = false,
   } = opts;
@@ -282,13 +368,13 @@ async function callGeminiPartsDetailed(
       model: GEMINI_FALLBACK_MODEL,
       maxAttemptsForModel: GEMINI_FALLBACK_MAX_ATTEMPTS,
       isFallback: true,
-      useModernConfig,
+      configLevel,
       expectJson,
     });
   const canFallBack = !isFallback && model !== GEMINI_FALLBACK_MODEL;
 
   const generationConfig: Record<string, unknown> = { temperature: 0.2, maxOutputTokens };
-  if (useModernConfig) {
+  if (configLevel === "full") {
     // TẮT HẲN "THINKING" (30/08/2026) — thay đổi có tác động lớn nhất tới tốc
     // độ. Model dòng 3.x mặc định tự "suy nghĩ" trước khi trả lời: phần suy
     // nghĩ đó vừa CHIẾM THỜI GIAN (thường gấp 2-3 lần thời gian trả lời), vừa
@@ -299,14 +385,17 @@ async function callGeminiPartsDetailed(
     // nhiều bước — tắt thinking gần như không ảnh hưởng chất lượng mà nhanh
     // hơn hẳn.
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
-    // BẮT TRẢ VỀ JSON THUẦN (30/08/2026), chỉ ở những lệnh gọi thật sự đọc
-    // kết quả bằng JSON.parse (xem GeminiCallOptions.expectJson): Google tự
-    // đảm bảo đầu ra là JSON hợp lệ, không bọc trong code fence, không kèm
-    // lời dẫn "Đây là kết quả:..." — bỏ được phần lớn rủi ro hỏng JSON khiến
-    // mất cả đợt. extractJsonBlock() và sanitizeJsonEscapes() vẫn giữ nguyên
-    // làm lưới an toàn cho đường dự phòng (useModernConfig=false) và cho
-    // model không tôn trọng tuỳ chọn này.
-    if (expectJson) generationConfig.responseMimeType = "application/json";
+  }
+  // BẮT TRẢ VỀ JSON THUẦN, chỉ ở những lệnh gọi thật sự đọc kết quả bằng
+  // JSON.parse (xem GeminiCallOptions.expectJson): Google tự đảm bảo đầu ra
+  // là JSON hợp lệ, không bọc trong code fence, không kèm lời dẫn "Đây là kết
+  // quả:..." — bỏ được phần lớn rủi ro hỏng JSON khiến mất cả đợt. Tách RIÊNG
+  // khỏi khối thinkingConfig ở trên để khi model từ chối thinkingConfig thì
+  // vẫn giữ được phần này (xem GeminiConfigLevel). extractJsonBlock() và
+  // sanitizeJsonEscapes() vẫn là lưới an toàn cho mức "minimal" và cho model
+  // không tôn trọng tuỳ chọn này.
+  if (configLevel !== "minimal" && expectJson) {
+    generationConfig.responseMimeType = "application/json";
   }
 
   const controller = new AbortController();
@@ -321,28 +410,25 @@ async function callGeminiPartsDetailed(
     if (!res.ok) {
       const bodyText = await res.text();
       console.error(`Gemini API lỗi (model ${model}):`, res.status, bodyText);
-      // 400 khi đang bật tuỳ chọn mới: nhiều khả năng model này không hiểu
-      // thinkingConfig/responseMimeType. Gọi lại đúng 1 lần với cấu hình tối
-      // giản trước khi kết luận là lỗi thật — xem GeminiCallOptions.useModernConfig.
-      if (res.status === 400 && useModernConfig) {
+      // 400 khi đang gửi tuỳ chọn nâng cao: nhiều khả năng model này không
+      // hiểu thinkingConfig (hoặc responseMimeType). Hạ XUỐNG MỘT NẤC rồi gọi
+      // lại, và NHỚ mức mới cho các lượt sau để không lặp lại lượt gọi hỏng
+      // này ở mọi đợt — xem GeminiConfigLevel/negotiatedConfigLevel.
+      const lower = lowerConfigLevel(configLevel);
+      if (res.status === 400 && lower) {
+        if (negotiatedConfigLevel === configLevel) negotiatedConfigLevel = lower;
         console.warn(
-          `Model "${model}" từ chối tuỳ chọn thinkingConfig/responseMimeType (lỗi 400) — gọi lại với cấu hình tối giản.`,
+          `Model "${model}" từ chối cấu hình "${configLevel}" (lỗi 400) — hạ xuống "${lower}" và ghi nhớ cho các lượt sau.`,
         );
         return callGeminiPartsDetailed(parts, maxOutputTokens, {
           ...opts,
           attempt: 1,
           model,
-          useModernConfig: false,
+          configLevel: lower,
         });
       }
       // 503/5xx là quá tải TẠM THỜI phía Google — đáng thử lại cùng model vài
       // giây sau, thường sẽ qua.
-      // 429 (RESOURCE_EXHAUSTED) THỰC TẾ gặp 25/08/2026 lại là hết hạn mức
-      // THEO NGÀY (quotaId "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
-      // response còn kèm retryDelay ~30-45s) — đợi tại chỗ rồi gọi lại CÙNG
-      // model gần như chắc chắn vẫn lỗi (chỉ tốn thêm thời gian chờ vô ích),
-      // nên KHÔNG thử lại cùng model khi gặp 429, chuyển thẳng sang model dự
-      // phòng (hạn mức free tier tính RIÊNG theo từng model).
       const serverOverload = res.status === 503 || res.status >= 500;
       const quotaExhausted = res.status === 429;
       if (serverOverload && attempt < maxAttemptsForModel) {
@@ -353,9 +439,36 @@ async function callGeminiPartsDetailed(
           model,
         });
       }
+
+      // 429 (RESOURCE_EXHAUSTED) — SỬA LẠI 30/08/2026 (lần 2) sau khi đọc
+      // được thân lỗi THẬT. Ghi chú cũ đoán đây là hạn mức theo NGÀY nên mới
+      // chuyển thẳng sang model dự phòng; thực tế Google trả về
+      // quotaId "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+      // quotaValue 5 — tức là 5 LƯỢT MỖI PHÚT, kèm retryDelay ~27s. Với hạn
+      // mức theo phút thì chờ đúng khoảng Google bảo rồi gọi lại CÙNG model
+      // là qua; đổi model ngay lập tức chỉ đốt nốt hạn mức của model kia rồi
+      // cũng hỏng. Chỉ khi Google không nói rõ, hoặc bảo chờ quá lâu (gần như
+      // chắc là hạn mức theo NGÀY), mới chuyển model dự phòng.
+      const retryAfterS = quotaExhausted ? parseRetryDelaySeconds(bodyText) : null;
+      if (
+        quotaExhausted &&
+        retryAfterS !== null &&
+        retryAfterS <= GEMINI_MAX_RETRY_DELAY_S &&
+        attempt < maxAttemptsForModel
+      ) {
+        console.warn(
+          `Model "${model}" chạm hạn mức lượt/phút — chờ ${retryAfterS}s theo đúng hướng dẫn của Google rồi gọi lại.`,
+        );
+        await sleep(retryAfterS * 1000 + 500);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, {
+          ...opts,
+          attempt: attempt + 1,
+          model,
+        });
+      }
       if (canFallBack && (serverOverload || quotaExhausted)) {
         console.warn(
-          `Model "${model}" ${quotaExhausted ? "hết hạn mức/ngày" : "quá tải"} sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`,
+          `Model "${model}" ${quotaExhausted ? "hết hạn mức (chờ tại chỗ không cứu được)" : "quá tải"} sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`,
         );
         return retryWithFallbackModel();
       }
@@ -1005,10 +1118,15 @@ export interface ParseFromPdfResult {
 /**
  * Số đợt gọi AI được chạy CÙNG LÚC. Xem giải thích đầy đủ vì sao phải giới
  * hạn (chứ không bắn hết 1 lượt) ở mapWithConcurrency() trong concurrency.ts.
- * Chọn 3: đủ để 1 đề 12-16 trang xong trong 1 lượt chờ duy nhất, mà vẫn cách
- * xa hạn mức lượt/phút của gói miễn phí.
+ *
+ * GIẢM 3 → 2 (30/08/2026, lần 2): con số 3 đặt ra khi còn tưởng hạn mức gói
+ * miễn phí là 20 lượt/NGÀY. Thân lỗi 429 thật cho thấy hạn mức là
+ * **5 LƯỢT/PHÚT cho mỗi model** — quá chật để bắn 3 đợt song song, nhất là
+ * khi mỗi đợt còn có thể phải thử lại. Cùng với việc tăng số trang mỗi đợt
+ * lên 8 (giảm hẳn tổng số lượt gọi), mức 2 giữ cho 1 đề thường chỉ tốn 2-3
+ * lượt — nằm gọn trong hạn mức mà vẫn còn dư cho vài lần thử lại.
  */
-const EXAM_PARSE_CONCURRENCY = 3;
+const EXAM_PARSE_CONCURRENCY = 2;
 
 /**
  * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI rồi
@@ -1019,10 +1137,18 @@ const EXAM_PARSE_CONCURRENCY = 3;
  *  1. Các đợt giờ chạy SONG SONG (tối đa EXAM_PARSE_CONCURRENCY đợt cùng lúc)
  *     thay vì tuần tự. Trước đây đợi xong đợt 1 mới bắt đầu đợt 2, nên tổng
  *     thời gian là TỔNG các đợt; giờ chỉ còn xấp xỉ đợt chậm nhất.
- *  2. Mặc định 4 trang/đợt thay vì 6. Đợt nhỏ hơn thì mỗi câu trả lời ngắn
- *     hơn → về nhanh hơn, và khi có nhiều đợt chạy song song thì chia nhỏ
- *     cũng đồng nghĩa tận dụng được nhiều làn hơn. Đổi lại là nhiều lượt gọi
- *     hơn, nhưng vẫn trong hạn mức.
+ *  2. Mặc định 8 trang/đợt.
+ *
+ * ĐIỀU CHỈNH LẠI 30/08/2026 (lần 2) — ĐỌC KỸ CHỖ NÀY TRƯỚC KHI ĐỔI SỐ:
+ * lần đầu tôi hạ xuống 4 trang/đợt để mỗi câu trả lời ngắn và về nhanh hơn.
+ * Đó là tối ưu SAI HƯỚNG, vì nó dựa trên giả định hạn mức là 20 lượt/NGÀY
+ * (rộng rãi). Thân lỗi 429 thật cho thấy hạn mức là **5 LƯỢT/PHÚT cho mỗi
+ * model** — nghĩa là thứ khan hiếm không phải độ dài câu trả lời mà là SỐ
+ * LƯỢT GỌI. Chia 4 trang/đợt làm số lượt gọi tăng 50% so với 6, đúng chiều
+ * ngược lại với cái đang bị giới hạn. Nên đổi hẳn sang 8 trang/đợt: 1 đề
+ * 16 trang giờ chỉ tốn 2 lượt thay vì 4. Bỏ trích lời giải (xem
+ * buildExamParseFromImagesPrompt) đã làm câu trả lời ngắn đi nhiều lần nên
+ * đợt 8 trang vẫn thừa chỗ trong giới hạn 16384 token đầu ra.
  *
  * LƯU Ý CÒN LẠI (không đổi): 1 câu hỏi lỡ nằm vắt ngang đúng ranh giới chia
  * đợt có thể bị đọc thiếu — hiếm, nhưng giáo viên vẫn cần xem lại số câu ở
@@ -1030,7 +1156,7 @@ const EXAM_PARSE_CONCURRENCY = 3;
  */
 export async function parseExamFromPdfPages(
   pageImages: PageImageInput[],
-  chunkSize = 4,
+  chunkSize = 8,
   onProgress?: (done: number, total: number) => void,
   topics: Topic[] = [],
 ): Promise<ParseFromPdfResult> {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractCandidateText,
   extractJsonBlock,
+  parseRetryDelaySeconds,
   matchTopicByName,
   mergeExtractedTaxonomies,
   mergeParsedExams,
@@ -206,5 +207,51 @@ describe("extractCandidateText", () => {
     expect(extractCandidateText({ content: { parts: [{ thought: true, text: "chỉ nghĩ" }] } })).toBe(
       "",
     );
+  });
+});
+
+/**
+ * Google gửi kèm "retryDelay" trong thân lỗi 429. Hạn mức gói miễn phí là 5
+ * lượt/PHÚT cho mỗi model, nên chờ đúng khoảng này rồi gọi lại CÙNG model là
+ * qua — xem chỗ xử lý 429 trong callGeminiPartsDetailed().
+ */
+describe("parseRetryDelaySeconds", () => {
+  const realBody = JSON.stringify({
+    error: {
+      code: 429,
+      status: "RESOURCE_EXHAUSTED",
+      details: [
+        { "@type": "type.googleapis.com/google.rpc.Help", links: [] },
+        {
+          "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+          violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", quotaValue: "5" }],
+        },
+        { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "27s" },
+      ],
+    },
+  });
+
+  it("đọc được retryDelay từ thân lỗi 429 thật của Google", () => {
+    expect(parseRetryDelaySeconds(realBody)).toBe(27);
+  });
+
+  it("đọc được số giây có phần thập phân", () => {
+    const body = JSON.stringify({ error: { details: [{ retryDelay: "27.510795735s" }] } });
+    expect(parseRetryDelaySeconds(body)).toBeCloseTo(27.510795735);
+  });
+
+  it("trả null khi không có retryDelay", () => {
+    expect(parseRetryDelaySeconds(JSON.stringify({ error: { code: 400 } }))).toBeNull();
+    expect(parseRetryDelaySeconds(JSON.stringify({ error: { details: [] } }))).toBeNull();
+  });
+
+  it("trả null khi thân lỗi không phải JSON, không ném lỗi", () => {
+    expect(parseRetryDelaySeconds("<html>502 Bad Gateway</html>")).toBeNull();
+    expect(parseRetryDelaySeconds("")).toBeNull();
+  });
+
+  it("bỏ qua giá trị sai định dạng thay vì trả NaN", () => {
+    expect(parseRetryDelaySeconds(JSON.stringify({ error: { details: [{ retryDelay: "27" }] } }))).toBeNull();
+    expect(parseRetryDelaySeconds(JSON.stringify({ error: { details: [{ retryDelay: 27 }] } }))).toBeNull();
   });
 });
