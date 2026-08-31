@@ -51,11 +51,11 @@ duy nhất).
   trước — giáo viên xem lại/đổi trước khi xuất bản, không tự động gán. Cách
   đọc thẳng file `.docx` (kém chính xác hơn với MathType) và cách dán JSON
   đã xử lý sẵn vẫn còn, dùng khi không có file PDF. Ngoài ra có ngân hàng câu
-  hỏi thủ công (gán chủ đề/dạng bài/mức độ tư duy, có gợi ý gán dạng bài và
-  chương bằng AI, kèm nút "Phân loại lại chương bằng AI" hàng loạt cho câu cũ
-  chưa có chương), đặt thời gian làm bài cho từng đề, xem thống kê điểm và tỉ
-  lệ đúng theo dạng bài của từng học sinh, tạo báo cáo AI + link xem cho phụ
-  huynh (không cần tài khoản).
+  hỏi thủ công (gán chủ đề/Bài/mức độ tư duy, có gợi ý gán Bài và chương bằng
+  AI, kèm nút "Phân loại lại chương bằng AI" hàng loạt cho câu cũ chưa có
+  chương), đặt thời gian làm bài cho từng đề, xem thống kê điểm và tỉ lệ
+  đúng theo Bài của từng học sinh, tạo báo cáo AI + link xem cho phụ huynh
+  (không cần tài khoản).
 - Học sinh: làm bài đúng 3 phần theo barem hiện hành, giao diện có đồng hồ
   đếm ngược + danh sách câu hỏi để nhảy nhanh (giống các nền tảng thi trắc
   nghiệm phổ biến). Trang chủ có dashboard tiến độ (số bài đã làm, điểm
@@ -85,14 +85,25 @@ duy nhất).
   (bảng biến thiên, đồ thị...) tải lên qua Supabase Storage, gắn được cho
   từng câu hỏi (form nhập tay hoặc màn hình xem trước khi tạo đề từ Word) —
   chọn file hoặc dán trực tiếp bằng Ctrl+V.
-- Khung kiến thức gieo sẵn 6 chương Toán 12 (dạng bài chi tiết & mức độ khó
-  làm sau).
+- Khung kiến thức Lớp → Chương → Bài gieo sẵn cho cả 3 khối 10/11/12 (đúng
+  theo PPCT, thêm cấp Bài từ Giai đoạn 1 — 31/08/2026, trước đó chỉ có Lớp →
+  Chương). Mức độ khó (nhận biết/thông hiểu/vận dụng/vận dụng cao) gán theo
+  từng câu hỏi.
+- **Tiến độ bài dạy** (trang riêng cho giáo viên, thêm 31/08/2026): xem lớp
+  đang dạy tới Bài nào (suy ra từ các Bài đã tick "đã dạy"), tick tiến độ
+  cho từng lớp, so sánh trung lập (không xếp hạng) với các lớp khác cùng
+  khối.
+- **Chẩn đoán theo mức độ tư duy** (biểu đồ cột theo 4 mức Nhận biết/Thông
+  hiểu/Vận dụng/Vận dụng cao, thêm 31/08/2026): học sinh xem ở trang kết
+  quả, giáo viên xem ở trang chi tiết học sinh (trước đó giáo viên không
+  thấy được phần chẩn đoán này). Dashboard tổng quan giáo viên cũng thêm
+  drilldown "Theo Bài" khi bấm vào 1 cột Chương.
 - Tự động build & deploy lên GitHub Pages mỗi khi có cập nhật.
 
 ## Cấu trúc dự án
 
 - `src/lib/scoring.ts` — bộ máy chấm điểm 3 phần (18 unit test, xem `scoring.test.ts`).
-- `src/lib/diagnosis.ts` — chẩn đoán mức độ nắm vững theo dạng bài + tính thời gian tập trung từng câu (15 unit test).
+- `src/lib/diagnosis.ts` — chẩn đoán mức độ nắm vững theo dạng bài/chương + theo mức độ tư duy (NB/TH/VD/VDC, hàm `diagnoseAllDifficulties` thêm 31/08/2026) + tính thời gian tập trung từng câu (25 unit test).
 - `src/lib/wordImport.ts` — trích xuất văn bản/hình ảnh từ file `.docx` bằng mammoth.js (6 unit test, cách dự phòng — không đọc được công thức MathType).
 - `src/lib/pdfImport.ts` — với mỗi trang PDF: render thành ảnh + đọc văn bản thật (pdf.js) ngay trên trình duyệt (cách chính để tạo đề).
 - `src/lib/pdfTextLayout.ts` — hàm thuần ghép các mục text rời rạc (kèm toạ độ) mà pdf.js trả về thành đoạn văn bản đọc được, tách riêng để unit-test không cần môi trường trình duyệt, 6 unit test.
@@ -103,19 +114,20 @@ duy nhất).
 - `src/lib/reviewBatching.ts` — chia 1 buổi ôn tập thành nhiều đợt tối đa 10 câu/đợt khi nhật ký nhiều câu (dồn phần dư vào đợt sau), 10 unit test.
 - `src/lib/reviewShuffle.ts` — xáo ngẫu nhiên vị trí đáp án 1 câu cho màn hình ôn tập (chỉ ôn tập, không đụng đề thi thật), 5 unit test.
 - `src/lib/chapterStats.ts` — gộp/so sánh thống kê đúng-sai theo CHƯƠNG cho dashboard giáo viên 3 cột, 9 unit test.
+- `src/lib/lessonStats.ts` — như trên nhưng theo BÀI, dùng cho drilldown Chương → Bài ở dashboard (thêm 31/08/2026, migration_016), 12 unit test.
 - `src/lib/api.ts` — toàn bộ truy vấn dữ liệu (Supabase).
-- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 23 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI, lập kế hoạch thử lại đúng đợt lỗi khi tạo đề từ PDF — thêm 31/08/2026).
+- `src/lib/ai.ts` — tích hợp Gemini (gợi ý Bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương/Bài từng câu, sinh nhận xét báo cáo), 30 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương/Bài AI gợi ý, tự sửa lỗi escape JSON của AI, lập kế hoạch thử lại đúng đợt lỗi khi tạo đề từ PDF).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề, TagPicker chọn thư mục/chương trình...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
-- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql`, `migration_008_kho_de_va_on_tap_leitner.sql` — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
+- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql`, `migration_008_kho_de_va_on_tap_leitner.sql`, ..., `migration_016_lop_chuong_bai.sql` (Lớp → Chương → Bài + tiến độ bài dạy, 31/08/2026) — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
 - `.github/workflows/deploy.yml` — tự động build & deploy lên GitHub Pages.
 
 ## Chạy thử ở máy (không bắt buộc)
 
 ```bash
 npm install
-npm test        # chạy 254 unit test (xem danh sách module ở trên — số liệu 122 trước đó đã cũ, chưa được cập nhật qua nhiều đợt code sau mục 22 của tài liệu đề xuất kỹ thuật; riêng ngày 31/08/2026 thêm concurrency.ts + 4 test cho ai.ts, phần chênh còn lại là các module đã có từ trước chưa được ghi vào README)
+npm test        # chạy 275 unit test (xem danh sách module ở trên — số liệu cũ hơn đã lỗi thời qua nhiều đợt code; riêng ngày 31/08/2026 (Giai đoạn 1) thêm lessonStats.ts (12 test) + mở rộng diagnosis.ts/ai.ts cho Bài & mức độ tư duy)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 

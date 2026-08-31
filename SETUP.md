@@ -8,7 +8,53 @@ hình. Khoảng 10 phút.
 
 ## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 1 việc để cập nhật
 
-**Bản cập nhật mới nhất (31/08/2026 — tăng tốc + giảm lỗi khi tạo đề từ
+**Bản cập nhật mới nhất (31/08/2026 — Giai đoạn 1: khung Lớp/Chương/Bài theo
+PPCT, tiến độ bài dạy, chẩn đoán theo mức độ tư duy)** — **có 1 migration SQL
+mới, xem hướng dẫn ngay bên dưới.** Đợt này thêm:
+
+- **Khung kiến thức nay có thêm cấp "Bài"** (trước chỉ có Lớp → Chương, giờ
+  là Lớp → Chương → Bài, đúng theo PPCT/SGK): khi nạp đề từ file (Word/PDF/
+  ảnh), AI tự gợi ý luôn Bài cho từng câu (không chỉ Chương như trước), bạn
+  vẫn xác nhận/sửa lại trước khi lưu như cũ. Màn hình "Nạp Bài" (trước gọi
+  "Nạp dạng bài") đổi tên cho đúng — đây vẫn là nơi nạp danh sách Bài của 1
+  chương từ tài liệu PPCT, không đổi cách dùng.
+- **Trang mới "Tiến độ bài dạy"** (menu giáo viên): xem nhanh lớp đang dạy
+  tới Bài nào (suy ra tự động từ những Bài bạn đã tick "đã dạy", không bắt
+  buộc tick theo đúng thứ tự), tick/bỏ tick Bài đã dạy cho từng lớp, và so
+  sánh tiến độ với các lớp khác CÙNG khối một cách trung lập (chỉ hiện %
+  hoàn thành, không xếp hạng lớp nào nhanh/chậm hơn).
+- **Dashboard tổng quan giáo viên**: bấm vào 1 cột Chương ở biểu đồ để xem
+  breakdown chi tiết hơn theo từng Bài trong chương đó (nút "Theo Bài" cạnh
+  "Cột"/"Radar").
+- **Chẩn đoán theo mức độ tư duy (Nhận biết / Thông hiểu / Vận dụng / Vận
+  dụng cao)** — trước đây học sinh chỉ thấy chẩn đoán theo CHƯƠNG, giờ có
+  thêm 1 biểu đồ cột riêng theo 4 mức độ tư duy (dựa cùng 1 quy tắc chẩn đoán
+  đã có — xem lưu ý ở mục "chẩn đoán mất gốc / chưa vững" bên dưới, quy tắc
+  KHÔNG đổi, chỉ đổi cách nhóm dữ liệu để vẽ). Giáo viên xem được chẩn đoán
+  này ở trang chi tiết học sinh (bấm "Xem chẩn đoán" cạnh mỗi lượt làm bài) —
+  trước đây giáo viên hoàn toàn không thấy được phần chẩn đoán này, chỉ học
+  sinh tự xem ở trang kết quả của mình.
+
+**Trước khi thấy dữ liệu Bài/tiến độ bài dạy, cần chạy 1 file SQL mới (1
+lần duy nhất):** Supabase Dashboard > SQL Editor > New query > mở file
+`supabase/migration_016_lop_chuong_bai.sql` trong bản zip, copy dán, Run.
+File này AN TOÀN chạy lại nhiều lần nếu lỡ chạy trùng (không xoá dữ liệu cũ):
+nó đổi tên bảng "dạng bài" cũ thành "Bài" (giữ nguyên toàn bộ dữ liệu dạng
+bài đã có, chỉ đổi tên + gán thêm vào đúng Chương), gieo sẵn danh sách Bài
+theo PPCT cho khung 3 khối 10/11/12, và tạo bảng mới lưu tiến độ dạy. **Nếu
+chưa chạy file này, trang "Nạp Bài" và "Tiến độ bài dạy" sẽ báo lỗi** — các
+phần khác của website vẫn chạy bình thường.
+
+*(Một chi tiết nhỏ: bản demo giao diện ban đầu của "Tiến độ bài dạy" có thêm
+cột "số tiết" cho mỗi Bài — cột này đã bỏ khỏi bản thật, vì chưa có nguồn dữ
+liệu số tiết thật (PPCT gốc không ghi rõ số tiết/bài theo cách có thể gieo
+tự động), đưa số ước lượng vào sẽ là số bịa, không nên hiện ra như thể là dữ
+liệu thật.)*
+
+<details>
+<summary>Bản cập nhật trước đó (31/08/2026 — tăng tốc + giảm lỗi khi tạo đề từ PDF)</summary>
+
+**Bản cập nhật (31/08/2026 — tăng tốc + giảm lỗi khi tạo đề từ
 PDF)** — CHỈ đổi code, không có migration SQL nào, chỉ cần tải code mới lên
 GitHub:
 
@@ -25,6 +71,8 @@ GitHub:
   đọc được). Trước đây nếu có đợt lỗi, hệ thống tự động dùng luôn kết quả 1
   phần mà không báo rõ, và muốn thử lại phải tải file PDF lên lại từ đầu
   (tốn lại quota + thời gian của cả những đợt đã đọc đúng).
+
+</details>
 
 <details>
 <summary>Bản cập nhật trước đó (25/08/2026 — làm mới giao diện toàn bộ + thẻ chia sẻ + chuẩn bị đi vào vận hành thật)</summary>
@@ -412,16 +460,17 @@ toàn không phải bằng chứng gian lận chắc chắn. Nếu cần giám s
 (ví dụ khoá thiết bị thật sự), sẽ cần phần mềm/thiết bị chuyên dụng riêng,
 ngoài phạm vi 1 website.
 
-### Khung 6 chương Toán 12
+### Khung Lớp / Chương / Bài
 
-Đã gieo sẵn 6 chương lớn của Toán 12 vào khung kiến thức (chạy
-`migration_005_chuong_toan12.sql` là có ngay, không cần tạo tay): Ứng dụng
-đạo hàm để khảo sát và vẽ đồ thị hàm số, Véc tơ và hệ trục tọa độ trong
-không gian, Các số đặc trưng đo mức độ phân tán của mẫu số liệu ghép nhóm,
-Nguyên hàm và tích phân, Phương pháp tọa độ trong không gian, Xác suất có
-điều kiện. Dạng bài chi tiết trong từng chương và mức độ khó (nhận biết /
-thông hiểu / vận dụng / vận dụng cao) để làm sau — hiện tại gán câu hỏi vào
-đúng chương là đủ.
+Đã gieo sẵn khung Chương cho cả 3 khối 10/11/12 (Toán 12 từ
+`migration_005_chuong_toan12.sql`, Toán 10/11 gieo thêm ở
+`migration_016_lop_chuong_bai.sql`), và từ bản cập nhật 31/08/2026 (Giai
+đoạn 1) có thêm cấp **Bài** trong từng chương, theo đúng PPCT — cũng gieo
+sẵn ở `migration_016_lop_chuong_bai.sql`, không cần tạo tay. Khi nạp đề, AI
+gợi ý luôn cả Chương lẫn Bài cho từng câu, bạn xác nhận/sửa lại trước khi
+lưu. Mức độ khó (nhận biết / thông hiểu / vận dụng / vận dụng cao) đã có sẵn
+theo từng câu hỏi từ trước, dùng để vẽ chẩn đoán theo mức độ tư duy (xem bản
+cập nhật 31/08/2026 ở trên).
 
 ### Lưu ý về phần "chẩn đoán mất gốc / chưa vững"
 
