@@ -7,7 +7,7 @@
  *     (AI không tự tính điểm, chỉ diễn giải số liệu thành lời văn).
  */
 
-import type { QuestionType, Topic } from "./types";
+import type { Lesson, Topic } from "./types";
 import type { ExtractedImage } from "./wordImport";
 import { chunkArray } from "./chunk";
 import { mapWithConcurrency } from "./concurrency";
@@ -314,51 +314,52 @@ export function extractJsonBlock(raw: string): unknown {
   }
 }
 
-export interface TypeSuggestion {
-  question_type_id: string | null;
-  type_name: string | null;
+export interface LessonSuggestion {
+  lesson_id: string | null;
+  lesson_name: string | null;
   reasoning: string;
 }
 
 /**
- * Gợi ý dạng bài phù hợp nhất cho 1 câu hỏi, CHỈ chọn trong danh sách dạng bài
- * đã có sẵn (không tự bịa dạng mới) — tránh việc mỗi lần AI phân loại ra một
- * kiểu khác nhau, làm hỏng tính nhất quán của ngân hàng câu hỏi.
+ * Gợi ý Bài phù hợp nhất cho 1 câu hỏi, CHỈ chọn trong danh sách Bài đã có
+ * sẵn (không tự bịa Bài mới) — tránh việc mỗi lần AI phân loại ra một kiểu
+ * khác nhau, làm hỏng tính nhất quán của ngân hàng câu hỏi. Trước đây gọi là
+ * suggestQuestionType/"dạng bài" — đổi tên theo migration_016.
  */
-export async function suggestQuestionType(
+export async function suggestQuestionLesson(
   questionContentLatex: string,
-  existingTypes: QuestionType[],
-): Promise<TypeSuggestion> {
-  if (existingTypes.length === 0) {
+  existingLessons: Lesson[],
+): Promise<LessonSuggestion> {
+  if (existingLessons.length === 0) {
     return {
-      question_type_id: null,
-      type_name: null,
-      reasoning: "Chưa có dạng bài nào trong hệ thống để gợi ý.",
+      lesson_id: null,
+      lesson_name: null,
+      reasoning: "Chưa có Bài nào trong hệ thống để gợi ý.",
     };
   }
 
-  const typeList = existingTypes
-    .map((t) => `- id="${t.id}": ${t.name}${t.description ? " — " + t.description : ""}`)
+  const lessonList = existingLessons
+    .map((l) => `- id="${l.id}": ${l.name}${l.description ? " — " + l.description : ""}`)
     .join("\n");
 
-  const prompt = `Bạn là trợ lý phân loại đề Toán THPT (Việt Nam). Dưới đây là danh sách các "dạng bài" đã được giáo viên định nghĩa sẵn:
-${typeList}
+  const prompt = `Bạn là trợ lý phân loại đề Toán THPT (Việt Nam). Dưới đây là danh sách các "Bài" (theo phân phối chương trình) đã có sẵn:
+${lessonList}
 
 Câu hỏi cần phân loại (viết bằng LaTeX):
 """
 ${questionContentLatex}
 """
 
-Hãy chọn ĐÚNG MỘT dạng bài phù hợp nhất trong danh sách trên (không tự tạo dạng mới).
+Hãy chọn ĐÚNG MỘT Bài phù hợp nhất trong danh sách trên (không tự tạo Bài mới).
 Trả lời CHÍNH XÁC theo định dạng JSON sau, không thêm chữ nào khác:
-{"id": "<id của dạng bài đã chọn>", "reasoning": "<giải thích ngắn gọn 1 câu bằng tiếng Việt>"}
-Nếu không dạng nào phù hợp, trả về {"id": null, "reasoning": "..."}`;
+{"id": "<id của Bài đã chọn>", "reasoning": "<giải thích ngắn gọn 1 câu bằng tiếng Việt>"}
+Nếu không Bài nào phù hợp, trả về {"id": null, "reasoning": "..."}`;
 
   const raw = await callGemini(prompt);
   if (!raw) {
     return {
-      question_type_id: null,
-      type_name: null,
+      lesson_id: null,
+      lesson_name: null,
       reasoning: "Không gọi được AI (kiểm tra API key hoặc kết nối mạng).",
     };
   }
@@ -368,17 +369,17 @@ Nếu không dạng nào phù hợp, trả về {"id": null, "reasoning": "..."}
       id: string | null;
       reasoning: string;
     };
-    const matched = existingTypes.find((t) => t.id === parsed.id);
+    const matched = existingLessons.find((l) => l.id === parsed.id);
     return {
-      question_type_id: matched?.id ?? null,
-      type_name: matched?.name ?? null,
+      lesson_id: matched?.id ?? null,
+      lesson_name: matched?.name ?? null,
       reasoning: parsed.reasoning ?? "",
     };
   } catch {
     return {
-      question_type_id: null,
-      type_name: null,
-      reasoning: "AI trả về định dạng không đọc được, cần gán dạng bài thủ công.",
+      lesson_id: null,
+      lesson_name: null,
+      reasoning: "AI trả về định dạng không đọc được, cần gán Bài thủ công.",
     };
   }
 }
@@ -463,6 +464,22 @@ export function matchTopicByName(
   return topics.find((t) => t.name.trim().toLowerCase() === normalized)?.id ?? null;
 }
 
+/** Tìm Bài khớp tên AI trả về, CHỈ trong phạm vi 1 chương (topicId) — không
+ * phân biệt hoa/thường, bỏ khoảng trắng thừa. topicId null (chưa xác định
+ * được chương) luôn trả về null — tách hàm riêng để test được (migration_016). */
+export function matchLessonByName(
+  name: string | null | undefined,
+  topicId: string | null,
+  lessons: Lesson[],
+): string | null {
+  if (!name?.trim() || !topicId) return null;
+  const normalized = name.trim().toLowerCase();
+  return (
+    lessons.find((l) => l.topic_id === topicId && l.name.trim().toLowerCase() === normalized)?.id ??
+    null
+  );
+}
+
 export interface StudentStatsForAI {
   studentName: string;
   periodLabel: string;
@@ -530,6 +547,10 @@ export interface ParsedPart1Question {
   solution_latex?: string | null;
   /** Tên chương AI gợi ý (khớp đúng tên 1 trong danh sách topics đã gửi) — null nếu không chắc. Ánh xạ sang topic_id bằng matchTopicByName(). */
   topic_name?: string | null;
+  /** Tên Bài AI gợi ý, TRONG PHẠM VI chương đã chọn ở topic_name (migration_016)
+   * — null nếu chưa chọn được chương hoặc không chắc. Ánh xạ sang lesson_id
+   * bằng matchLessonByName(). */
+  lesson_name?: string | null;
 }
 export interface ParsedPart2Question {
   content_latex: string;
@@ -537,6 +558,7 @@ export interface ParsedPart2Question {
   correct: { a: boolean; b: boolean; c: boolean; d: boolean } | null;
   solution_latex?: string | null;
   topic_name?: string | null;
+  lesson_name?: string | null;
 }
 export interface ParsedPart3Question {
   content_latex: string;
@@ -544,6 +566,7 @@ export interface ParsedPart3Question {
   points: number;
   solution_latex?: string | null;
   topic_name?: string | null;
+  lesson_name?: string | null;
 }
 export interface ParsedExam {
   part1: ParsedPart1Question[];
@@ -553,25 +576,52 @@ export interface ParsedExam {
 }
 
 /**
- * Danh sách chương gửi kèm prompt + đoạn hướng dẫn gợi ý chương — dùng chung
- * cho cả 2 prompt (đọc .docx và đọc ảnh PDF) để không lặp lại nội dung.
- * Trống (topics rỗng) thì bỏ qua hẳn yêu cầu này, không ép AI đoán mò khi
- * giáo viên chưa gieo chương nào.
+ * Danh sách chương (+ Bài của từng chương, nếu có) gửi kèm prompt + đoạn
+ * hướng dẫn gợi ý chương/Bài — dùng chung cho cả 2 prompt (đọc .docx và đọc
+ * ảnh PDF) để không lặp lại nội dung. Trống (topics rỗng) thì bỏ qua hẳn yêu
+ * cầu này, không ép AI đoán mò khi giáo viên chưa gieo chương nào. GỢI Ý BÀI
+ * (thêm migration_016) chỉ thêm vào khi có ít nhất 1 Bài — và luôn đặt SAU
+ * gợi ý chương, có nói rõ Bài phải nằm ĐÚNG trong chương đã chọn (khớp với
+ * cách matchLessonByName lọc theo topic_id ở phía client).
  */
-function topicClassificationBlock(topics: Topic[]): {
+function classificationBlock(
+  topics: Topic[],
+  lessons: Lesson[],
+): {
   ruleText: string;
   jsonExample: string;
 } {
   if (topics.length === 0) return { ruleText: "", jsonExample: "" };
   const topicList = topics.map((t) => `"${t.name}"`).join(", ");
-  return {
-    ruleText: `\nGỢI Ý CHƯƠNG: với mỗi câu, chọn ĐÚNG MỘT chương phù hợp nhất trong danh sách sau (ghi lại ĐÚNG NGUYÊN VĂN tên chương, không tự bịa chương mới, không dịch/viết tắt khác đi): ${topicList}. Nếu không chương nào phù hợp hoặc không chắc chắn, để "topic_name" là null — không đoán bừa.\n`,
-    jsonExample: `, "topic_name": "..." | null`,
-  };
+  let ruleText = `\nGỢI Ý CHƯƠNG: với mỗi câu, chọn ĐÚNG MỘT chương phù hợp nhất trong danh sách sau (ghi lại ĐÚNG NGUYÊN VĂN tên chương, không tự bịa chương mới, không dịch/viết tắt khác đi): ${topicList}. Nếu không chương nào phù hợp hoặc không chắc chắn, để "topic_name" là null — không đoán bừa.\n`;
+  let jsonExample = `, "topic_name": "..." | null`;
+
+  const lessonsByTopic = new Map<string, Lesson[]>();
+  for (const l of lessons) {
+    const arr = lessonsByTopic.get(l.topic_id) ?? [];
+    arr.push(l);
+    lessonsByTopic.set(l.topic_id, arr);
+  }
+  const lessonBlocks = topics
+    .filter((t) => (lessonsByTopic.get(t.id)?.length ?? 0) > 0)
+    .map(
+      (t) =>
+        `  + Chương "${t.name}": ${lessonsByTopic
+          .get(t.id)!
+          .map((l) => `"${l.name}"`)
+          .join(", ")}`,
+    )
+    .join("\n");
+  if (lessonBlocks) {
+    ruleText += `\nGỢI Ý BÀI: SAU KHI đã chọn được chương ở trên, chọn tiếp ĐÚNG MỘT Bài phù hợp nhất trong danh sách Bài CỦA ĐÚNG CHƯƠNG ĐÓ (ghi lại ĐÚNG NGUYÊN VĂN tên Bài, không tự bịa Bài mới, không lấy Bài của chương khác):\n${lessonBlocks}\nNếu chưa chọn được chương ở trên, hoặc không Bài nào trong chương đó phù hợp, hoặc không chắc chắn, để "lesson_name" là null — không đoán bừa.\n`;
+    jsonExample += `, "lesson_name": "..." | null`;
+  }
+
+  return { ruleText, jsonExample };
 }
 
-function buildExamParsePrompt(topics: Topic[]): string {
-  const { ruleText, jsonExample } = topicClassificationBlock(topics);
+function buildExamParsePrompt(topics: Topic[], lessons: Lesson[]): string {
+  const { ruleText, jsonExample } = classificationBlock(topics, lessons);
   return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là văn bản trích từ 1 file Word chứa đề thi, cùng với các hình ảnh nhúng trong file (nếu có) được gửi kèm — mỗi hình có placeholder dạng [HINH_n] xuất hiện trong văn bản, hình gửi kèm theo ĐÚNG thứ tự đó.
 
 Đề thi có 3 phần theo cấu trúc chuẩn:
@@ -605,8 +655,9 @@ export async function parseExamFromDocument(
   plainText: string,
   images: ExtractedImage[],
   topics: Topic[] = [],
+  lessons: Lesson[] = [],
 ): Promise<ParsedExam | null> {
-  const parts: GeminiPart[] = [{ text: buildExamParsePrompt(topics) + plainText + '\n"""' }];
+  const parts: GeminiPart[] = [{ text: buildExamParsePrompt(topics, lessons) + plainText + '\n"""' }];
   for (const img of images) {
     parts.push({ text: `\nHình ảnh cho placeholder ${img.placeholder}:` });
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
@@ -651,8 +702,8 @@ export async function parseExamFromDocument(
 // bản, vì AI đọc ảnh vẫn có thể đọc sai màu/nét mờ.
 // ---------------------------------------------------------------------------
 
-function buildExamParseFromImagesPrompt(topics: Topic[]): string {
-  const { ruleText, jsonExample } = topicClassificationBlock(topics);
+function buildExamParseFromImagesPrompt(topics: Topic[], lessons: Lesson[]): string {
+  const { ruleText, jsonExample } = classificationBlock(topics, lessons);
   return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu của từng trang 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang. Mỗi trang gồm 2 phần:
 - "Văn bản trang N (đã trích chính xác 100%, dùng làm CƠ SỞ)": văn bản thật lấy trực tiếp từ file PDF — TIN TƯỞNG HOÀN TOÀN phần chữ tiếng Việt/số/ký hiệu này, KHÔNG cần tự đọc lại từ ảnh, không tự sửa chữ trừ khi rõ ràng bị thiếu do nằm trong công thức/hình. Phần này có thể thiếu chỗ có công thức Toán hoặc hình vẽ (vì công thức MathType/hình vẽ khi xuất PDF chỉ còn là HÌNH ẢNH, không phải chữ).
 - Ảnh chụp cả trang ngay sau đó: CHỈ dùng ảnh này để (a) đọc các công thức Toán đã thành hình rồi chuyển sang LaTeX chèn đúng chỗ còn thiếu trong văn bản, (b) nhận diện hình vẽ minh hoạ, (c) xác định đáp án đúng qua tín hiệu thị giác (màu, gạch chân, đậm...) mà văn bản thuần không thể hiện được.
@@ -719,8 +770,9 @@ export async function parseExamFromImages(
   pageImages: PageImageInput[],
   pageNumbers?: number[],
   topics: Topic[] = [],
+  lessons: Lesson[] = [],
 ): Promise<ParsedExam> {
-  const parts: GeminiPart[] = [{ text: buildExamParseFromImagesPrompt(topics) }];
+  const parts: GeminiPart[] = [{ text: buildExamParseFromImagesPrompt(topics, lessons) }];
   pageImages.forEach((img, i) => {
     const label = pageNumbers?.[i] ?? i + 1;
     const textBlock = img.pageText?.trim()
@@ -848,6 +900,7 @@ export async function parseExamFromPdfPages(
   chunkSize = 6,
   onProgress?: (done: number, total: number) => void,
   topics: Topic[] = [],
+  lessons: Lesson[] = [],
   previousResults?: (ParsedExam | undefined)[],
 ): Promise<ParseFromPdfResult> {
   const pageNumberChunks = chunkArray(
@@ -861,7 +914,7 @@ export async function parseExamFromPdfPages(
   const results = await mapWithConcurrency(imageChunks, PDF_CHUNK_CONCURRENCY, async (chunk, i) => {
     let r: ParsedExam;
     if (retryPlan[i]) {
-      r = await parseExamFromImages(chunk, pageNumberChunks[i], topics);
+      r = await parseExamFromImages(chunk, pageNumberChunks[i], topics, lessons);
     } else {
       // planChunkRetries chỉ trả false khi previousResults[i] tồn tại VÀ đã
       // thành công ở lần gọi trước — an toàn tái sử dụng, không gọi lại AI.

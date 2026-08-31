@@ -54,3 +54,19 @@ export function formatTimeDelta(deltaMinutes: number): string {
   if (rounded === 0) return "bằng lần đó";
   return `${rounded > 0 ? "+" : ""}${rounded} phút`;
 }
+
+/**
+ * "Hôm nay" / "Hôm qua" / "N ngày trước" / ngày cụ thể (quá 1 tuần) — dùng
+ * cho "lần tick gần nhất" ở Tiến độ bài dạy (migration_016). So theo NGÀY
+ * dương lịch (không phải 24h tròn) để "hôm qua" đúng nghĩa trực giác kể cả
+ * khi tick gần nửa đêm.
+ */
+export function formatRelativeDate(iso: string, now: Date = new Date()): string {
+  const target = new Date(iso);
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOf(now) - startOf(target)) / (24 * 60 * 60 * 1000));
+  if (diffDays <= 0) return "hôm nay";
+  if (diffDays === 1) return "hôm qua";
+  if (diffDays <= 6) return `${diffDays} ngày trước`;
+  return target.toLocaleDateString("vi-VN");
+}

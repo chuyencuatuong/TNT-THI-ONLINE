@@ -73,15 +73,32 @@ export interface Topic {
   name: string;
   chapter: string | null;
   grade: 10 | 11 | 12;
+  /** Thứ tự Chương theo PPCT (migration_016) — dùng để sắp xếp đúng thứ tự
+   * sách giáo khoa thay vì thứ tự chèn dữ liệu. null = chưa gán (chương cũ). */
+  order_index: number | null;
   created_at: string;
 }
 
-export interface QuestionType {
+/** Bài (theo PPCT) — trước đây là "QuestionType"/"dạng bài" (migration_016
+ * đổi tên bảng question_types -> lessons, tái sử dụng cho khái niệm "Bài"). */
+export interface Lesson {
   id: string;
   topic_id: string;
   name: string;
   description: string | null;
+  /** Thứ tự Bài trong chương theo PPCT (migration_016). null = chưa gán. */
+  order_index: number | null;
   created_at: string;
+}
+
+/** Tiến độ dạy: giáo viên tick 1 Bài đã dạy xong cho 1 lớp (migration_016).
+ * Không bắt buộc theo đúng thứ tự PPCT — xem TeacherLessonProgress.tsx. */
+export interface LessonProgressRow {
+  id: string;
+  class_id: string;
+  lesson_id: string;
+  completed_at: string;
+  marked_by: string | null;
 }
 
 export type Difficulty =
@@ -119,8 +136,9 @@ export interface Part3Answer {
 export interface QuestionRow {
   id: string;
   part: 1 | 2 | 3;
-  question_type_id: string | null;
-  /** Chương (topics.id) — tách riêng khỏi question_type_id vì khung "dạng bài" chưa phủ hết mọi chương. */
+  /** Bài (lessons.id, theo PPCT) — trước đây là question_type_id (migration_016). */
+  lesson_id: string | null;
+  /** Chương (topics.id) — tách riêng khỏi lesson_id vì trước đây khung "Bài" chưa phủ hết mọi chương. */
   topic_id: string | null;
   /** Gợi ý chương của AI khi nhập đề/bấm "Gợi ý bằng AI" — chờ giáo viên xác nhận vào topic_id. */
   ai_suggested_topic_id: string | null;
@@ -132,7 +150,8 @@ export interface QuestionRow {
   /** Lời giải chi tiết (LaTeX) — chỉ hiển thị cho học sinh SAU khi nộp bài, xem QuestionReview.tsx. */
   solution_latex: string | null;
   default_points: number | null;
-  ai_suggested_type_id: string | null;
+  /** Gợi ý Bài của AI khi nhập đề (migration_016), chờ giáo viên xác nhận vào lesson_id — giống cơ chế ai_suggested_topic_id đã có cho Chương. */
+  ai_suggested_lesson_id: string | null;
   ai_suggestion_confirmed: boolean;
   source: "manual" | "word_import";
   created_by: string;

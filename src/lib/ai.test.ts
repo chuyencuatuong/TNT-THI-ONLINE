@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractJsonBlock,
   isChunkResultFailed,
+  matchLessonByName,
   matchTopicByName,
   mergeExtractedTaxonomies,
   mergeParsedExams,
@@ -10,7 +11,7 @@ import {
   type ExtractedTaxonomy,
   type ParsedExam,
 } from "./ai";
-import type { Topic } from "./types";
+import type { Lesson, Topic } from "./types";
 
 describe("extractJsonBlock", () => {
   it("đọc JSON thuần không có code fence", () => {
@@ -137,8 +138,8 @@ describe("mergeExtractedTaxonomies", () => {
 
 describe("matchTopicByName", () => {
   const topics: Topic[] = [
-    { id: "t1", name: "Ứng dụng đạo hàm", chapter: "Chương 1", grade: 12, created_at: "" },
-    { id: "t2", name: "Nguyên hàm - Tích phân", chapter: "Chương 3", grade: 12, created_at: "" },
+    { id: "t1", name: "Ứng dụng đạo hàm", chapter: "Chương 1", grade: 12, order_index: null, created_at: "" },
+    { id: "t2", name: "Nguyên hàm - Tích phân", chapter: "Chương 3", grade: 12, order_index: null, created_at: "" },
   ];
 
   it("khớp đúng tên chương, không phân biệt hoa/thường", () => {
@@ -161,6 +162,44 @@ describe("matchTopicByName", () => {
 
   it("trả về null khi danh sách topics rỗng", () => {
     expect(matchTopicByName("Ứng dụng đạo hàm", [])).toBeNull();
+  });
+});
+
+describe("matchLessonByName (thêm cùng migration_016 — Bài scoped theo topicId)", () => {
+  const lessons: Lesson[] = [
+    { id: "l1", topic_id: "t1", name: "Sự đồng biến, nghịch biến của hàm số", description: null, order_index: null, created_at: "" },
+    { id: "l2", topic_id: "t1", name: "Cực trị của hàm số", description: null, order_index: null, created_at: "" },
+    { id: "l3", topic_id: "t2", name: "Nguyên hàm", description: null, order_index: null, created_at: "" },
+  ];
+
+  it("khớp đúng tên Bài trong đúng chương, không phân biệt hoa/thường", () => {
+    expect(matchLessonByName("CỰC TRỊ CỦA HÀM SỐ", "t1", lessons)).toBe("l2");
+  });
+
+  it("khớp được khi có khoảng trắng thừa ở đầu/cuối", () => {
+    expect(matchLessonByName("  Nguyên hàm  ", "t2", lessons)).toBe("l3");
+  });
+
+  it("trả về null khi tên khớp Bài nhưng SAI chương (Bài đó thuộc chương khác)", () => {
+    expect(matchLessonByName("Nguyên hàm", "t1", lessons)).toBeNull();
+  });
+
+  it("trả về null khi tên không khớp Bài nào trong chương", () => {
+    expect(matchLessonByName("Hoán vị chỉnh hợp", "t1", lessons)).toBeNull();
+  });
+
+  it("trả về null khi tên là null/undefined/rỗng", () => {
+    expect(matchLessonByName(null, "t1", lessons)).toBeNull();
+    expect(matchLessonByName(undefined, "t1", lessons)).toBeNull();
+    expect(matchLessonByName("   ", "t1", lessons)).toBeNull();
+  });
+
+  it("trả về null khi topicId là null (chưa xác định được chương thì không đoán Bài)", () => {
+    expect(matchLessonByName("Cực trị của hàm số", null, lessons)).toBeNull();
+  });
+
+  it("trả về null khi danh sách lessons rỗng", () => {
+    expect(matchLessonByName("Cực trị của hàm số", "t1", [])).toBeNull();
   });
 });
 

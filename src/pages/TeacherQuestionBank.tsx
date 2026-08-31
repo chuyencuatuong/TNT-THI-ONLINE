@@ -4,12 +4,12 @@ import { suggestQuestionTopic } from "../lib/ai";
 import { MathText } from "../components/MathText";
 import { QuestionEditorForm } from "../components/QuestionEditorForm";
 import { DIFFICULTY_LABELS } from "../lib/types";
-import type { QuestionRow, QuestionType, Topic } from "../lib/types";
+import type { Lesson, QuestionRow, Topic } from "../lib/types";
 
 export function TeacherQuestionBank() {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [questionTypes, setQuestionTypes] = useState<QuestionType[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [filterPart, setFilterPart] = useState<0 | 1 | 2 | 3>(0);
   const [filterTopic, setFilterTopic] = useState<string>("");
@@ -29,12 +29,12 @@ export function TeacherQuestionBank() {
     setTopics(await api.listTopics());
   }
 
-  async function reloadQuestionTypes() {
-    setQuestionTypes(await api.listQuestionTypes());
+  async function reloadLessons() {
+    setLessons(await api.listLessons());
   }
 
   useEffect(() => {
-    Promise.all([reloadQuestions(), reloadTopics(), reloadQuestionTypes()]).then(() =>
+    Promise.all([reloadQuestions(), reloadTopics(), reloadLessons()]).then(() =>
       setLoading(false),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -46,8 +46,8 @@ export function TeacherQuestionBank() {
     reloadQuestions();
   }
 
-  const typeNameOf = (id: string | null) =>
-    questionTypes.find((t) => t.id === id)?.name ?? "(chưa gán dạng bài)";
+  const lessonNameOf = (id: string | null) =>
+    lessons.find((l) => l.id === id)?.name ?? "(chưa gán Bài)";
   const topicNameOf = (id: string | null) => topics.find((t) => t.id === id)?.name ?? null;
 
   async function handleConfirmTopicSuggestion(q: QuestionRow) {
@@ -115,10 +115,10 @@ export function TeacherQuestionBank() {
       {showForm && (
         <QuestionEditorForm
           topics={topics}
-          questionTypes={questionTypes}
+          lessons={lessons}
           onCreated={reloadQuestions}
           onTopicsChanged={reloadTopics}
-          onQuestionTypesChanged={reloadQuestionTypes}
+          onLessonsChanged={reloadLessons}
         />
       )}
 
@@ -180,7 +180,7 @@ export function TeacherQuestionBank() {
                   {q.difficulty && (
                     <span className="tag tag--muted">{DIFFICULTY_LABELS[q.difficulty]}</span>
                   )}
-                  <span className="tag tag--muted">{typeNameOf(q.question_type_id)}</span>
+                  <span className="tag tag--muted">{lessonNameOf(q.lesson_id)}</span>
                   <span className="tag tag--muted">
                     {topicNameOf(q.topic_id) ?? "(chưa gán chương)"}
                   </span>

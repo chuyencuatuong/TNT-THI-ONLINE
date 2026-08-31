@@ -23,6 +23,12 @@ import {
   truncateChapterLabel,
   type ChapterStat,
 } from "../lib/chapterStats";
+import {
+  lessonAccuracyPercent,
+  mergeLessonStats,
+  truncateLessonLabel,
+  type LessonStat,
+} from "../lib/lessonStats";
 import { AVATAR_PALETTE, initialsOf } from "../lib/avatar";
 import { resolveTier, TIER_LABELS } from "../lib/studentTier";
 import type { ClassRow, Profile } from "../lib/types";
@@ -53,9 +59,9 @@ interface StudentSummary {
  * đúng 1 component so sánh nhưng chỉ có 1 cột dữ liệu (lớp) vì chưa có học
  * sinh nào để so.
  *
- * Thống kê theo CHƯƠNG (topic_id) thay vì "dạng bài" (question_type_id) —
- * xem lý do đầy đủ ở `src/lib/chapterStats.ts` (dạng bài chi tiết theo mục 14
- * chưa được giáo viên nhập/dùng thật, nhiều khả năng biểu đồ sẽ trống trơn).
+ * Biểu đồ (2) mặc định theo CHƯƠNG (topic_id) — xem lý do lịch sử ở
+ * `src/lib/chapterStats.ts`. Toggle "Theo Bài" (migration_016) cho xem
+ * breakdown chi tiết hơn theo 1 chương đang chọn (lessonStats.ts).
  *
  * Để tránh gọi lại API mỗi lần đổi học sinh đang chọn, toàn bộ thống kê theo
  * chương của MỌI học sinh được tải 1 lần khi vào trang (song song từng học
@@ -74,6 +80,9 @@ export function TeacherDashboard() {
   const [chapterStatsByStudent, setChapterStatsByStudent] = useState<Map<string, ChapterStat[]>>(
     new Map(),
   );
+  const [lessonStatsByStudent, setLessonStatsByStudent] = useState<Map<string, LessonStat[]>>(
+    new Map(),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadedAt] = useState(() => new Date());
@@ -88,7 +97,11 @@ export function TeacherDashboard() {
   // dashboard, demo đã duyệt) — mặc định vẫn "cot" (giữ nguyên hành vi cũ),
   // radar là lựa chọn THÊM để nhìn nhiều chương cùng lúc gọn hơn khi chương
   // nhiều (bar chart ngang khi đó phải cuộn dọc dài).
-  const [chapterView, setChapterView] = useState<"cot" | "radar">("cot");
+  const [chapterView, setChapterView] = useState<"cot" | "radar" | "bai">("cot");
+  // Chương đang xem breakdown theo Bài (chỉ dùng khi chapterView === "bai") —
+  // null = chưa chọn, mặc định rơi về chương đầu tiên có dữ liệu (xem
+  // drilldownTopicId bên dưới) để không hiện màn hình trống ngay khi bấm.
+  const [drilldownTopicId, setDrilldownTopicId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -97,7 +110,7 @@ export function TeacherDashboard() {
         api.listClasses().then(setClasses),
       ]);
       const sevenDaysAgo = new Date(loadedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const [summaryResults, chapterResults] = await Promise.all([
+      const [summaryResults, chapterResults, lessonResults] = await Promise.all([
         Promise.all(
           students.map(async (s) => {
             const attempts = (await api.listStudentAttempts(s.id)).filter((a) => a.score);
@@ -113,11 +126,15 @@ export function TeacherDashboard() {
           }),
         ),
         Promise.all(students.map((s) => api.getStudentChapterStats(s.id))),
+        Promise.all(students.map((s) => api.getStudentLessonStats(s.id))),
       ]);
       setSummaries(summaryResults);
       const map = new Map<string, ChapterStat[]>();
       students.forEach((s, i) => map.set(s.id, chapterResults[i]));
       setChapterStatsByStudent(map);
+      const lessonMap = new Map<string, LessonStat[]>();
+      students.forEach((s, i) => lessonMap.set(s.id, lessonResults[i]));
+      setLessonStatsByStudent(lessonMap);
       api
         .getReviewSessionCountSince(sevenDaysAgo)
         .then(setReviewSessionsThisWeek)
@@ -152,8 +169,32 @@ export function TeacherDashboard() {
     const stats = selectedStats ?? classStats;
     return stats
       .filter((s) => s.maxScore > 0)
-      .map((s) => ({ topic_name: s.topic_name, accuracy: accuracyPercent(s) ?? 0 }));
+      .map((s) => ({ topic_id: s.topic_id, topic_name: s.topic_name, accuracy: accuracyPercent(s) ?? 0 }));
   }, [selectedStats, classStats]);
+
+  // Bài (Chương -> Bài, migration_016) — cùng cách tính với classStats/selectedStats
+  // ở trên nhưng theo Bài, dùng cho toggle "Theo Bài" (drilldown 1 chương).
+  const classLessonStats = useMemo(
+    () =>
+      mergeLessonStats(
+        filteredSummaries.map((s) => lessonStatsByStudent.get(s.profile.id) ?? []),
+      ),
+    [filteredSummaries, lessonStatsByStudent],
+  );
+  const selectedLessonStats = selectedId ? lessonStatsByStudent.get(selectedId) ?? [] : null;
+  // Chương đang xem breakdown theo Bài — mặc định chương đầu tiên có dữ liệu
+  // nếu giáo viên chưa tự chọn (hoặc đã chọn 1 chương giờ không còn dữ liệu).
+  const activeDrilldownTopicId =
+    (drilldownTopicId && chapterChartData.some((c) => c.topic_id === drilldownTopicId)
+      ? drilldownTopicId
+      : chapterChartData[0]?.topic_id) ?? null;
+  const lessonChartData = useMemo(() => {
+    if (!activeDrilldownTopicId) return [];
+    const stats = selectedLessonStats ?? classLessonStats;
+    return stats
+      .filter((s) => s.topic_id === activeDrilldownTopicId && s.maxScore > 0)
+      .map((s) => ({ lesson_name: s.lesson_name, accuracy: lessonAccuracyPercent(s) ?? 0 }));
+  }, [selectedLessonStats, classLessonStats, activeDrilldownTopicId]);
 
   const chapterAverage =
     chapterChartData.length > 0
@@ -327,15 +368,59 @@ export function TeacherDashboard() {
                   >
                     Radar
                   </button>
+                  <button
+                    type="button"
+                    className={chapterView === "bai" ? "chart-view-toggle--active" : ""}
+                    onClick={() => setChapterView("bai")}
+                  >
+                    Theo Bài
+                  </button>
                 </div>
               )}
             </div>
           </div>
+          {chapterView === "bai" && chapterChartData.length > 0 && (
+            <div className="filter-row" style={{ marginBottom: 10 }}>
+              <label style={{ margin: 0 }}>Chương:</label>
+              <select
+                value={activeDrilldownTopicId ?? ""}
+                onChange={(e) => setDrilldownTopicId(e.target.value || null)}
+              >
+                {chapterChartData.map((c) => (
+                  <option key={c.topic_id} value={c.topic_id}>
+                    {c.topic_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {chapterChartData.length === 0 ? (
             <p className="empty-hint">
               Chưa có dữ liệu chương nào — cần học sinh làm ít nhất 1 đề có câu đã được gán chương
               (mục 19, Đợt 1).
             </p>
+          ) : chapterView === "bai" ? (
+            lessonChartData.length === 0 ? (
+              <p className="empty-hint">
+                Chưa có dữ liệu Bài nào trong chương này — cần câu hỏi được AI gợi ý/giáo viên gán
+                Bài khi nhập đề (xem "Nhập đề thi").
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(220, lessonChartData.length * 42)}>
+                <BarChart data={lessonChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[0, 100]} unit="%" />
+                  <YAxis
+                    type="category"
+                    dataKey="lesson_name"
+                    width={150}
+                    tickFormatter={truncateLessonLabel}
+                  />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
+                  <Bar dataKey="accuracy" fill="#9c1420" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )
           ) : chapterView === "radar" ? (
             <ResponsiveContainer width="100%" height={320}>
               <RadarChart data={chapterChartData} outerRadius="72%">

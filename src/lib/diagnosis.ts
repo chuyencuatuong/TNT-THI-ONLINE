@@ -15,6 +15,8 @@
  * Toàn bộ hàm ở đây là hàm thuần (pure function), không phụ thuộc DB/mạng.
  */
 
+import type { Difficulty } from "./types";
+
 export interface QuestionOutcome {
   part: 1 | 2 | 3;
   /** điểm đạt được / điểm tối đa của câu này, từ 0 đến 1 */
@@ -36,6 +38,30 @@ export const MASTERY_LABELS: Record<MasteryLabel, string> = {
   co_lo_hong: "Có lỗ hổng kiến thức",
   mat_goc: "Có dấu hiệu mất gốc",
   chua_du_du_lieu: "Chưa đủ dữ liệu để đánh giá",
+};
+
+/** Màu đại diện cho từng mức nắm vững — dùng chung cho MỌI nơi hiển thị chẩn
+ * đoán (ResultPage.tsx phía học sinh, TeacherStudentDetail.tsx phía giáo
+ * viên) để nhất quán, tách ra đây (trước đây định nghĩa riêng ở ResultPage.tsx)
+ * khi thêm chẩn đoán theo mức độ tư duy cho cả 2 phía (31/08/2026). */
+export const MASTERY_COLOR: Record<MasteryLabel, string> = {
+  vung: "#2e7d32",
+  chua_chac_chan: "#b8860b",
+  co_lo_hong: "#e07b00",
+  mat_goc: "#c0392b",
+  chua_du_du_lieu: "#6b7280",
+};
+
+export const MASTERY_NOTE: Record<MasteryLabel, string> = {
+  vung: "Làm đúng phần lớn, thời gian và số lần đổi đáp án ở mức hợp lý.",
+  chua_chac_chan:
+    "Kết quả đúng nhưng mất khá nhiều thời gian hoặc đổi đáp án nhiều lần — có thể chưa thật tự tin, nên luyện thêm để phản xạ nhanh và chắc hơn.",
+  co_lo_hong:
+    "Đúng khoảng một nửa số câu — có khả năng nắm được ý chính nhưng còn thiếu sót ở một số bước, nên xem lại lý thuyết và làm thêm bài tương tự.",
+  mat_goc:
+    "Sai phần lớn các câu thuộc dạng này — nên ôn lại kiến thức nền của dạng bài này trước khi luyện tiếp.",
+  chua_du_du_lieu:
+    "Chưa đủ câu hỏi thuộc dạng này trong lần làm bài để đưa ra nhận định đáng tin cậy.",
 };
 
 /**
@@ -151,6 +177,41 @@ export function diagnoseAllTopics(
     topic_id: g.topic_id,
     topic_name: g.topic_name,
     ...diagnoseTopic(g.outcomes, expectedTime),
+  }));
+}
+
+/**
+ * Chẩn đoán theo MỨC ĐỘ TƯ DUY (Nhận biết/Thông hiểu/Vận dụng/Vận dụng cao —
+ * questions.difficulty), thêm 31/08/2026 theo yêu cầu "phân tích năng lực
+ * chuyên sâu" (Giai đoạn 1, ưu tiên 1/4 vì có sẵn dữ liệu ngay, không cần
+ * thêm bảng mới). Dùng LẠI đúng động cơ chẩn đoán diagnoseTopic (điểm/thời
+ * gian/số lần đổi đáp án) — chỉ khác trục nhóm (difficulty thay vì topic_id),
+ * nên tách riêng interface nhóm đầu vào nhưng gọi chung 1 hàm diagnoseTopic.
+ */
+export interface DifficultyOutcomeGroup {
+  difficulty: Difficulty;
+  outcomes: QuestionOutcome[];
+}
+
+/** Thứ tự hiển thị chuẩn NB -> TH -> VD -> VDC (không phải thứ tự bảng chữ cái). */
+export const DIFFICULTY_ORDER: Difficulty[] = [
+  "nhan_biet",
+  "thong_hieu",
+  "van_dung",
+  "van_dung_cao",
+];
+
+/** Chạy diagnoseTopic cho cả 4 mức độ tư duy cùng lúc, LUÔN trả đủ 4 mức theo
+ * DIFFICULTY_ORDER (kể cả mức chưa có câu nào — trả "chua_du_du_lieu") để vẽ
+ * biểu đồ/bảng ổn định vị trí, không nhảy cột khi thiếu dữ liệu 1 mức nào đó. */
+export function diagnoseAllDifficulties(
+  groups: DifficultyOutcomeGroup[],
+  expectedTime: Record<1 | 2 | 3, number> = DEFAULT_EXPECTED_TIME_SECONDS,
+): (TopicDiagnosis & { difficulty: Difficulty })[] {
+  const byDifficulty = new Map(groups.map((g) => [g.difficulty, g.outcomes]));
+  return DIFFICULTY_ORDER.map((difficulty) => ({
+    difficulty,
+    ...diagnoseTopic(byDifficulty.get(difficulty) ?? [], expectedTime),
   }));
 }
 

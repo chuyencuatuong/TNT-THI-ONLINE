@@ -3,8 +3,10 @@ import {
   blankQuestionAdvice,
   classifyBlankQuestions,
   computeActiveSeconds,
+  diagnoseAllDifficulties,
   diagnoseAllTopics,
   diagnoseTopic,
+  DIFFICULTY_ORDER,
   type QuestionOutcome,
 } from "./diagnosis";
 
@@ -88,6 +90,27 @@ describe("diagnoseAllTopics", () => {
     const result = diagnoseAllTopics(groups);
     expect(result.find((r) => r.topic_id === "t1")?.label).toBe("vung");
     expect(result.find((r) => r.topic_id === "t2")?.label).toBe("mat_goc");
+  });
+});
+
+describe("diagnoseAllDifficulties", () => {
+  it("LUÔN trả đủ 4 mức theo DIFFICULTY_ORDER, kể cả mức chưa có câu nào", () => {
+    const result = diagnoseAllDifficulties([
+      { difficulty: "nhan_biet", outcomes: [part1(1, 60), part1(1, 70)] },
+    ]);
+    expect(result.map((r) => r.difficulty)).toEqual(DIFFICULTY_ORDER);
+    expect(result.find((r) => r.difficulty === "nhan_biet")?.label).toBe("vung");
+    expect(result.find((r) => r.difficulty === "thong_hieu")?.label).toBe("chua_du_du_lieu");
+    expect(result.find((r) => r.difficulty === "van_dung")?.sampleCount).toBe(0);
+  });
+
+  it("chẩn đoán độc lập cho từng mức độ tư duy", () => {
+    const result = diagnoseAllDifficulties([
+      { difficulty: "nhan_biet", outcomes: [part1(1, 60), part1(1, 70)] },
+      { difficulty: "van_dung_cao", outcomes: [part1(0, 90), part1(0, 90)] },
+    ]);
+    expect(result.find((r) => r.difficulty === "nhan_biet")?.label).toBe("vung");
+    expect(result.find((r) => r.difficulty === "van_dung_cao")?.label).toBe("mat_goc");
   });
 });
 

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -17,14 +18,21 @@ import {
   RadarChart,
 } from "recharts";
 import * as api from "../lib/api";
-import type { AttemptReviewItem } from "../lib/api";
+import type { AttemptDiagnostics, AttemptReviewItem } from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
 import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
 import { QuestionReview } from "../components/QuestionReview";
-import { BLANK_REASON_LABELS, type BlankQuestionSummary } from "../lib/diagnosis";
+import {
+  BLANK_REASON_LABELS,
+  MASTERY_COLOR,
+  MASTERY_LABELS,
+  MASTERY_NOTE,
+  type BlankQuestionSummary,
+} from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
 import { resolveTier, TIER_LABELS } from "../lib/studentTier";
 import {
+  DIFFICULTY_LABELS,
   GENDER_LABELS,
   type AttemptScoreRow,
   type ClassRow,
@@ -121,6 +129,15 @@ export function TeacherStudentDetail() {
   );
   const [reviewItems, setReviewItems] = useState<Record<string, AttemptReviewItem[]>>({});
   const [loadingReview, setLoadingReview] = useState(false);
+  // "Xem chẩn đoán" từng lượt làm (thêm 31/08/2026) — trước đây chẩn đoán
+  // (theo chương + theo mức độ tư duy) CHỈ hiện cho học sinh ở ResultPage.tsx
+  // ngay sau khi nộp bài, giáo viên không có cách nào xem lại — cùng cơ chế
+  // toggle + cache theo attemptId với "Xem câu sai"/"Xem cả bài" ở trên.
+  const [openDiagnosisFor, setOpenDiagnosisFor] = useState<string | null>(null);
+  const [diagnosticsByAttempt, setDiagnosticsByAttempt] = useState<
+    Record<string, AttemptDiagnostics>
+  >({});
+  const [loadingDiagnosis, setLoadingDiagnosis] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
@@ -229,6 +246,23 @@ export function TeacherStudentDetail() {
         setReviewItems((prev) => ({ ...prev, [cacheKey]: items }));
       } finally {
         setLoadingReview(false);
+      }
+    }
+  }
+
+  async function toggleDiagnosis(attemptId: string, examId: string) {
+    if (openDiagnosisFor === attemptId) {
+      setOpenDiagnosisFor(null);
+      return;
+    }
+    setOpenDiagnosisFor(attemptId);
+    if (!diagnosticsByAttempt[attemptId]) {
+      setLoadingDiagnosis(true);
+      try {
+        const d = await api.getAttemptDiagnostics(attemptId, examId);
+        setDiagnosticsByAttempt((prev) => ({ ...prev, [attemptId]: d }));
+      } finally {
+        setLoadingDiagnosis(false);
       }
     }
   }
@@ -407,6 +441,7 @@ export function TeacherStudentDetail() {
                         const isOpen = openViolationsFor === a.id;
                         const isWrongOpen = openReviewFor?.attemptId === a.id && openReviewFor.mode === "wrong";
                         const isFullOpen = openReviewFor?.attemptId === a.id && openReviewFor.mode === "full";
+                        const isDiagnosisOpen = openDiagnosisFor === a.id;
                         return (
                           <Fragment key={a.id}>
                           <tr>
@@ -498,6 +533,14 @@ export function TeacherStudentDetail() {
                               >
                                 {isFullOpen ? "Ẩn cả bài" : "Xem cả bài"}
                               </button>
+                              <button
+                                type="button"
+                                className="btn-link"
+                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                onClick={() => toggleDiagnosis(a.id, a.exam_id)}
+                              >
+                                {isDiagnosisOpen ? "Ẩn chẩn đoán" : "Xem chẩn đoán"}
+                              </button>
                             </td>
                           </tr>
                           {isOpen && (
@@ -550,6 +593,78 @@ export function TeacherStudentDetail() {
                                           maxScore={item.maxScore}
                                         />
                                       ))}
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                            </tr>
+                          )}
+                          {isDiagnosisOpen && (
+                            <tr>
+                              <td colSpan={11} className="proctoring-detail-cell">
+                                {(() => {
+                                  const d = diagnosticsByAttempt[a.id];
+                                  if (loadingDiagnosis && !d) {
+                                    return <span className="empty-hint">Đang tải...</span>;
+                                  }
+                                  if (!d) return null;
+                                  const difficultyChartData = d.byDifficulty.map((diff) => ({
+                                    name: DIFFICULTY_LABELS[diff.difficulty],
+                                    accuracyPercent: diff.sampleCount > 0 ? diff.avgScoreRatio * 100 : 0,
+                                    sampleCount: diff.sampleCount,
+                                    label: diff.label,
+                                  }));
+                                  return (
+                                    <div className="attempt-diagnosis-panel">
+                                      {d.byTopic.length > 0 && (
+                                        <div>
+                                          <h4 style={{ margin: "0 0 6px" }}>Theo chương</h4>
+                                          <div className="diagnosis-list">
+                                            {d.byTopic.map((t) => (
+                                              <div key={t.topic_id} className="diagnosis-card">
+                                                <div className="diagnosis-card-header">
+                                                  <span>{t.topic_name}</span>
+                                                  <span
+                                                    className="diagnosis-badge"
+                                                    style={{ background: MASTERY_COLOR[t.label] }}
+                                                  >
+                                                    {MASTERY_LABELS[t.label]}
+                                                  </span>
+                                                </div>
+                                                <p className="diagnosis-note">{MASTERY_NOTE[t.label]}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {difficultyChartData.some((c) => c.sampleCount > 0) && (
+                                        <div>
+                                          <h4 style={{ margin: "12px 0 6px" }}>Theo mức độ tư duy</h4>
+                                          <ResponsiveContainer
+                                            width="100%"
+                                            height={Math.max(160, difficultyChartData.length * 42)}
+                                          >
+                                            <BarChart
+                                              data={difficultyChartData}
+                                              layout="vertical"
+                                              margin={{ left: 40, right: 20 }}
+                                            >
+                                              <CartesianGrid strokeDasharray="3 3" />
+                                              <XAxis type="number" domain={[0, 100]} unit="%" />
+                                              <YAxis type="category" dataKey="name" width={130} fontSize={12} />
+                                              <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
+                                              <Bar dataKey="accuracyPercent" radius={[0, 4, 4, 0]}>
+                                                {difficultyChartData.map((c, i) => (
+                                                  <Cell key={i} fill={MASTERY_COLOR[c.label]} />
+                                                ))}
+                                              </Bar>
+                                            </BarChart>
+                                          </ResponsiveContainer>
+                                        </div>
+                                      )}
+                                      {d.byTopic.length === 0 && !difficultyChartData.some((c) => c.sampleCount > 0) && (
+                                        <span className="empty-hint">Chưa đủ dữ liệu để chẩn đoán lượt làm này.</span>
+                                      )}
                                     </div>
                                   );
                                 })()}

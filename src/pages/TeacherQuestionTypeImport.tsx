@@ -7,14 +7,17 @@ import {
   extractQuestionTypesFromPdfPages,
   type ExtractedQuestionTypeCandidate,
 } from "../lib/ai";
-import type { QuestionType, Topic } from "../lib/types";
+import type { Lesson, Topic } from "../lib/types";
 
 /**
- * Bước A (Learning Lab, chốt 24/08/2026) — nạp "tài liệu dạng bài tập" (khác
- * hẳn đề thi) để AI trích ra danh sách dạng bài theo chương, giáo viên xem
- * lại/sửa/xoá từng dạng rồi mới lưu vào question_types. Đây là bước NỀN cho
- * Bước B (gợi ý dạng bài khi nhập đề mới ở TeacherExamImport, dùng
- * suggestQuestionType() đối chiếu với danh sách đã xây ở đây).
+ * Bước A (Learning Lab, chốt 24/08/2026) — nạp tài liệu tham khảo (khác hẳn
+ * đề thi) để AI trích ra danh sách Bài theo chương, giáo viên xem lại/sửa/xoá
+ * từng Bài rồi mới lưu vào bảng `lessons` (migration_016 đổi tên từ
+ * question_types, tái sử dụng đúng cơ chế "AI gợi ý, giáo viên duyệt" này).
+ * Bổ sung thêm Bài ngoài khung PPCT đã gieo sẵn (migration_016) khi cần —
+ * ví dụ 1 dạng đề thi hay gặp nhưng PPCT không tách riêng thành 1 Bài. Đây là
+ * bước NỀN cho Bước B (gợi ý Bài khi nhập đề mới ở TeacherExamImport, dùng
+ * matchLessonByName() đối chiếu với danh sách đã xây ở đây).
  */
 
 let localIdCounter = 0;
@@ -33,7 +36,7 @@ interface EditableCandidate extends ExtractedQuestionTypeCandidate {
 export function TeacherQuestionTypeImport() {
   const [stage, setStage] = useState<"upload" | "analyzing" | "review">("upload");
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [existingTypes, setExistingTypes] = useState<QuestionType[]>([]);
+  const [existingLessons, setExistingLessons] = useState<Lesson[]>([]);
   const [topicId, setTopicId] = useState("");
   const [fileName, setFileName] = useState("");
   const [analyzingProgress, setAnalyzingProgress] = useState("");
@@ -45,14 +48,14 @@ export function TeacherQuestionTypeImport() {
 
   useEffect(() => {
     api.listTopics().then(setTopics).catch(console.error);
-    api.listQuestionTypes().then(setExistingTypes).catch(console.error);
+    api.listLessons().then(setExistingLessons).catch(console.error);
   }, []);
 
   const selectedTopic = topics.find((t) => t.id === topicId) ?? null;
 
   function withIds(result: { candidates: ExtractedQuestionTypeCandidate[]; warnings: string[] }) {
     const existingNamesLower = new Set(
-      existingTypes.filter((t) => t.topic_id === topicId).map((t) => t.name.trim().toLowerCase()),
+      existingLessons.filter((t) => t.topic_id === topicId).map((t) => t.name.trim().toLowerCase()),
     );
     setWarnings(result.warnings);
     setCandidates(
@@ -92,7 +95,7 @@ export function TeacherQuestionTypeImport() {
       );
       if (!taxonomy) {
         const reason = chunkErrors[0] ?? "không rõ lý do";
-        setError(`AI chưa trích được dạng bài nào: ${reason} Thử lại (nhiều khả năng qua ngay nếu là lỗi tạm thời).`);
+        setError(`AI chưa trích được Bài nào: ${reason} Thử lại (nhiều khả năng qua ngay nếu là lỗi tạm thời).`);
         setStage("upload");
         return;
       }
@@ -162,27 +165,27 @@ export function TeacherQuestionTypeImport() {
   async function handleSave() {
     const toSave = candidates.filter((c) => c.selected && c.name.trim());
     if (toSave.length === 0) {
-      alert("Chưa chọn dạng bài nào để lưu.");
+      alert("Chưa chọn Bài nào để lưu.");
       return;
     }
     setSaving(true);
     setSavedCount(0);
     try {
       for (const c of toSave) {
-        await api.createQuestionType({
+        await api.createLesson({
           topic_id: topicId,
           name: c.name.trim(),
           description: c.description.trim() || null,
         });
         setSavedCount((n) => n + 1);
       }
-      const refreshed = await api.listQuestionTypes();
-      setExistingTypes(refreshed);
+      const refreshed = await api.listLessons();
+      setExistingLessons(refreshed);
       setCandidates((prev) => prev.filter((c) => !toSave.includes(c)));
-      alert(`Đã lưu ${toSave.length} dạng bài vào chương "${selectedTopic?.name}".`);
+      alert(`Đã lưu ${toSave.length} Bài vào chương "${selectedTopic?.name}".`);
     } catch (err) {
       console.error(err);
-      alert("Có lỗi khi lưu — 1 số dạng có thể đã lưu, kiểm tra lại Ngân hàng câu hỏi trước khi thử lại phần còn thiếu.");
+      alert("Có lỗi khi lưu — 1 số Bài có thể đã lưu, kiểm tra lại Ngân hàng câu hỏi trước khi thử lại phần còn thiếu.");
     } finally {
       setSaving(false);
     }
@@ -200,11 +203,11 @@ export function TeacherQuestionTypeImport() {
   if (stage === "upload") {
     return (
       <div className="teacher-page">
-        <h2>Nạp tài liệu dạng bài tập</h2>
+        <h2>Nạp Bài từ tài liệu</h2>
         <p className="empty-hint">
-          Tải lên 1 file "tài liệu dạng bài tập" (khác với đề thi) — AI sẽ đọc và trích ra danh
-          sách dạng bài có trong tài liệu (dựa theo các tiêu đề "Dạng 1: ...", "Dạng 2: ..." nếu
-          có), bạn xem lại/sửa/xoá trước khi lưu vào hệ thống. Ưu tiên tải file <strong>PDF</strong>{" "}
+          Tải lên 1 file tài liệu tham khảo (khác với đề thi) — AI sẽ đọc và trích ra danh sách
+          Bài có trong tài liệu (dựa theo các tiêu đề "Dạng 1: ...", "Dạng 2: ..." nếu có), bạn
+          xem lại/sửa/xoá trước khi lưu vào hệ thống. Ưu tiên tải file <strong>PDF</strong>{" "}
           (đọc chính xác công thức/bảng biến thiên hơn file Word).
         </p>
 
@@ -242,7 +245,7 @@ export function TeacherQuestionTypeImport() {
   if (stage === "analyzing") {
     return (
       <div className="teacher-page">
-        <h2>Nạp tài liệu dạng bài tập</h2>
+        <h2>Nạp Bài từ tài liệu</h2>
         <p className="page-loading">
           Đang phân tích "{fileName}"... {analyzingProgress}
         </p>
@@ -254,7 +257,7 @@ export function TeacherQuestionTypeImport() {
   return (
     <div className="teacher-page">
       <div className="page-header-row">
-        <h2>Xem lại dạng bài AI trích ra — {selectedTopic?.name}</h2>
+        <h2>Xem lại Bài AI trích ra — {selectedTopic?.name}</h2>
         <button className="btn-secondary" onClick={reset}>
           Nạp file khác
         </button>
@@ -273,7 +276,7 @@ export function TeacherQuestionTypeImport() {
 
       {candidates.length === 0 ? (
         <p className="empty-hint">
-          AI không trích được dạng bài nào từ file này — có thể tài liệu không theo cấu trúc quen
+          AI không trích được Bài nào từ file này — có thể tài liệu không theo cấu trúc quen
           thuộc. Thử nạp lại file khác hoặc kiểm tra file gốc.
         </p>
       ) : (
@@ -287,10 +290,10 @@ export function TeacherQuestionTypeImport() {
                     checked={c.selected}
                     onChange={(e) => updateCandidate(c.id, { selected: e.target.checked })}
                   />
-                  Lưu dạng này
+                  Lưu Bài này
                 </label>
                 {c.alreadyExists && (
-                  <span className="tag tag--muted">Đã có dạng trùng tên trong chương này</span>
+                  <span className="tag tag--muted">Đã có Bài trùng tên trong chương này</span>
                 )}
               </div>
               <input
@@ -321,7 +324,7 @@ export function TeacherQuestionTypeImport() {
         <button className="btn-primary" onClick={handleSave} disabled={saving || candidates.length === 0}>
           {saving
             ? `Đang lưu (${savedCount}/${candidates.filter((c) => c.selected).length})...`
-            : `Lưu ${candidates.filter((c) => c.selected).length} dạng đã chọn`}
+            : `Lưu ${candidates.filter((c) => c.selected).length} Bài đã chọn`}
         </button>
       </div>
     </div>

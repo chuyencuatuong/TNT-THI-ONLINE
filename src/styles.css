@@ -1623,6 +1623,15 @@ a {
   margin-right: 10px;
   font-variant-numeric: tabular-nums;
 }
+.attempt-diagnosis-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 640px;
+}
+.attempt-diagnosis-panel .diagnosis-list {
+  margin-bottom: 4px;
+}
 .report-link-box {
   background: var(--color-accent-light);
   padding: 12px;
@@ -3513,3 +3522,56 @@ a {
   .cal-chip { display: block; height: 6px; padding: 0; }
   .cal-month-label { min-width: 0; font-size: var(--font-size-base); }
 }
+
+/* ---------------------------------------------------------------------------
+   Tiến độ bài dạy (GV) - migration_016, xem TeacherLessonProgress.tsx.
+   Các lớp recall-, peer-, chapter-tr, lesson-, class-avatar, badge-muted,
+   num đều mới, port nguyên từ demo giao diện đã duyệt (không đổi phong cách
+   hiện có - chỉ dùng lại token màu/khoảng cách sẵn có). Không có .periods-chip
+   (số tiết/bài) - demo có cột này nhưng dữ liệu là placeholder, chưa có
+   nguồn thật (PPCT không ghi số tiết), nên bỏ hẳn khỏi bản thật.
+--------------------------------------------------------------------------- */
+.num { font-variant-numeric: tabular-nums; }
+.badge-muted { background: var(--color-subtle-bg); color: var(--color-text-muted); }
+
+.class-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.recall-card { display: flex; align-items: center; gap: 18px; padding: 18px 20px; }
+.recall-card .recall-num { font-size: 34px; font-weight: 800; color: var(--color-primary-dark); line-height: 1; }
+.recall-card .recall-name { font-size: 15.5px; font-weight: 600; margin: 3px 0 2px; }
+.recall-card .recall-sub { font-size: 12.5px; color: var(--color-text-muted); }
+
+.peer-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+.peer-row:last-child { border-bottom: none; }
+.peer-row.self { font-weight: 700; }
+.peer-bar-track { height: 10px; background: var(--color-subtle-bg); border-radius: 999px; overflow: hidden; }
+.peer-bar-fill { height: 100%; border-radius: 999px; background: var(--color-text-muted); opacity: .55; }
+.peer-row.self .peer-bar-fill { background: var(--color-primary); opacity: 1; }
+
+.history-table tr.chapter-tr td {
+  background: var(--color-subtle-bg);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  font-size: 13.5px;
+}
+.lesson-name-cell { display: flex; align-items: center; gap: 10px; }
+.lesson-name-cell.done .lname { color: var(--color-text-muted); }
+.lesson-tick { width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer; flex-shrink: 0; }

@@ -12,12 +12,15 @@ import {
 import {
   classifyBlankQuestions,
   computeActiveSeconds,
+  diagnoseAllDifficulties,
   diagnoseAllTopics,
   type BlankQuestionSummary,
+  type DifficultyOutcomeGroup,
   type TopicOutcomeGroup,
 } from "./diagnosis";
 import { applyReviewResult, markWrongFromExam, type JournalStreakState } from "./leitner";
 import { mergeChapterStats, type ChapterStat } from "./chapterStats";
+import { mergeLessonStats, type LessonStat } from "./lessonStats";
 import type {
   AttemptScoreRow,
   AttendanceRow,
@@ -37,8 +40,9 @@ import type {
   PomodoroSessionRow,
   ProctoringEventRow,
   Profile,
+  Lesson,
+  LessonProgressRow,
   QuestionRow,
-  QuestionType,
   QuestionViewEventRow,
   ReviewSessionRow,
   StudentPlaylistRow,
@@ -48,15 +52,20 @@ import type {
 } from "./types";
 
 // ---------------------------------------------------------------------------
-// Khung kiến thức (topics / question_types)
+// Khung kiến thức (topics / lessons — Lớp -> Chương -> Bài, migration_016)
 // ---------------------------------------------------------------------------
 
-export async function listTopics(): Promise<Topic[]> {
-  const { data, error } = await supabase
+/** grade không truyền = lấy cả 3 khối (dùng ở màn quản trị); truyền vào để
+ * lọc đúng 1 khối (vd TeacherExamImport.tsx lọc theo Lớp đã chọn của đề). */
+export async function listTopics(grade?: 10 | 11 | 12): Promise<Topic[]> {
+  let q = supabase
     .from("topics")
     .select("*")
     .order("grade")
+    .order("order_index", { ascending: true, nullsFirst: false })
     .order("name");
+  if (grade) q = q.eq("grade", grade);
+  const { data, error } = await q;
   if (error) throw error;
   return data as Topic[];
 }
@@ -75,27 +84,33 @@ export async function createTopic(input: {
   return data as Topic;
 }
 
-export async function listQuestionTypes(): Promise<QuestionType[]> {
-  const { data, error } = await supabase
-    .from("question_types")
+/** topicId không truyền = lấy Bài của MỌI chương (dùng ở màn quản trị/ngân
+ * hàng câu hỏi); truyền vào để lọc đúng 1 chương (vd form nhập đề, sau khi
+ * giáo viên đã chọn/xác nhận Chương cho câu hỏi). */
+export async function listLessons(topicId?: string): Promise<Lesson[]> {
+  let q = supabase
+    .from("lessons")
     .select("*")
+    .order("order_index", { ascending: true, nullsFirst: false })
     .order("name");
+  if (topicId) q = q.eq("topic_id", topicId);
+  const { data, error } = await q;
   if (error) throw error;
-  return data as QuestionType[];
+  return data as Lesson[];
 }
 
-export async function createQuestionType(input: {
+export async function createLesson(input: {
   topic_id: string;
   name: string;
   description: string | null;
-}): Promise<QuestionType> {
+}): Promise<Lesson> {
   const { data, error } = await supabase
-    .from("question_types")
+    .from("lessons")
     .insert(input)
     .select()
     .single();
   if (error) throw error;
-  return data as QuestionType;
+  return data as Lesson;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,14 +137,13 @@ export async function uploadQuestionImage(file: File): Promise<string> {
 
 export async function listQuestions(filters?: {
   part?: 1 | 2 | 3;
-  question_type_id?: string;
+  lesson_id?: string;
 }): Promise<QuestionRow[]> {
   let q = supabase.from("questions").select("*").order("created_at", {
     ascending: false,
   });
   if (filters?.part) q = q.eq("part", filters.part);
-  if (filters?.question_type_id)
-    q = q.eq("question_type_id", filters.question_type_id);
+  if (filters?.lesson_id) q = q.eq("lesson_id", filters.lesson_id);
   const { data, error } = await q;
   if (error) throw error;
   return data as QuestionRow[];
@@ -137,7 +151,7 @@ export async function listQuestions(filters?: {
 
 export async function createQuestion(input: {
   part: 1 | 2 | 3;
-  question_type_id: string | null;
+  lesson_id: string | null;
   /** Chương — không bắt buộc, xem giải thích ở migration_007. */
   topic_id?: string | null;
   ai_suggested_topic_id?: string | null;
@@ -149,7 +163,7 @@ export async function createQuestion(input: {
   /** Lời giải chi tiết (LaTeX), không bắt buộc — null nếu chưa có. */
   solution_latex?: string | null;
   default_points: number | null;
-  ai_suggested_type_id: string | null;
+  ai_suggested_lesson_id: string | null;
   created_by: string;
   source?: "manual" | "word_import";
 }): Promise<QuestionRow> {
@@ -967,6 +981,54 @@ export async function setManualTier(studentId: string, tier: StudentTier | null)
 }
 
 // ---------------------------------------------------------------------------
+// TIẾN ĐỘ BÀI DẠY (lesson_progress, migration_016) — giáo viên tick từng Bài
+// đã dạy xong cho 1 lớp, không bắt buộc theo đúng thứ tự PPCT (lớp có thể dạy
+// lại/dạy trước 1 Bài tuỳ tình huống thực tế). Dùng để: (1) nhắc nhanh "lớp
+// này đang dạy tới đâu" trên trang chủ GV, (2) so sánh trung lập (không xếp
+// hạng) vị trí các lớp cùng khối — xem đề xuất "tiến độ bài dạy" đã duyệt.
+// ---------------------------------------------------------------------------
+
+export async function listLessonProgress(classId: string): Promise<LessonProgressRow[]> {
+  const { data, error } = await supabase.from("lesson_progress").select("*").eq("class_id", classId);
+  if (error) throw error;
+  return data as LessonProgressRow[];
+}
+
+/** Tiến độ của NHIỀU lớp cùng lúc — dùng cho bảng so sánh trung lập giữa các
+ * lớp cùng khối (không tính điểm/xếp hạng, chỉ để GV nắm vị trí từng lớp). */
+export async function listLessonProgressForClasses(classIds: string[]): Promise<LessonProgressRow[]> {
+  if (classIds.length === 0) return [];
+  const { data, error } = await supabase.from("lesson_progress").select("*").in("class_id", classIds);
+  if (error) throw error;
+  return data as LessonProgressRow[];
+}
+
+/** Đánh dấu 1 Bài đã dạy xong cho 1 lớp — idempotent nhờ unique(class_id, lesson_id) ở DB (upsert, không tạo trùng khi bấm lại). */
+export async function markLessonTaught(input: {
+  class_id: string;
+  lesson_id: string;
+  marked_by: string;
+}): Promise<LessonProgressRow> {
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .upsert(input, { onConflict: "class_id,lesson_id" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as LessonProgressRow;
+}
+
+/** Bỏ đánh dấu 1 Bài đã dạy (GV tick nhầm, hoặc đổi ý dạy lại theo thứ tự khác). */
+export async function unmarkLessonTaught(classId: string, lessonId: string): Promise<void> {
+  const { error } = await supabase
+    .from("lesson_progress")
+    .delete()
+    .eq("class_id", classId)
+    .eq("lesson_id", lessonId);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
 // LỊCH HỌC & ĐIỂM DANH (migration_013, 28/08/2026) — tạo tay từng buổi
 // (quyết định đã chốt, xem comment migration_013). createRecurringClassSessions
 // chỉ là công cụ tạo HÀNG LOẠT cho tiện, mỗi buổi vẫn là 1 bản ghi riêng, sửa/
@@ -1091,29 +1153,31 @@ export function computeAttendanceRate(records: { status: AttendanceStatus }[]): 
 }
 
 /**
- * Thống kê đúng/sai theo DẠNG BÀI (question_type_id) cho 1 học sinh.
+ * Thống kê đúng/sai theo BÀI (lessons, theo PPCT) cho 1 học sinh — nền cho
+ * drilldown Chương -> Bài ở dashboard (migration_016). Trước đây
+ * (getStudentTopicStats, nhóm theo "dạng bài"/question_type_id) không được
+ * gọi ở đâu vì cột đó chưa được gán thật — giờ Bài được gán qua AI gợi ý khi
+ * nhập đề (xem ai.ts matchLessonByName) nên hàm này có dữ liệu thật để dùng.
+ * Xem lessonStats.ts để biết cách gộp thành thống kê cả lớp.
  *
- * KHÔNG CÒN ĐƯỢC GỌI Ở ĐÂU (audit 24/08/2026) — trước đây dùng cho báo cáo
- * phụ huynh + dashboard GV, nhưng vì question_type_id chưa được giáo viên
- * gán cho câu hỏi nào nên kết quả luôn gần như rỗng; đã đổi 2 nơi đó sang
- * getStudentChapterStats (theo CHƯƠNG, có dữ liệu thật). Giữ lại hàm này
- * (không xoá) vì vẫn đúng và sẽ hữu ích lại ngay khi dạng bài được gán thật
- * (xem dự án "Learning Lab" — tạm hoãn, không phải bị bỏ).
+ * LƯU Ý PGRST201 (giống getStudentChapterStats): bảng `questions` có 2 khoá
+ * ngoại tới `lessons` (`lesson_id` và `ai_suggested_lesson_id`) nên bắt buộc
+ * chỉ rõ `lessons!questions_lesson_id_fkey(...)` khi embed.
  */
-export async function getStudentTopicStats(studentId: string): Promise<
-  { question_type_id: string; type_name: string; total: number; correctScore: number; maxScore: number }[]
+export async function getStudentLessonStats(studentId: string): Promise<
+  { lesson_id: string; lesson_name: string; topic_id: string; total: number; correctScore: number; maxScore: number }[]
 > {
   const { data, error } = await supabase
     .from("question_responses")
     .select(
-      "score, question:questions(part, default_points, question_type:question_types!questions_question_type_id_fkey(id, name)), attempt:exam_attempts!inner(student_id)",
+      "score, question:questions(part, default_points, lesson:lessons!questions_lesson_id_fkey(id, name, topic_id)), attempt:exam_attempts!inner(student_id)",
     )
     .eq("attempt.student_id", studentId);
   if (error) throw error;
 
   const map = new Map<
     string,
-    { type_name: string; total: number; correctScore: number; maxScore: number }
+    { lesson_name: string; topic_id: string; total: number; correctScore: number; maxScore: number }
   >();
 
   for (const row of data as unknown[]) {
@@ -1122,15 +1186,15 @@ export async function getStudentTopicStats(studentId: string): Promise<
       question: {
         part: 1 | 2 | 3;
         default_points: number | null;
-        question_type: { id: string; name: string } | null;
+        lesson: { id: string; name: string; topic_id: string } | null;
       };
     };
-    const qt = r.question.question_type;
-    if (!qt) continue;
-    const maxForQuestion =
-      r.question.part === 1 ? 0.25 : r.question.part === 2 ? 1 : r.question.default_points ?? 0.5;
-    const existing = map.get(qt.id) ?? {
-      type_name: qt.name,
+    const lesson = r.question.lesson;
+    if (!lesson) continue;
+    const maxForQuestion = questionMaxScore(r.question);
+    const existing = map.get(lesson.id) ?? {
+      lesson_name: lesson.name,
+      topic_id: lesson.topic_id,
       total: 0,
       correctScore: 0,
       maxScore: 0,
@@ -1138,11 +1202,11 @@ export async function getStudentTopicStats(studentId: string): Promise<
     existing.total += 1;
     existing.correctScore += r.score;
     existing.maxScore += maxForQuestion;
-    map.set(qt.id, existing);
+    map.set(lesson.id, existing);
   }
 
-  return Array.from(map.entries()).map(([question_type_id, v]) => ({
-    question_type_id,
+  return Array.from(map.entries()).map(([lesson_id, v]) => ({
+    lesson_id,
     ...v,
   }));
 }
@@ -1208,6 +1272,14 @@ export async function getClassChapterStats(studentIds: string[]): Promise<Chapte
   return mergeChapterStats(perStudent);
 }
 
+/** Bản tương ứng theo BÀI của getClassChapterStats (migration_016) — dùng cho
+ * bước drilldown "bấm vào 1 chương để xem theo Bài" ở dashboard. */
+export async function getClassLessonStats(studentIds: string[]): Promise<LessonStat[]> {
+  if (studentIds.length === 0) return [];
+  const perStudent = await Promise.all(studentIds.map((id) => getStudentLessonStats(id)));
+  return mergeLessonStats(perStudent);
+}
+
 export interface AttemptQuestionDetail {
   question_id: string;
   part: 1 | 2 | 3;
@@ -1218,6 +1290,8 @@ export interface AttemptQuestionDetail {
    * diagnosis.ts. Đổi sang CHƯƠNG (topic_id), có dữ liệu thật. */
   topic_id: string | null;
   topic_name: string | null;
+  /** Mức độ tư duy (NB/TH/VD/VDC) — dùng cho byDifficulty (thêm 31/08/2026). */
+  difficulty: Difficulty | null;
   score: number;
   maxScore: number;
   scoreRatio: number;
@@ -1230,6 +1304,8 @@ export interface AttemptQuestionDetail {
 export interface AttemptDiagnostics {
   perQuestion: AttemptQuestionDetail[];
   byTopic: ReturnType<typeof diagnoseAllTopics>;
+  /** Chẩn đoán theo mức độ tư duy (NB/TH/VD/VDC), thêm 31/08/2026 — xem diagnoseAllDifficulties (diagnosis.ts). */
+  byDifficulty: ReturnType<typeof diagnoseAllDifficulties>;
   /** Chẩn đoán nguyên nhân bỏ trống — xem classifyBlankQuestions trong diagnosis.ts. */
   blankQuestions: BlankQuestionSummary;
 }
@@ -1295,6 +1371,7 @@ export async function getAttemptDiagnostics(
       content_latex: q.content_latex,
       topic_id: resp?.question?.topic_id ?? q.topic_id,
       topic_name: resp?.question?.topic?.name ?? null,
+      difficulty: q.difficulty,
       score,
       maxScore,
       scoreRatio: maxScore > 0 ? Math.min(1, score / maxScore) : 0,
@@ -1327,9 +1404,26 @@ export async function getAttemptDiagnostics(
     groupMap.set(key, existing);
   }
 
+  const difficultyGroupMap = new Map<string, DifficultyOutcomeGroup>();
+  for (const pq of perQuestion) {
+    if (!pq.difficulty) continue;
+    const existing = difficultyGroupMap.get(pq.difficulty) ?? {
+      difficulty: pq.difficulty,
+      outcomes: [],
+    };
+    existing.outcomes.push({
+      part: pq.part,
+      scoreRatio: pq.scoreRatio,
+      timeSpentSeconds: pq.timeSpentSeconds,
+      changeCount: pq.changeCount,
+    });
+    difficultyGroupMap.set(pq.difficulty, existing);
+  }
+
   return {
     perQuestion,
     byTopic: diagnoseAllTopics(Array.from(groupMap.values())),
+    byDifficulty: diagnoseAllDifficulties(Array.from(difficultyGroupMap.values())),
     blankQuestions,
   };
 }

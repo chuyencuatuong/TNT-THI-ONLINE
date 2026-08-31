@@ -16,6 +16,7 @@ import { TeacherExamEditor } from "./pages/TeacherExamEditor";
 import { TeacherStudentDetail } from "./pages/TeacherStudentDetail";
 import { TeacherExamStats } from "./pages/TeacherExamStats";
 import { TeacherClassList } from "./pages/TeacherClassList";
+import { TeacherLessonProgress } from "./pages/TeacherLessonProgress";
 import { TeacherSchedule } from "./pages/TeacherSchedule";
 import { StudentSchedule } from "./pages/StudentSchedule";
 
@@ -150,6 +151,14 @@ export default function App() {
           element={
             <RequireRole role="teacher">
               <TeacherSchedule />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/tien-do-bai-day"
+          element={
+            <RequireRole role="teacher">
+              <TeacherLessonProgress />
             </RequireRole>
           }
         />

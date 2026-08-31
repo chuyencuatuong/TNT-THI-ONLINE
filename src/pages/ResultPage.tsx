@@ -18,13 +18,15 @@ import { truncateChapterLabel } from "../lib/chapterStats";
 import {
   BLANK_REASON_LABELS,
   blankQuestionAdvice,
+  MASTERY_COLOR,
   MASTERY_LABELS,
-  type MasteryLabel,
+  MASTERY_NOTE,
 } from "../lib/diagnosis";
 import { QuestionReview } from "../components/QuestionReview";
 import { ResultSlip } from "../components/ResultSlip";
 import { useAuth } from "../lib/auth";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
+import { DIFFICULTY_LABELS } from "../lib/types";
 
 const PART_LABELS: Record<1 | 2 | 3, string> = {
   1: "Phần 1. Trắc nghiệm 4 phương án",
@@ -43,26 +45,6 @@ const TAB_LABELS: Record<ResultTab, string> = {
   "tong-quan": "Tổng quan",
   "chan-doan": "Chẩn đoán",
   "xem-lai": "Xem lại bài làm",
-};
-
-const MASTERY_COLOR: Record<MasteryLabel, string> = {
-  vung: "#2e7d32",
-  chua_chac_chan: "#b8860b",
-  co_lo_hong: "#e07b00",
-  mat_goc: "#c0392b",
-  chua_du_du_lieu: "#6b7280",
-};
-
-const MASTERY_NOTE: Record<MasteryLabel, string> = {
-  vung: "Làm đúng phần lớn, thời gian và số lần đổi đáp án ở mức hợp lý.",
-  chua_chac_chan:
-    "Kết quả đúng nhưng mất khá nhiều thời gian hoặc đổi đáp án nhiều lần — có thể chưa thật tự tin, nên luyện thêm để phản xạ nhanh và chắc hơn.",
-  co_lo_hong:
-    "Đúng khoảng một nửa số câu — có khả năng nắm được ý chính nhưng còn thiếu sót ở một số bước, nên xem lại lý thuyết và làm thêm bài tương tự.",
-  mat_goc:
-    "Sai phần lớn các câu thuộc dạng này — nên ôn lại kiến thức nền của dạng bài này trước khi luyện tiếp.",
-  chua_du_du_lieu:
-    "Chưa đủ câu hỏi thuộc dạng này trong lần làm bài để đưa ra nhận định đáng tin cậy.",
 };
 
 export function ResultPage() {
@@ -120,6 +102,17 @@ export function ResultPage() {
   const topicChartData = (diagnostics?.byTopic ?? [])
     .filter((t) => t.label !== "chua_du_du_lieu")
     .map((t) => ({ name: t.topic_name, accuracyPercent: t.avgScoreRatio * 100 }));
+
+  // Chẩn đoán theo mức độ tư duy (NB/TH/VD/VDC, thêm 31/08/2026) — LUÔN đủ 4
+  // cột theo đúng thứ tự (diagnoseAllDifficulties trả đủ 4, kể cả mức chưa có
+  // câu nào trong đề này) để dễ so sánh ngang giữa các mức, màu cột đúng theo
+  // MASTERY_COLOR của mức đó (giống hệt màu dùng ở "Chẩn đoán theo chương").
+  const difficultyChartData = (diagnostics?.byDifficulty ?? []).map((d) => ({
+    name: DIFFICULTY_LABELS[d.difficulty],
+    accuracyPercent: d.sampleCount > 0 ? d.avgScoreRatio * 100 : 0,
+    sampleCount: d.sampleCount,
+    label: d.label,
+  }));
 
   // Donut "Đúng/Sai/Bỏ trống" (nâng cấp giao diện dashboard, demo đã duyệt) —
   // dùng lại đúng `review` đã tải sẵn cho tab "Xem lại bài làm", không gọi
@@ -308,6 +301,53 @@ export function ResultPage() {
                       <p className="diagnosis-meta">
                         {t.sampleCount} câu · đúng {(t.avgScoreRatio * 100).toFixed(0)}%
                         {t.possiblyRushed && " · làm khá nhanh so với mức thông thường"}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {diagnostics && diagnostics.byDifficulty.some((d) => d.sampleCount > 0) && (
+            <section className="result-section">
+              <h3>Chẩn đoán theo mức độ tư duy</h3>
+              <p className="empty-hint">
+                Nhận biết → Thông hiểu → Vận dụng → Vận dụng cao — mức càng cao càng đòi hỏi tư duy
+                sâu hơn. Xem cột nào đang yếu nhất để biết nên ôn ở tầng nào trước.
+              </p>
+              <ResponsiveContainer width="100%" height={Math.max(180, difficultyChartData.length * 46)}>
+                <BarChart data={difficultyChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[0, 100]} unit="%" />
+                  <YAxis type="category" dataKey="name" width={130} fontSize={12} />
+                  <Tooltip
+                    formatter={(v: number, _n: string, item) => {
+                      const sampleCount = (item?.payload as { sampleCount?: number })?.sampleCount ?? 0;
+                      return sampleCount > 0 ? [`${v.toFixed(0)}% (${sampleCount} câu)`, "Độ chính xác"] : ["Chưa có câu nào", "Độ chính xác"];
+                    }}
+                  />
+                  <Bar dataKey="accuracyPercent" radius={[0, 4, 4, 0]}>
+                    {difficultyChartData.map((d, i) => (
+                      <Cell key={i} fill={MASTERY_COLOR[d.label]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="diagnosis-list">
+                {(diagnostics.byDifficulty ?? []).map((d) => (
+                  <div key={d.difficulty} className="diagnosis-card">
+                    <div className="diagnosis-card-header">
+                      <span>{DIFFICULTY_LABELS[d.difficulty]}</span>
+                      <span className="diagnosis-badge" style={{ background: MASTERY_COLOR[d.label] }}>
+                        {MASTERY_LABELS[d.label]}
+                      </span>
+                    </div>
+                    <p className="diagnosis-note">{MASTERY_NOTE[d.label]}</p>
+                    {d.label !== "chua_du_du_lieu" && (
+                      <p className="diagnosis-meta">
+                        {d.sampleCount} câu · đúng {(d.avgScoreRatio * 100).toFixed(0)}%
+                        {d.possiblyRushed && " · làm khá nhanh so với mức thông thường"}
                       </p>
                     )}
                   </div>

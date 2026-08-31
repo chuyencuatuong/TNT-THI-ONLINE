@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
-import { suggestQuestionTopic, suggestQuestionType } from "../lib/ai";
+import { suggestQuestionLesson, suggestQuestionTopic } from "../lib/ai";
 import { MathText } from "./MathText";
 import { ImageUploadField } from "./ImageUploadField";
-import type { Difficulty, QuestionType, Topic } from "../lib/types";
+import type { Difficulty, Lesson, Topic } from "../lib/types";
 import { DIFFICULTY_LABELS } from "../lib/types";
 
 const DIFFICULTIES: Difficulty[] = [
@@ -16,23 +16,23 @@ const DIFFICULTIES: Difficulty[] = [
 
 export function QuestionEditorForm({
   topics,
-  questionTypes,
+  lessons,
   onCreated,
   onTopicsChanged,
-  onQuestionTypesChanged,
+  onLessonsChanged,
 }: {
   topics: Topic[];
-  questionTypes: QuestionType[];
+  lessons: Lesson[];
   onCreated: () => void;
   onTopicsChanged: () => void;
-  onQuestionTypesChanged: () => void;
+  onLessonsChanged: () => void;
 }) {
   const { profile } = useAuth();
   const [part, setPart] = useState<1 | 2 | 3>(1);
   const [content, setContent] = useState("");
   const [solution, setSolution] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("thong_hieu");
-  const [questionTypeId, setQuestionTypeId] = useState<string>("");
+  const [lessonId, setLessonId] = useState<string>("");
   const [topicId, setTopicId] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -59,13 +59,13 @@ export function QuestionEditorForm({
   const [shortAnswer, setShortAnswer] = useState("");
   const [points, setPoints] = useState(0.5);
 
-  // Thêm nhanh chủ đề / dạng bài mới
+  // Thêm nhanh chủ đề / Bài mới
   const [showNewTopic, setShowNewTopic] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
   const [newTopicGrade, setNewTopicGrade] = useState<10 | 11 | 12>(12);
-  const [showNewType, setShowNewType] = useState(false);
-  const [newTypeName, setNewTypeName] = useState("");
-  const [newTypeTopicId, setNewTypeTopicId] = useState("");
+  const [showNewLesson, setShowNewLesson] = useState(false);
+  const [newLessonName, setNewLessonName] = useState("");
+  const [newLessonTopicId, setNewLessonTopicId] = useState("");
 
   async function handleAddTopic() {
     if (!newTopicName.trim()) return;
@@ -79,34 +79,34 @@ export function QuestionEditorForm({
     onTopicsChanged();
   }
 
-  async function handleAddType() {
-    if (!newTypeName.trim() || !newTypeTopicId) return;
-    const created = await api.createQuestionType({
-      topic_id: newTypeTopicId,
-      name: newTypeName.trim(),
+  async function handleAddLesson() {
+    if (!newLessonName.trim() || !newLessonTopicId) return;
+    const created = await api.createLesson({
+      topic_id: newLessonTopicId,
+      name: newLessonName.trim(),
       description: null,
     });
-    setNewTypeName("");
-    setShowNewType(false);
-    onQuestionTypesChanged();
-    setQuestionTypeId(created.id);
+    setNewLessonName("");
+    setShowNewLesson(false);
+    onLessonsChanged();
+    setLessonId(created.id);
   }
 
   async function handleAiSuggest() {
     if (!content.trim()) return;
     setAiLoading(true);
     setAiSuggestion(null);
-    const result = await suggestQuestionType(content, questionTypes);
+    const result = await suggestQuestionLesson(content, lessons);
     setAiLoading(false);
-    if (result.question_type_id) {
-      setAiSuggestion(`AI gợi ý: "${result.type_name}" — ${result.reasoning}`);
+    if (result.lesson_id) {
+      setAiSuggestion(`AI gợi ý: "${result.lesson_name}" — ${result.reasoning}`);
     } else {
       setAiSuggestion(`AI chưa chắc chắn: ${result.reasoning}`);
     }
   }
 
-  function applyAiSuggestion(typeId: string) {
-    setQuestionTypeId(typeId);
+  function applyAiSuggestion(lessonIdValue: string) {
+    setLessonId(lessonIdValue);
   }
 
   async function handleAiTopicSuggest() {
@@ -163,7 +163,7 @@ export function QuestionEditorForm({
 
       await api.createQuestion({
         part,
-        question_type_id: questionTypeId || null,
+        lesson_id: lessonId || null,
         topic_id: topicId || null,
         ai_suggested_topic_id: aiTopicSuggestedId,
         difficulty,
@@ -173,7 +173,7 @@ export function QuestionEditorForm({
         correct_answer: correctAnswer,
         solution_latex: solution.trim() || null,
         default_points: defaultPoints,
-        ai_suggested_type_id: null,
+        ai_suggested_lesson_id: null,
         created_by: profile.id,
       });
       resetForm();
@@ -362,18 +362,18 @@ export function QuestionEditorForm({
       </div>
 
       <div className="form-row">
-        <label>Dạng bài</label>
+        <label>Bài</label>
         <div className="option-row">
-          <select value={questionTypeId} onChange={(e) => setQuestionTypeId(e.target.value)}>
+          <select value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
             <option value="">-- Chưa gán --</option>
-            {questionTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
+            {lessons.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
               </option>
             ))}
           </select>
-          <button type="button" className="btn-secondary" onClick={() => setShowNewType((s) => !s)}>
-            + Dạng mới
+          <button type="button" className="btn-secondary" onClick={() => setShowNewLesson((s) => !s)}>
+            + Bài mới
           </button>
           <button
             type="button"
@@ -387,9 +387,9 @@ export function QuestionEditorForm({
         {aiSuggestion && <p className="ai-hint">{aiSuggestion}</p>}
       </div>
 
-      {showNewType && (
+      {showNewLesson && (
         <div className="inline-create-box">
-          <select value={newTypeTopicId} onChange={(e) => setNewTypeTopicId(e.target.value)}>
+          <select value={newLessonTopicId} onChange={(e) => setNewLessonTopicId(e.target.value)}>
             <option value="">-- Chọn chủ đề --</option>
             {topics.map((t) => (
               <option key={t.id} value={t.id}>
@@ -399,15 +399,15 @@ export function QuestionEditorForm({
           </select>
           <input
             type="text"
-            value={newTypeName}
-            onChange={(e) => setNewTypeName(e.target.value)}
-            placeholder="Tên dạng bài mới"
+            value={newLessonName}
+            onChange={(e) => setNewLessonName(e.target.value)}
+            placeholder="Tên Bài mới"
           />
           <button type="button" className="btn-secondary" onClick={() => setShowNewTopic((s) => !s)}>
             + Chủ đề mới
           </button>
-          <button type="button" className="btn-primary" onClick={handleAddType}>
-            Lưu dạng bài
+          <button type="button" className="btn-primary" onClick={handleAddLesson}>
+            Lưu Bài
           </button>
         </div>
       )}

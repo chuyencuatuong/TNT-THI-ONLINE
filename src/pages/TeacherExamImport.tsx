@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
-import { matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
+import { matchLessonByName, matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
 import { renderPdfToImages, type PdfPageImage } from "../lib/pdfImport";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { TagPicker } from "../components/TagPicker";
-import type { ExamTag, Topic } from "../lib/types";
+import type { ExamTag, Lesson, Topic } from "../lib/types";
 
 let localIdCounter = 0;
 function nextLocalId() {
@@ -28,6 +28,9 @@ interface EditableP1 {
   /** Chương — mặc định lấy theo gợi ý AI (topic_name), giáo viên xem lại/đổi ngay ở màn hình này. */
   topic_id: string | null;
   ai_suggested_topic_id: string | null;
+  /** Bài — mặc định lấy theo gợi ý AI (lesson_name, TRONG chương đã gợi ý ở trên), giáo viên xem lại/đổi ngay ở màn hình này (migration_016). */
+  lesson_id: string | null;
+  ai_suggested_lesson_id: string | null;
 }
 interface EditableP2 {
   id: string;
@@ -38,6 +41,8 @@ interface EditableP2 {
   solution_latex: string | null;
   topic_id: string | null;
   ai_suggested_topic_id: string | null;
+  lesson_id: string | null;
+  ai_suggested_lesson_id: string | null;
 }
 interface EditableP3 {
   id: string;
@@ -48,12 +53,15 @@ interface EditableP3 {
   solution_latex: string | null;
   topic_id: string | null;
   ai_suggested_topic_id: string | null;
+  lesson_id: string | null;
+  ai_suggested_lesson_id: string | null;
 }
 
-function withIds(parsed: ParsedExam, topics: Topic[]) {
+function withIds(parsed: ParsedExam, topics: Topic[], lessons: Lesson[]) {
   return {
     part1: parsed.part1.map((q) => {
       const suggested = matchTopicByName(q.topic_name, topics);
+      const suggestedLesson = matchLessonByName(q.lesson_name, suggested, lessons);
       return {
         ...q,
         id: nextLocalId(),
@@ -61,10 +69,13 @@ function withIds(parsed: ParsedExam, topics: Topic[]) {
         solution_latex: q.solution_latex ?? null,
         topic_id: suggested,
         ai_suggested_topic_id: suggested,
+        lesson_id: suggestedLesson,
+        ai_suggested_lesson_id: suggestedLesson,
       };
     }) as EditableP1[],
     part2: parsed.part2.map((q) => {
       const suggested = matchTopicByName(q.topic_name, topics);
+      const suggestedLesson = matchLessonByName(q.lesson_name, suggested, lessons);
       return {
         ...q,
         id: nextLocalId(),
@@ -72,10 +83,13 @@ function withIds(parsed: ParsedExam, topics: Topic[]) {
         solution_latex: q.solution_latex ?? null,
         topic_id: suggested,
         ai_suggested_topic_id: suggested,
+        lesson_id: suggestedLesson,
+        ai_suggested_lesson_id: suggestedLesson,
       };
     }) as EditableP2[],
     part3: parsed.part3.map((q) => {
       const suggested = matchTopicByName(q.topic_name, topics);
+      const suggestedLesson = matchLessonByName(q.lesson_name, suggested, lessons);
       return {
         ...q,
         id: nextLocalId(),
@@ -83,6 +97,8 @@ function withIds(parsed: ParsedExam, topics: Topic[]) {
         solution_latex: q.solution_latex ?? null,
         topic_id: suggested,
         ai_suggested_topic_id: suggested,
+        lesson_id: suggestedLesson,
+        ai_suggested_lesson_id: suggestedLesson,
       };
     }) as EditableP3[],
   };
@@ -151,6 +167,7 @@ export function TeacherExamImport() {
   const [publishing, setPublishing] = useState(false);
 
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [folders, setFolders] = useState<ExamTag[]>([]);
   const [terms, setTerms] = useState<ExamTag[]>([]);
 
@@ -178,9 +195,15 @@ export function TeacherExamImport() {
 
   useEffect(() => {
     api.listTopics().then(setTopics).catch(console.error);
+    api.listLessons().then(setLessons).catch(console.error);
     api.listExamTags("folder").then(setFolders).catch(console.error);
     api.listExamTags("term").then(setTerms).catch(console.error);
   }, []);
+
+  // Lọc Chương/Bài hiển thị theo Lớp của đề đang nhập (1 đề chỉ thuộc 1 khối)
+  // — trước đây (migration_016) trộn lẫn cả 3 khối, khó chọn đúng khi đề dài.
+  // Chưa chọn Khối thì vẫn hiện đủ cả 3 (giáo viên có thể chọn Khối sau).
+  const displayTopics = grade ? topics.filter((t) => t.grade === Number(grade)) : topics;
 
   function toggleExamTopic(id: string) {
     setSelectedExamTopicIds((prev) => {
@@ -192,7 +215,7 @@ export function TeacherExamImport() {
   }
 
   function loadParsed(parsed: ParsedExam, suggestedTitle?: string) {
-    const withLocalIds = withIds(parsed, topics);
+    const withLocalIds = withIds(parsed, topics, lessons);
     setPart1(withLocalIds.part1);
     setPart2(withLocalIds.part2);
     setPart3(withLocalIds.part3);
@@ -237,6 +260,7 @@ export function TeacherExamImport() {
       (done, total) =>
         setAnalyzingProgress(`Đang phân tích đợt ${done}/${total} (mỗi đợt khoảng 20-40 giây)...`),
       topics,
+      lessons,
       previousResults,
     );
     if (!parsed) {
@@ -321,7 +345,7 @@ export function TeacherExamImport() {
         setStage("upload");
         return;
       }
-      const parsed = await parseExamFromDocument(plainText, images, topics);
+      const parsed = await parseExamFromDocument(plainText, images, topics, lessons);
       if (!parsed) {
         setError(
           "AI chưa phân tích được đề này (có thể do thiếu API key hoặc lỗi kết nối). Bạn có thể dán JSON đã xử lý sẵn ở ô bên dưới, hoặc thử lại.",
@@ -410,7 +434,7 @@ export function TeacherExamImport() {
         const q = part1[i];
         const created = await api.createQuestion({
           part: 1,
-          question_type_id: null,
+          lesson_id: q.lesson_id,
           topic_id: q.topic_id,
           ai_suggested_topic_id: q.ai_suggested_topic_id,
           difficulty: null,
@@ -420,7 +444,7 @@ export function TeacherExamImport() {
           correct_answer: { choice: q.correct_choice },
           solution_latex: q.solution_latex,
           default_points: null,
-          ai_suggested_type_id: null,
+          ai_suggested_lesson_id: q.ai_suggested_lesson_id,
           created_by: profile.id,
           source: "word_import",
         });
@@ -435,7 +459,7 @@ export function TeacherExamImport() {
         const q = part2[i];
         const created = await api.createQuestion({
           part: 2,
-          question_type_id: null,
+          lesson_id: q.lesson_id,
           topic_id: q.topic_id,
           ai_suggested_topic_id: q.ai_suggested_topic_id,
           difficulty: null,
@@ -445,7 +469,7 @@ export function TeacherExamImport() {
           correct_answer: q.correct,
           solution_latex: q.solution_latex,
           default_points: null,
-          ai_suggested_type_id: null,
+          ai_suggested_lesson_id: q.ai_suggested_lesson_id,
           created_by: profile.id,
           source: "word_import",
         });
@@ -466,7 +490,7 @@ export function TeacherExamImport() {
         const q = part3[i];
         const created = await api.createQuestion({
           part: 3,
-          question_type_id: null,
+          lesson_id: q.lesson_id,
           topic_id: q.topic_id,
           ai_suggested_topic_id: q.ai_suggested_topic_id,
           difficulty: null,
@@ -476,7 +500,7 @@ export function TeacherExamImport() {
           correct_answer: { value: q.correct_value },
           solution_latex: q.solution_latex,
           default_points: q.points,
-          ai_suggested_type_id: null,
+          ai_suggested_lesson_id: q.ai_suggested_lesson_id,
           created_by: profile.id,
           source: "word_import",
         });
@@ -843,14 +867,14 @@ export function TeacherExamImport() {
           <div className="field field-span2">
             <label>Chương mà đề này bao phủ (đã tự chọn sẵn theo gợi ý AI — xem lại/đổi nếu cần)</label>
             <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
-              {topics.map((t) => (
+              {displayTopics.map((t) => (
                 <label key={t.id} className="pickable-item">
                   <input
                     type="checkbox"
                     checked={selectedExamTopicIds.has(t.id)}
                     onChange={() => toggleExamTopic(t.id)}
                   />
-                  Lớp {t.grade} · {t.name}
+                  {grade ? t.name : `Lớp ${t.grade} · ${t.name}`}
                 </label>
               ))}
             </div>
@@ -947,15 +971,37 @@ export function TeacherExamImport() {
                       value={q.topic_id ?? ""}
                       onChange={(e) => {
                         const v = e.target.value || null;
-                        setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
+                        setPart1((prev) =>
+                          prev.map((x) => (x.id === q.id ? { ...x, topic_id: v, lesson_id: null } : x)),
+                        );
                       }}
                     >
                       <option value="">— Chưa chọn —</option>
-                      {topics.map((t) => (
+                      {displayTopics.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div className="form-row">
+                    <label>Bài</label>
+                    <select
+                      value={q.lesson_id ?? ""}
+                      disabled={!q.topic_id}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setPart1((prev) => prev.map((x) => (x.id === q.id ? { ...x, lesson_id: v } : x)));
+                      }}
+                    >
+                      <option value="">{q.topic_id ? "— Chưa chọn —" : "— Chọn chương trước —"}</option>
+                      {lessons
+                        .filter((l) => l.topic_id === q.topic_id)
+                        .map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <div className="opt-grid">
@@ -1098,15 +1144,37 @@ export function TeacherExamImport() {
                       value={q.topic_id ?? ""}
                       onChange={(e) => {
                         const v = e.target.value || null;
-                        setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
+                        setPart2((prev) =>
+                          prev.map((x) => (x.id === q.id ? { ...x, topic_id: v, lesson_id: null } : x)),
+                        );
                       }}
                     >
                       <option value="">— Chưa chọn —</option>
-                      {topics.map((t) => (
+                      {displayTopics.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div className="form-row">
+                    <label>Bài</label>
+                    <select
+                      value={q.lesson_id ?? ""}
+                      disabled={!q.topic_id}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setPart2((prev) => prev.map((x) => (x.id === q.id ? { ...x, lesson_id: v } : x)));
+                      }}
+                    >
+                      <option value="">{q.topic_id ? "— Chưa chọn —" : "— Chọn chương trước —"}</option>
+                      {lessons
+                        .filter((l) => l.topic_id === q.topic_id)
+                        .map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <div className="opt-grid">
@@ -1285,15 +1353,37 @@ export function TeacherExamImport() {
                       value={q.topic_id ?? ""}
                       onChange={(e) => {
                         const v = e.target.value || null;
-                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, topic_id: v } : x)));
+                        setPart3((prev) =>
+                          prev.map((x) => (x.id === q.id ? { ...x, topic_id: v, lesson_id: null } : x)),
+                        );
                       }}
                     >
                       <option value="">— Chưa chọn —</option>
-                      {topics.map((t) => (
+                      {displayTopics.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div className="form-row">
+                    <label>Bài</label>
+                    <select
+                      value={q.lesson_id ?? ""}
+                      disabled={!q.topic_id}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setPart3((prev) => prev.map((x) => (x.id === q.id ? { ...x, lesson_id: v } : x)));
+                      }}
+                    >
+                      <option value="">{q.topic_id ? "— Chưa chọn —" : "— Chọn chương trước —"}</option>
+                      {lessons
+                        .filter((l) => l.topic_id === q.topic_id)
+                        .map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <div className="opt-row">
