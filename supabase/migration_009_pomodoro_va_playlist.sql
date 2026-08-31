@@ -1,4 +1,8 @@
 -- ============================================================================
+-- (Vá 31/08/2026: thêm "drop policy if exists" trước mọi "create policy"
+-- trong file này -- bản gốc thiếu, nên chạy lại file đã chạy trước đó sẽ báo
+-- lỗi "policy ... already exists". Không đổi hành vi/ý nghĩa policy nào.)
+--
 -- Đợt 4 (đề xuất giao diện + tính năng "học mỗi ngày" cho học sinh):
 --
 -- 1) ĐỒNG HỒ TẬP TRUNG POMODORO kiểu "vườn cây": mỗi phiên tập trung hoàn
@@ -42,12 +46,16 @@ create table if not exists student_playlists (
 alter table pomodoro_sessions enable row level security;
 alter table student_playlists enable row level security;
 
+drop policy if exists "pomodoro_sessions_select" on pomodoro_sessions;
 create policy "pomodoro_sessions_select" on pomodoro_sessions
   for select using (student_id = auth.uid() or is_teacher());
+drop policy if exists "pomodoro_sessions_insert" on pomodoro_sessions;
 create policy "pomodoro_sessions_insert" on pomodoro_sessions
   for insert with check (student_id = auth.uid());
 
+drop policy if exists "student_playlists_select" on student_playlists;
 create policy "student_playlists_select" on student_playlists
   for select using (student_id = auth.uid() or is_teacher());
+drop policy if exists "student_playlists_write" on student_playlists;
 create policy "student_playlists_write" on student_playlists
   for all using (student_id = auth.uid()) with check (student_id = auth.uid());

@@ -8,7 +8,63 @@ hình. Khoảng 10 phút.
 
 ## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 1 việc để cập nhật
 
-**Bản cập nhật mới nhất (31/08/2026 — Giai đoạn 1: khung Lớp/Chương/Bài theo
+**🔧 Đang bị lỗi "Failed to load resource ... 400" / "Could not find the
+'custom_scoring_method' column" khi xuất bản đề?** Đây là do CSDL của bạn
+đang thiếu vài migration SQL đã có sẵn trong code từ trước nhưng CHƯA từng
+được ghi hướng dẫn vào tài liệu này (lỗi soạn tài liệu ở các đợt cập nhật
+trước, không phải lỗi bạn thao tác sai) — nên nhiều khả năng bạn chưa chạy.
+**Cách sửa nhanh nhất: mở lần lượt từng file sau trong Supabase Dashboard >
+SQL Editor > New query, copy dán, Run — theo ĐÚNG THỨ TỰ từ trên xuống (file
+nào lỡ chạy trùng rồi cũng không sao, mọi file đều viết an toàn để chạy lại
+nhiều lần, không xoá dữ liệu):**
+
+1. `supabase/migration_009_pomodoro_va_playlist.sql`
+2. `supabase/migration_010_giam_sat_nghiem_tuc.sql`
+3. `supabase/migration_011_ho_so_hoc_sinh.sql`
+4. `supabase/migration_012_tinh_diem_linh_hoat.sql` ← **file trực tiếp sửa lỗi
+   "custom_scoring_method" bạn đang gặp**
+5. `supabase/migration_013_quan_ly_lop_lich_diem_danh.sql`
+6. `supabase/migration_014_gv_sua_ho_so_hoc_sinh.sql`
+7. `supabase/migration_015_xoa_ket_qua_thi.sql`
+8. `supabase/migration_016_lop_chuong_bai.sql` (xem chi tiết ở mục ngay bên
+   dưới — Giai đoạn 1)
+
+Nếu bạn nhớ chắc đã chạy 1 vài file nào rồi thì vẫn cứ chạy lại bình thường,
+không ảnh hưởng gì. Chạy đủ 8 file trên là chắc chắn CSDL khớp hoàn toàn với
+code hiện tại, không còn lỗi "thiếu cột"/"thiếu bảng" nào nữa.
+
+**Nếu bạn đang chạy LẠI TỪ ĐẦU (từ `migration_002` trở đi, không chỉ 8 file
+ở trên)** và gặp lỗi dạng `policy "..." already exists` (ví dụ ở
+`migration_008` hoặc `migration_009`) — đây là lỗi thật trong chính 2 file
+đó (thiếu `drop policy if exists` trước khi tạo lại), **đã sửa (31/08/2026)**.
+Bạn cần lấy lại đúng bản `migration_008_kho_de_va_on_tap_leitner.sql` và
+`migration_009_pomodoro_va_playlist.sql` mới nhất (đã có sẵn trong bản zip/
+repo hiện tại), copy lại nội dung file, Run lại đúng file đó — các file khác
+(002-007, 010-016) không có lỗi này, chạy lại bình thường là được.
+
+**Bản cập nhật mới nhất (31/08/2026 — dọn giao diện tạo/sửa đề + màn xem
+trước trước khi xuất bản)** — CHỈ đổi giao diện, không có migration SQL nào
+mới, chỉ cần tải code mới lên GitHub:
+
+- **Tạm ẩn "Ngân hàng câu hỏi"** (và nút "Tạo đề thủ công (từng câu)" đi kèm)
+  khỏi menu — theo yêu cầu, đây là hạ tầng để dành cho tính năng "tạo đề tự
+  động theo ma trận đề + ngân hàng câu hỏi" sau này, hiện chưa cần dùng tới.
+  Code/dữ liệu vẫn còn nguyên (không xoá gì), chỉ ẩn lối vào từ menu — bật
+  lại được dễ dàng khi cần (chỉ cần bỏ vài dòng comment trong code).
+- **Sửa đề đã có: chỉ hiện đúng câu hỏi của đề đó**, không còn hiện toàn bộ
+  ngân hàng câu hỏi + tick chọn như trước — mỗi câu có nút "Xoá khỏi đề"
+  riêng. Muốn thêm câu MỚI vào 1 đề, hiện tại cần tạo lại đề qua "Tạo đề thi
+  mới" (nạp từ file) — trang sửa đề không còn dùng để thêm câu mới nữa.
+- **Thêm màn "Xem trước đề thi"** trước khi xuất bản chính thức: sau khi
+  soát/sửa xong ở màn nhập đề, bấm "Xem trước & xuất bản" để thấy đề hiện
+  giống hệt như đề thật (đáp án đúng được đánh dấu rõ để kiểm tra lại), rồi
+  mới bấm "Xác nhận xuất bản" — trước đây bấm "Xuất bản đề thi" là ghi thẳng
+  vào hệ thống luôn, không có bước xem lại tổng thể trước khi chốt.
+
+<details>
+<summary>Bản cập nhật trước đó (31/08/2026 — Giai đoạn 1: khung Lớp/Chương/Bài theo PPCT, tiến độ bài dạy, chẩn đoán theo mức độ tư duy)</summary>
+
+**Bản cập nhật (31/08/2026 — Giai đoạn 1: khung Lớp/Chương/Bài theo
 PPCT, tiến độ bài dạy, chẩn đoán theo mức độ tư duy)** — **có 1 migration SQL
 mới, xem hướng dẫn ngay bên dưới.** Đợt này thêm:
 
@@ -34,6 +90,10 @@ mới, xem hướng dẫn ngay bên dưới.** Đợt này thêm:
   này ở trang chi tiết học sinh (bấm "Xem chẩn đoán" cạnh mỗi lượt làm bài) —
   trước đây giáo viên hoàn toàn không thấy được phần chẩn đoán này, chỉ học
   sinh tự xem ở trang kết quả của mình.
+- **Danh sách "Chương mà đề này bao phủ" (màn hình nhập đề) nhóm theo Khối**
+  khi chưa chọn Khối cho đề — trước đây liệt kê phẳng ~24 Chương của cả 3
+  khối 10/11/12 lẫn lộn trong 1 khung cuộn nhỏ, giờ có tiêu đề "Lớp 10"/"Lớp
+  11"/"Lớp 12" ngăn cách rõ ràng, dễ tìm hơn.
 
 **Trước khi thấy dữ liệu Bài/tiến độ bài dạy, cần chạy 1 file SQL mới (1
 lần duy nhất):** Supabase Dashboard > SQL Editor > New query > mở file
@@ -50,6 +110,8 @@ cột "số tiết" cho mỗi Bài — cột này đã bỏ khỏi bản thật,
 liệu số tiết thật (PPCT gốc không ghi rõ số tiết/bài theo cách có thể gieo
 tự động), đưa số ước lượng vào sẽ là số bịa, không nên hiện ra như thể là dữ
 liệu thật.)*
+
+</details>
 
 <details>
 <summary>Bản cập nhật trước đó (31/08/2026 — tăng tốc + giảm lỗi khi tạo đề từ PDF)</summary>

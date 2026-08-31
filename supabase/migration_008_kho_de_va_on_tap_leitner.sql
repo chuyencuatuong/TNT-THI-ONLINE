@@ -1,4 +1,9 @@
 -- ============================================================================
+-- (Vá 31/08/2026: thêm "drop policy if exists" trước mọi "create policy"
+-- trong file này -- bản gốc thiếu, nên chạy lại file đã chạy trước đó sẽ báo
+-- lỗi "policy ... already exists". Không đổi hành vi/ý nghĩa policy nào,
+-- chỉ để chạy lại nhiều lần được an toàn như các migration khác.)
+--
 -- Đợt 2 (đã chốt ở mục 19.3 tài liệu đề xuất) + nâng cấp "Kho đề":
 --
 -- 1) KHO ĐỀ có phân cấp: mỗi đề thêm "Khối" (10/11/12, cột đơn giản) + có thể
@@ -112,28 +117,39 @@ alter table wrong_answer_journal enable row level security;
 alter table review_sessions enable row level security;
 alter table review_session_answers enable row level security;
 
+drop policy if exists "exam_tags_read_all" on exam_tags;
 create policy "exam_tags_read_all" on exam_tags for select using (true);
+drop policy if exists "exam_tags_write_teacher" on exam_tags;
 create policy "exam_tags_write_teacher" on exam_tags for all using (is_teacher()) with check (is_teacher());
 
+drop policy if exists "exam_topics_read_all" on exam_topics;
 create policy "exam_topics_read_all" on exam_topics for select using (true);
+drop policy if exists "exam_topics_write_teacher" on exam_topics;
 create policy "exam_topics_write_teacher" on exam_topics for all using (is_teacher()) with check (is_teacher());
 
 -- wrong_answer_journal: học sinh chỉ thấy/ghi nhật ký của chính mình, GV đọc được hết
 -- (để dành cho dashboard giáo viên ở Đợt 3, mục 19.4 — chưa làm ở lần này)
+drop policy if exists "wrong_journal_select" on wrong_answer_journal;
 create policy "wrong_journal_select" on wrong_answer_journal
   for select using (student_id = auth.uid() or is_teacher());
+drop policy if exists "wrong_journal_insert" on wrong_answer_journal;
 create policy "wrong_journal_insert" on wrong_answer_journal
   for insert with check (student_id = auth.uid());
+drop policy if exists "wrong_journal_update" on wrong_answer_journal;
 create policy "wrong_journal_update" on wrong_answer_journal
   for update using (student_id = auth.uid());
 
+drop policy if exists "review_sessions_select" on review_sessions;
 create policy "review_sessions_select" on review_sessions
   for select using (student_id = auth.uid() or is_teacher());
+drop policy if exists "review_sessions_insert" on review_sessions;
 create policy "review_sessions_insert" on review_sessions
   for insert with check (student_id = auth.uid());
+drop policy if exists "review_sessions_update" on review_sessions;
 create policy "review_sessions_update" on review_sessions
   for update using (student_id = auth.uid());
 
+drop policy if exists "review_session_answers_select" on review_session_answers;
 create policy "review_session_answers_select" on review_session_answers
   for select using (
     is_teacher() or exists (
@@ -141,6 +157,7 @@ create policy "review_session_answers_select" on review_session_answers
       where s.id = review_session_answers.session_id and s.student_id = auth.uid()
     )
   );
+drop policy if exists "review_session_answers_insert" on review_session_answers;
 create policy "review_session_answers_insert" on review_session_answers
   for insert with check (
     exists (
