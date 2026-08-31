@@ -8,7 +8,28 @@ hình. Khoảng 10 phút.
 
 ## Nếu bạn ĐÃ cài đặt trước đó — chỉ cần làm 1 việc để cập nhật
 
-**Bản cập nhật mới nhất (25/08/2026 — làm mới giao diện toàn bộ + thẻ chia
+**Bản cập nhật mới nhất (31/08/2026 — tăng tốc + giảm lỗi khi tạo đề từ
+PDF)** — CHỈ đổi code, không có migration SQL nào, chỉ cần tải code mới lên
+GitHub:
+
+- **Các đợt gọi AI giờ chạy ĐỒNG THỜI** (tối đa 2 đợt cùng lúc) thay vì tuần
+  tự từng đợt một như trước — với đề nhiều đợt (đề dài, chia 3 đợt trở lên),
+  tổng thời gian chờ giảm đáng kể vì không còn phải cộng dồn thời gian của
+  MỌI đợt lại với nhau. *(Con số "2 đợt cùng lúc" là mức chọn an toàn/vừa
+  phải — chưa kiểm chứng được giới hạn tốc độ (RPM) thật của gói Gemini free
+  tier từ sandbox, xem `src/lib/ai.ts`, hằng số `PDF_CHUNK_CONCURRENCY`.)*
+- **Khi có đợt bị lỗi, giờ có màn hình riêng cho bạn chọn**: "Thử lại các đợt
+  lỗi" (CHỈ gọi lại AI cho đúng đợt lỗi, các đợt đã đọc đúng được giữ nguyên
+  — không tốn lại thời gian/hạn mức 20 lượt gọi Gemini/ngày cho những đợt vốn
+  đã đúng) hoặc "Dùng luôn kết quả hiện có" (bỏ qua đợt lỗi, dùng số câu đã
+  đọc được). Trước đây nếu có đợt lỗi, hệ thống tự động dùng luôn kết quả 1
+  phần mà không báo rõ, và muốn thử lại phải tải file PDF lên lại từ đầu
+  (tốn lại quota + thời gian của cả những đợt đã đọc đúng).
+
+<details>
+<summary>Bản cập nhật trước đó (25/08/2026 — làm mới giao diện toàn bộ + thẻ chia sẻ + chuẩn bị đi vào vận hành thật)</summary>
+
+**Bản cập nhật (25/08/2026 — làm mới giao diện toàn bộ + thẻ chia
 sẻ + chuẩn bị đi vào vận hành thật)** gộp chung mấy đợt gần đây, thêm:
 
 - **Giao diện responsive trên điện thoại** (menu hamburger, không còn tràn
@@ -39,6 +60,8 @@ sẻ + chuẩn bị đi vào vận hành thật)** gộp chung mấy đợt gầ
    tài khoản/đề thi/câu hỏi/lượt làm bài đã tạo lúc thử nghiệm, chỉ giữ lại
    tài khoản giáo viên của bạn. **Đây là xoá vĩnh viễn, không khôi phục
    được** — đọc kỹ trước khi chạy phần xoá.
+
+</details>
 
 <details>
 <summary>Bản cập nhật trước đó (23/08/2026 — Đợt 3: xáo đáp án ôn tập, chia đợt ôn tập, dashboard giáo viên 3 cột)</summary>

@@ -97,13 +97,14 @@ duy nhất).
 - `src/lib/pdfImport.ts` — với mỗi trang PDF: render thành ảnh + đọc văn bản thật (pdf.js) ngay trên trình duyệt (cách chính để tạo đề).
 - `src/lib/pdfTextLayout.ts` — hàm thuần ghép các mục text rời rạc (kèm toạ độ) mà pdf.js trả về thành đoạn văn bản đọc được, tách riêng để unit-test không cần môi trường trình duyệt, 6 unit test.
 - `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.
+- `src/lib/concurrency.ts` — chạy nhiều lệnh gọi bất đồng bộ ĐỒNG THỜI có giới hạn số lượng cùng lúc (worker pool, giữ đúng thứ tự kết quả) — dùng để gọi các đợt AI song song khi tạo đề từ PDF thay vì tuần tự từng đợt một (thêm 31/08/2026), 5 unit test.
 - `src/lib/leitner.ts` — logic thuần cho nhật ký câu sai kiểu Leitner (đếm streak theo buổi ôn tập riêng biệt, chọn ngẫu nhiên), 10 unit test.
 - `src/lib/examLibrary.ts` — logic thuần cho Kho đề (nhóm theo thư mục, lọc theo Khối → Chương trình → Chương), 9 unit test.
 - `src/lib/reviewBatching.ts` — chia 1 buổi ôn tập thành nhiều đợt tối đa 10 câu/đợt khi nhật ký nhiều câu (dồn phần dư vào đợt sau), 10 unit test.
 - `src/lib/reviewShuffle.ts` — xáo ngẫu nhiên vị trí đáp án 1 câu cho màn hình ôn tập (chỉ ôn tập, không đụng đề thi thật), 5 unit test.
 - `src/lib/chapterStats.ts` — gộp/so sánh thống kê đúng-sai theo CHƯƠNG cho dashboard giáo viên 3 cột, 9 unit test.
 - `src/lib/api.ts` — toàn bộ truy vấn dữ liệu (Supabase).
-- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 17 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI).
+- `src/lib/ai.ts` — tích hợp Gemini (gợi ý dạng bài + chương, phân tích đề từ văn bản+ảnh PDF/Word kèm gợi ý chương từng câu, sinh nhận xét báo cáo), 23 unit test cho các hàm thuần (đọc JSON, gộp kết quả nhiều đợt, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI, lập kế hoạch thử lại đúng đợt lỗi khi tạo đề từ PDF — thêm 31/08/2026).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề, TagPicker chọn thư mục/chương trình...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
@@ -114,7 +115,7 @@ duy nhất).
 
 ```bash
 npm install
-npm test        # chạy 122 unit test (chấm điểm, chẩn đoán, đọc file Word, ghép văn bản PDF, gộp kết quả phân tích PDF, khớp tên chương AI gợi ý, tự sửa lỗi escape JSON của AI, nhật ký câu sai kiểu Leitner, lọc/nhóm Kho đề, chia đợt ôn tập, xáo đáp án ôn tập, gộp thống kê theo chương)
+npm test        # chạy 254 unit test (xem danh sách module ở trên — số liệu 122 trước đó đã cũ, chưa được cập nhật qua nhiều đợt code sau mục 22 của tài liệu đề xuất kỹ thuật; riêng ngày 31/08/2026 thêm concurrency.ts + 4 test cho ai.ts, phần chênh còn lại là các module đã có từ trước chưa được ghi vào README)
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 
