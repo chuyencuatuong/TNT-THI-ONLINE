@@ -92,9 +92,15 @@ export function TeacherExamList() {
           <Link className="btn-primary" to="/giao-vien/tao-de-tu-word">
             + Tạo đề thi mới
           </Link>
+          {/* Tạm ẩn 31/08/2026: nút "Tạo đề thủ công" dẫn tới màn hình chọn
+              câu từ Ngân hàng câu hỏi (đang tạm ẩn, xem Layout.tsx/App.tsx) —
+              ẩn nút này cùng lúc vì không còn nơi nào thêm câu MỚI vào ngân
+              hàng để chọn nữa. Route /giao-vien/de-thi/moi vẫn còn hoạt động
+              bình thường nếu truy cập thẳng URL, chỉ ẩn lối vào từ đây.
           <Link className="btn-secondary" to="/giao-vien/de-thi/moi">
             + Tạo đề thủ công (từng câu)
           </Link>
+          */}
         </div>
       </div>
 

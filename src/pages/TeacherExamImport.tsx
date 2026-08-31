@@ -104,11 +104,163 @@ function withIds(parsed: ParsedExam, topics: Topic[], lessons: Lesson[]) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// (Thêm 31/08/2026) Hiển thị 1 câu ở màn "Xem trước đề thi" — CHỈ ĐỌC, đáp án
+// đúng được đánh dấu rõ để Thầy Tường soát lại lần cuối trước khi ghi thật
+// vào CSDL. Cùng CSS class với QuestionReview.tsx (màn học sinh xem lại bài
+// sau khi nộp) để giao diện nhất quán, nhưng KHÔNG so với "học sinh chọn gì"
+// (chưa có học sinh nào làm đề — chỉ có đáp án đúng).
+// ---------------------------------------------------------------------------
+function PreviewMeta({ topicName, lessonName }: { topicName: string | null; lessonName: string | null }) {
+  if (!topicName && !lessonName) return null;
+  return (
+    <p className="empty-hint" style={{ margin: "2px 0 8px" }}>
+      {topicName && <>Chương: {topicName}</>}
+      {topicName && lessonName && " · "}
+      {lessonName && <>Bài: {lessonName}</>}
+    </p>
+  );
+}
+
+function Part1PreviewCard({
+  number,
+  q,
+  topicName,
+  lessonName,
+  pointsLabel,
+}: {
+  number: number;
+  q: EditableP1;
+  topicName: string | null;
+  lessonName: string | null;
+  pointsLabel: string | null;
+}) {
+  const choices: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
+  return (
+    <div className="question-card">
+      <div className="question-header question-review-header">
+        <span>
+          Câu {number}. <MathText text={q.content_latex} />
+        </span>
+        {pointsLabel && <span className="badge">{pointsLabel}</span>}
+      </div>
+      <PreviewMeta topicName={topicName} lessonName={lessonName} />
+      {q.image_url && <img className="question-image" src={q.image_url} alt="" />}
+      <div className="choice-list">
+        {choices.map((c) => (
+          <div
+            key={c}
+            className={`choice-item choice-item--readonly ${c === q.correct_choice ? "choice-item--correct-answer" : ""}`}
+          >
+            <span className="choice-letter">{c}</span>
+            <MathText text={q.choices[c]} />
+            {c === q.correct_choice && <span className="choice-tag choice-tag--correct">Đáp án đúng</span>}
+          </div>
+        ))}
+      </div>
+      {q.solution_latex && (
+        <div className="question-solution">
+          <div className="question-solution-title">Lời giải chi tiết</div>
+          <MathText text={q.solution_latex} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Part2PreviewCard({
+  number,
+  q,
+  topicName,
+  lessonName,
+  pointsLabel,
+}: {
+  number: number;
+  q: EditableP2;
+  topicName: string | null;
+  lessonName: string | null;
+  pointsLabel: string | null;
+}) {
+  const subKeys: ("a" | "b" | "c" | "d")[] = ["a", "b", "c", "d"];
+  return (
+    <div className="question-card">
+      <div className="question-header question-review-header">
+        <span>
+          Câu {number}. <MathText text={q.content_latex} />
+        </span>
+        {pointsLabel && <span className="badge">{pointsLabel}</span>}
+      </div>
+      <PreviewMeta topicName={topicName} lessonName={lessonName} />
+      {q.image_url && <img className="question-image" src={q.image_url} alt="" />}
+      <table className="truefalse-table truefalse-table--review">
+        <thead>
+          <tr>
+            <th>Ý</th>
+            <th>Nội dung</th>
+            <th>Đáp án đúng</th>
+          </tr>
+        </thead>
+        <tbody>
+          {subKeys.map((k) => (
+            <tr key={k}>
+              <td className="truefalse-label">{k})</td>
+              <td>
+                <MathText text={q.items[k]} />
+              </td>
+              <td>{q.correct?.[k] ? "Đúng" : "Sai"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {q.solution_latex && (
+        <div className="question-solution">
+          <div className="question-solution-title">Lời giải chi tiết</div>
+          <MathText text={q.solution_latex} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Part3PreviewCard({
+  number,
+  q,
+  topicName,
+  lessonName,
+}: {
+  number: number;
+  q: EditableP3;
+  topicName: string | null;
+  lessonName: string | null;
+}) {
+  return (
+    <div className="question-card">
+      <div className="question-header question-review-header">
+        <span>
+          Câu {number}. <MathText text={q.content_latex} />
+        </span>
+        <span className="badge">{q.points.toFixed(2)} điểm</span>
+      </div>
+      <PreviewMeta topicName={topicName} lessonName={lessonName} />
+      {q.image_url && <img className="question-image" src={q.image_url} alt="" />}
+      <p>
+        <strong>Đáp án đúng:</strong> {q.correct_value ?? "— chưa nhập —"}
+      </p>
+      {q.solution_latex && (
+        <div className="question-solution">
+          <div className="question-solution-title">Lời giải chi tiết</div>
+          <MathText text={q.solution_latex} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TeacherExamImport() {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
-  const [stage, setStage] = useState<"upload" | "analyzing" | "review" | "pdf-partial">("upload");
+  const [stage, setStage] = useState<"upload" | "analyzing" | "review" | "pdf-partial" | "preview">("upload");
   /**
    * Kết quả phân tích PDF khi có ĐỢT LỖI (thêm 31/08/2026) — giữ lại ảnh
    * từng trang + kết quả thô từng đợt để cho phép "Thử lại các đợt lỗi" mà
@@ -392,6 +544,27 @@ export function TeacherExamImport() {
     part2.filter((q) => !q.correct).length +
     part3.filter((q) => !q.correct_value).length;
 
+  /** (Thêm 31/08/2026) Kiểm tra hợp lệ rồi chuyển sang màn "Xem trước đề
+   * thi" — bản dựng sẵn giống hệt đề thật (đáp án đúng đánh dấu rõ) để Thầy
+   * Tường soát lại lần cuối trước khi ghi thật vào CSDL. handlePublish
+   * (ghi CSDL thật) chỉ chạy khi bấm "Xác nhận xuất bản" ở màn preview đó,
+   * không chạy trực tiếp từ màn chỉnh sửa nữa. */
+  function handleGoToPreview() {
+    if (!title.trim()) {
+      alert("Cần nhập tên đề thi.");
+      return;
+    }
+    if (missingAnswerCount > 0) {
+      alert(`Còn ${missingAnswerCount} câu chưa xác nhận đáp án đúng — vui lòng điền đủ trước khi xuất bản.`);
+      return;
+    }
+    if (part1.length + part2.length + part3.length === 0) {
+      alert("Chưa có câu hỏi nào để xuất bản.");
+      return;
+    }
+    setStage("preview");
+  }
+
   async function handlePublish() {
     if (!profile || !title.trim()) {
       alert("Cần nhập tên đề thi.");
@@ -661,6 +834,163 @@ export function TeacherExamImport() {
     );
   }
 
+  if (stage === "preview") {
+    const topicName = (id: string | null) => topics.find((t) => t.id === id)?.name ?? null;
+    const lessonName = (id: string | null) => lessons.find((l) => l.id === id)?.name ?? null;
+    const folderName = folders.find((f) => f.id === folderId)?.name ?? null;
+    const termName = terms.find((t) => t.id === termId)?.name ?? null;
+    const coveredTopicNames = topics
+      .filter((t) => selectedExamTopicIds.has(t.id))
+      .map((t) => `Lớp ${t.grade} · ${t.name}`);
+    const includeCustom = scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong";
+    const totalQuestions = part1.length + part2.length + part3.length;
+    // Điểm mỗi câu Phần 1 khi chế độ "tự động chia đều" (Đợt 3) — chỉ để
+    // hiện gợi ý ở màn preview, KHÔNG tính lại barem chuẩn THPT ở đây (barem
+    // chuẩn giữ nguyên logic ở src/lib/scoring.ts, không lặp lại tại đây).
+    const autoPointsPerQuestion = totalQuestions > 0 ? 10 / totalQuestions : 0;
+    const part1Points = (id: string) =>
+      !includeCustom && scoringMode === "chuan_thpt"
+        ? null // barem chuẩn cố định 0.25đ/câu — khỏi hiện lại cho rối
+        : includeCustom
+          ? customPoints[id]
+            ? `${customPoints[id]} điểm`
+            : "chưa nhập điểm"
+          : `${autoPointsPerQuestion.toFixed(2)} điểm (tự động)`;
+
+    return (
+      <div className="teacher-page">
+        <h2>Xem trước đề thi</h2>
+        <p className="empty-hint">
+          Bản dựng sẵn giống hệt đề thật (đáp án đúng được đánh dấu để Thầy kiểm tra) — CHƯA lưu vào hệ
+          thống. Soát lại kỹ rồi mới bấm "Xác nhận xuất bản" ở cuối trang.
+        </p>
+
+        <div className="hover-card section-card">
+          <div className="section-card-head">
+            <h3>Thông tin đề thi</h3>
+          </div>
+          <div className="field-grid">
+            <p>
+              <strong>Tên đề:</strong> {title}
+            </p>
+            {description.trim() && (
+              <p>
+                <strong>Mô tả:</strong> {description}
+              </p>
+            )}
+            <p>
+              <strong>Khối:</strong> {grade ? `Lớp ${grade}` : "— chưa chọn —"}
+            </p>
+            <p>
+              <strong>Thời gian làm bài:</strong> {durationMinutes ? `${durationMinutes} phút` : "Không giới hạn"}
+            </p>
+            <p>
+              <strong>Chế độ phòng thi:</strong> {mode === "nghiem_tuc" ? "Nghiêm túc" : "Thoải mái"}
+            </p>
+            <p>
+              <strong>Chế độ tính điểm:</strong>{" "}
+              {scoringMode === "chuan_thpt"
+                ? "Chuẩn THPT (barem chính thức)"
+                : `Tuỳ chỉnh — ${customScoringMethod === "thu_cong" ? "thủ công (tự nhập điểm từng câu)" : "tự động chia đều 10đ"}`}
+            </p>
+            {termName && (
+              <p>
+                <strong>Chương trình/kỳ thi:</strong> {termName}
+              </p>
+            )}
+            {folderName && (
+              <p>
+                <strong>Thư mục:</strong> {folderName}
+              </p>
+            )}
+            {driveLink.trim() && (
+              <p>
+                <strong>Link Drive:</strong> {driveLink}
+              </p>
+            )}
+            <p>
+              <strong>Chương bao phủ:</strong>{" "}
+              {coveredTopicNames.length > 0 ? coveredTopicNames.join(", ") : "— chưa chọn —"}
+            </p>
+            <p>
+              <strong>Số câu:</strong> {part1.length} câu Phần 1 · {part2.length} câu Phần 2 · {part3.length}{" "}
+              câu Phần 3 ({totalQuestions} câu)
+            </p>
+          </div>
+        </div>
+
+        {part1.length > 0 && (
+          <section>
+            <h3 className="part-title">Phần 1 — Trắc nghiệm 4 phương án ({part1.length} câu)</h3>
+            {part1.map((q, i) => (
+              <Part1PreviewCard
+                key={q.id}
+                number={i + 1}
+                q={q}
+                topicName={topicName(q.topic_id)}
+                lessonName={lessonName(q.lesson_id)}
+                pointsLabel={part1Points(q.id)}
+              />
+            ))}
+          </section>
+        )}
+
+        {part2.length > 0 && (
+          <section>
+            <h3 className="part-title">Phần 2 — Đúng/Sai ({part2.length} câu)</h3>
+            {part2.map((q, i) => (
+              <Part2PreviewCard
+                key={q.id}
+                number={part1.length + i + 1}
+                q={q}
+                topicName={topicName(q.topic_id)}
+                lessonName={lessonName(q.lesson_id)}
+                pointsLabel={
+                  includeCustom
+                    ? customPart2Points[q.id]
+                      ? `${(["a", "b", "c", "d"] as const).map((k) => customPart2Points[q.id]?.[k] || "?").join("/")} điểm`
+                      : customPoints[q.id]
+                        ? `${customPoints[q.id]} điểm`
+                        : "chưa nhập điểm"
+                    : scoringMode === "tuy_chinh"
+                      ? `${autoPointsPerQuestion.toFixed(2)} điểm (tự động)`
+                      : null
+                }
+              />
+            ))}
+          </section>
+        )}
+
+        {part3.length > 0 && (
+          <section>
+            <h3 className="part-title">Phần 3 — Trả lời ngắn ({part3.length} câu)</h3>
+            {part3.map((q, i) => (
+              <Part3PreviewCard
+                key={q.id}
+                number={part1.length + part2.length + i + 1}
+                q={q}
+                topicName={topicName(q.topic_id)}
+                lessonName={lessonName(q.lesson_id)}
+              />
+            ))}
+          </section>
+        )}
+
+        <div className="hover-card sticky-footer">
+          <div className="sticky-footer-info">{totalQuestions} câu — đã sẵn sàng xuất bản</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="btn-secondary" onClick={() => setStage("review")}>
+              ← Quay lại chỉnh sửa
+            </button>
+            <button className="btn-primary" onClick={handlePublish} disabled={publishing}>
+              {publishing ? "Đang xuất bản..." : "Xác nhận xuất bản"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const missingP1 = part1.filter((q) => !q.correct_choice);
   const missingP2 = part2.filter((q) => !q.correct);
   const missingP3 = part3.filter((q) => !q.correct_value);
@@ -866,17 +1196,38 @@ export function TeacherExamImport() {
           </div>
           <div className="field field-span2">
             <label>Chương mà đề này bao phủ (đã tự chọn sẵn theo gợi ý AI — xem lại/đổi nếu cần)</label>
-            <div className="pickable-list" style={{ maxHeight: 180, overflowY: "auto" }}>
-              {displayTopics.map((t) => (
-                <label key={t.id} className="pickable-item">
-                  <input
-                    type="checkbox"
-                    checked={selectedExamTopicIds.has(t.id)}
-                    onChange={() => toggleExamTopic(t.id)}
-                  />
-                  {grade ? t.name : `Lớp ${t.grade} · ${t.name}`}
-                </label>
-              ))}
+            {/* Chưa chọn Khối cho đề thì hiện đủ Chương của cả 3 khối 10/11/12 —
+                nhóm theo Khối (đã sắp sẵn theo grade rồi order_index từ
+                api.listTopics) để dễ tìm thay vì 1 danh sách phẳng ~24 dòng
+                lẫn lộn cả 3 khối (thêm 31/08/2026, phản hồi từ Thầy Tường).
+                Đã chọn Khối rồi thì displayTopics chỉ còn đúng 1 khối, không
+                cần tiêu đề nhóm nữa. */}
+            <div className="pickable-list" style={{ maxHeight: 260, overflowY: "auto" }}>
+              {displayTopics.map((t, i) => {
+                const showGroupHeader = !grade && (i === 0 || displayTopics[i - 1].grade !== t.grade);
+                return (
+                  <div key={t.id}>
+                    {showGroupHeader && (
+                      <div className="pickable-group-label">Lớp {t.grade}</div>
+                    )}
+                    <label className="pickable-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedExamTopicIds.has(t.id)}
+                        onChange={() => toggleExamTopic(t.id)}
+                      />
+                      {t.name}
+                    </label>
+                  </div>
+                );
+              })}
+              {displayTopics.length === 0 && (
+                <p className="empty-hint">
+                  Chưa có Chương nào trong khung kiến thức — nếu vừa cập nhật
+                  lên bản có "Bài" (31/08/2026), cần chạy
+                  migration_016_lop_chuong_bai.sql trên Supabase trước (xem SETUP.md).
+                </p>
+              )}
             </div>
           </div>
           <div className="field field-span2">
@@ -1435,8 +1786,8 @@ export function TeacherExamImport() {
           <button className="btn-secondary" onClick={() => setStage("upload")}>
             ← Tải file khác
           </button>
-          <button className="btn-primary" onClick={handlePublish} disabled={publishing}>
-            {publishing ? "Đang xuất bản..." : "Xuất bản đề thi"}
+          <button className="btn-primary" onClick={handleGoToPreview}>
+            Xem trước & xuất bản →
           </button>
         </div>
       </div>

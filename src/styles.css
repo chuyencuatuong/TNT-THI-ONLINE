@@ -1549,6 +1549,18 @@ a {
   border-radius: 8px;
   padding: 10px;
 }
+/* Tiêu đề nhóm theo Khối trong .pickable-list (vd. "Chương mà đề bao phủ"
+   khi chưa chọn Khối, gộp cả 3 khối 10/11/12 -- thêm 31/08/2026). */
+.pickable-group-label {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--color-primary-dark);
+  background: var(--color-subtle-bg);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 4px 0 2px;
+}
+.pickable-group-label:first-child { margin-top: 0; }
 .image-upload-field {
   display: flex;
   flex-direction: column;

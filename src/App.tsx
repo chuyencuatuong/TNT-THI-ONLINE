@@ -130,6 +130,9 @@ export default function App() {
             </RequireRole>
           }
         />
+        {/* Tạm ẩn 31/08/2026 (cùng lý do ở Layout.tsx) — component/route vẫn
+            còn nguyên, chỉ không đăng ký route nên không truy cập được qua
+            URL nữa. Bật lại: bỏ comment khối Route dưới đây.
         <Route
           path="/giao-vien/ngan-hang-cau-hoi"
           element={
@@ -138,6 +141,7 @@ export default function App() {
             </RequireRole>
           }
         />
+        */}
         <Route
           path="/giao-vien/lop-hoc"
           element={

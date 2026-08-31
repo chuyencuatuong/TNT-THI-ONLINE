@@ -5,7 +5,21 @@ import * as api from "../lib/api";
 import { MathText } from "../components/MathText";
 import { TagPicker } from "../components/TagPicker";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
-import type { ExamTag, QuestionRow, Topic } from "../lib/types";
+import type { ExamQuestionRow, ExamTag, QuestionRow, Topic } from "../lib/types";
+
+/**
+ * (Sửa 31/08/2026, theo yêu cầu Thầy Tường) Trang này giờ có 2 chế độ khác
+ * nhau tuỳ isNew:
+ * - TẠO MỚI thủ công (isNew, /giao-vien/de-thi/moi — hiện không còn nút vào
+ *   thẳng từ đâu, chỉ còn truy cập qua URL, xem TeacherExamList.tsx): vẫn
+ *   giữ nguyên giao diện chọn câu từ Ngân hàng câu hỏi như trước.
+ * - SỬA đề đã có (!isNew): KHÔNG còn hiện toàn bộ ngân hàng câu hỏi + tick
+ *   chọn nữa — chỉ hiện đúng các câu ĐANG CÓ trong đề đó (từ
+ *   api.getExamQuestions), có nút "Xoá khỏi đề" cho từng câu. Không có cách
+ *   thêm câu MỚI vào 1 đề đã tạo qua trang này (thêm câu mới giờ chỉ qua
+ *   luồng AI import lúc tạo đề) — nếu cần thêm câu vào đề cũ, tạo lại đề qua
+ *   "Tạo đề thi mới" (AI import).
+ */
 
 /** Chuyển 1 mốc ISO (lưu UTC trong CSDL) sang định dạng input datetime-local
  * (theo GIỜ ĐỊA PHƯƠNG của trình duyệt) để hiện đúng giờ giáo viên đã chọn. */
@@ -49,6 +63,9 @@ export function TeacherExamEditor() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [allQuestions, setAllQuestions] = useState<QuestionRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Chỉ dùng khi !isNew (sửa đề đã có) — đúng các câu ĐANG thuộc đề này,
+   * thay cho việc tick chọn từ toàn bộ ngân hàng (xem doc comment đầu file). */
+  const [examQuestionRows, setExamQuestionRows] = useState<(ExamQuestionRow & { question: QuestionRow })[]>([]);
   // Làm mới giao diện (Nhóm 5, "quản lý lớp học", 28/08/2026 — demo đã duyệt):
   // thêm tìm kiếm + lọc theo chương cho ngân hàng câu hỏi — trước đây phải
   // cuộn qua toàn bộ danh sách mới tìm được câu cần. Không đổi logic chọn
@@ -63,8 +80,11 @@ export function TeacherExamEditor() {
 
   useEffect(() => {
     (async () => {
+      // Chỉ tải TOÀN BỘ ngân hàng câu hỏi khi tạo mới thủ công (isNew) — sửa
+      // đề đã có không cần, chỉ cần đúng các câu của riêng đề đó (tải ở
+      // nhánh !isNew bên dưới), tránh tải thừa + tránh lẫn câu của đề khác.
       const [questions, folderTags, termTags, topicList] = await Promise.all([
-        api.listQuestions(),
+        isNew ? api.listQuestions() : Promise.resolve([]),
         api.listExamTags("folder"),
         api.listExamTags("term"),
         api.listTopics(),
@@ -79,7 +99,7 @@ export function TeacherExamEditor() {
           api.getExam(examId),
           api.getExamTopicIds(examId),
         ]);
-        setSelected(new Set(existing.map((e) => e.question_id)));
+        setExamQuestionRows(existing);
         setSelectedTopicIds(new Set(examTopicIds));
         // Nạp lại điểm tuỳ chỉnh đã nhập trước đó (nếu có) cho từng câu.
         const cp: Record<string, string> = {};
@@ -134,9 +154,16 @@ export function TeacherExamEditor() {
     });
   }
 
+  /** Chỉ dùng khi !isNew — bỏ 1 câu ra khỏi đề đang sửa (không xoá câu khỏi
+   * ngân hàng, chỉ bỏ khỏi đề này). Có hiệu lực thật khi bấm "Lưu đề thi". */
+  function handleRemoveFromExam(questionId: string) {
+    setExamQuestionRows((prev) => prev.filter((eq) => eq.question_id !== questionId));
+  }
+
   async function handleSave() {
-    if (!profile || !title.trim() || selected.size === 0) {
-      alert("Cần nhập tên đề và chọn ít nhất 1 câu hỏi.");
+    const questionCount = isNew ? selected.size : examQuestionRows.length;
+    if (!profile || !title.trim() || questionCount === 0) {
+      alert("Cần nhập tên đề và có ít nhất 1 câu hỏi.");
       return;
     }
     setSaving(true);
@@ -181,7 +208,9 @@ export function TeacherExamEditor() {
         });
       }
 
-      const selectedQuestions = allQuestions.filter((q) => selected.has(q.id));
+      const selectedQuestions: QuestionRow[] = isNew
+        ? allQuestions.filter((q) => selected.has(q.id))
+        : examQuestionRows.map((eq) => eq.question);
       const byPart: Record<1 | 2 | 3, QuestionRow[]> = { 1: [], 2: [], 3: [] };
       for (const q of selectedQuestions) byPart[q.part].push(q);
 
@@ -245,10 +274,16 @@ export function TeacherExamEditor() {
       .filter(
         (q) => !qSearch.trim() || q.content_latex.toLowerCase().includes(qSearch.trim().toLowerCase()),
       );
+  /** Câu của đề đang sửa, theo từng Phần — chỉ dùng khi !isNew. */
+  const examQuestionsByPart = (part: 1 | 2 | 3) => examQuestionRows.filter((eq) => eq.part === part);
   const summary = { 1: 0, 2: 0, 3: 0 };
-  for (const id of selected) {
-    const q = allQuestions.find((x) => x.id === id);
-    if (q) summary[q.part]++;
+  if (isNew) {
+    for (const id of selected) {
+      const q = allQuestions.find((x) => x.id === id);
+      if (q) summary[q.part]++;
+    }
+  } else {
+    for (const eq of examQuestionRows) summary[eq.part]++;
   }
 
   return (
@@ -444,98 +479,179 @@ export function TeacherExamEditor() {
         Đã chọn: {summary[1]} câu Phần 1 · {summary[2]} câu Phần 2 · {summary[3]} câu Phần 3
       </p>
 
-      <div className="qbank-toolbar">
-        <input
-          type="text"
-          value={qSearch}
-          onChange={(e) => setQSearch(e.target.value)}
-          placeholder="Tìm câu hỏi theo nội dung..."
-        />
-        <select value={qTopicFilter} onChange={(e) => setQTopicFilter(e.target.value)}>
-          <option value="">Tất cả chương</option>
-          {topics.map((t) => (
-            <option key={t.id} value={t.id}>
-              Lớp {t.grade} · {t.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      {(qSearch.trim() || qTopicFilter) && (
-        <p className="qbank-more-hint">
-          Đang lọc ngân hàng câu hỏi — câu đã chọn trước đó vẫn được giữ dù đang bị ẩn khỏi danh sách.
-        </p>
-      )}
-
-      {([1, 2, 3] as const).map((part) => (
-        <section key={part}>
-          <h3 className="part-title">Phần {part}</h3>
-          {questionsByPart(part).length === 0 && (
-            <p className="empty-hint">
-              {qSearch.trim() || qTopicFilter
-                ? "Không có câu nào khớp với bộ lọc hiện tại."
-                : `Chưa có câu hỏi Phần ${part} trong ngân hàng. Vào "Ngân hàng câu hỏi" để thêm.`}
+      {isNew && (
+        <>
+          <div className="qbank-toolbar">
+            <input
+              type="text"
+              value={qSearch}
+              onChange={(e) => setQSearch(e.target.value)}
+              placeholder="Tìm câu hỏi theo nội dung..."
+            />
+            <select value={qTopicFilter} onChange={(e) => setQTopicFilter(e.target.value)}>
+              <option value="">Tất cả chương</option>
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>
+                  Lớp {t.grade} · {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {(qSearch.trim() || qTopicFilter) && (
+            <p className="qbank-more-hint">
+              Đang lọc ngân hàng câu hỏi — câu đã chọn trước đó vẫn được giữ dù đang bị ẩn khỏi danh sách.
             </p>
           )}
-          <div className="pickable-list">
-            {questionsByPart(part).map((q) => {
-              const showCustomInput =
-                scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && selected.has(q.id);
-              return (
-                <div key={q.id} className="pickable-item">
-                  <label style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1 }}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(q.id)}
-                      onChange={() => toggle(q.id)}
-                    />
-                    <MathText text={q.content_latex} />
-                  </label>
-                  {showCustomInput && part !== 2 && (
-                    <input
-                      type="number"
-                      step="0.05"
-                      min={0}
-                      placeholder="Điểm"
-                      value={customPoints[q.id] ?? ""}
-                      onChange={(e) =>
-                        setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
-                      }
-                      style={{ maxWidth: 90 }}
-                    />
-                  )}
-                  {showCustomInput && part === 2 && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {(["a", "b", "c", "d"] as const).map((k) => (
+
+          {([1, 2, 3] as const).map((part) => (
+            <section key={part}>
+              <h3 className="part-title">Phần {part}</h3>
+              {questionsByPart(part).length === 0 && (
+                <p className="empty-hint">
+                  {qSearch.trim() || qTopicFilter
+                    ? "Không có câu nào khớp với bộ lọc hiện tại."
+                    : `Chưa có câu hỏi Phần ${part} trong ngân hàng.`}
+                </p>
+              )}
+              <div className="pickable-list">
+                {questionsByPart(part).map((q) => {
+                  const showCustomInput =
+                    scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong" && selected.has(q.id);
+                  return (
+                    <div key={q.id} className="pickable-item">
+                      <label style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1 }}>
                         <input
-                          key={k}
+                          type="checkbox"
+                          checked={selected.has(q.id)}
+                          onChange={() => toggle(q.id)}
+                        />
+                        <MathText text={q.content_latex} />
+                      </label>
+                      {showCustomInput && part !== 2 && (
+                        <input
                           type="number"
                           step="0.05"
                           min={0}
-                          placeholder={k}
-                          value={customPart2Points[q.id]?.[k] ?? ""}
+                          placeholder="Điểm"
+                          value={customPoints[q.id] ?? ""}
                           onChange={(e) =>
-                            setCustomPart2Points((prev) => ({
-                              ...prev,
-                              [q.id]: {
-                                a: prev[q.id]?.a ?? "",
-                                b: prev[q.id]?.b ?? "",
-                                c: prev[q.id]?.c ?? "",
-                                d: prev[q.id]?.d ?? "",
-                                [k]: e.target.value,
-                              },
-                            }))
+                            setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
                           }
-                          style={{ maxWidth: 60 }}
+                          style={{ maxWidth: 90 }}
                         />
-                      ))}
+                      )}
+                      {showCustomInput && part === 2 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {(["a", "b", "c", "d"] as const).map((k) => (
+                            <input
+                              key={k}
+                              type="number"
+                              step="0.05"
+                              min={0}
+                              placeholder={k}
+                              value={customPart2Points[q.id]?.[k] ?? ""}
+                              onChange={(e) =>
+                                setCustomPart2Points((prev) => ({
+                                  ...prev,
+                                  [q.id]: {
+                                    a: prev[q.id]?.a ?? "",
+                                    b: prev[q.id]?.b ?? "",
+                                    c: prev[q.id]?.c ?? "",
+                                    d: prev[q.id]?.d ?? "",
+                                    [k]: e.target.value,
+                                  },
+                                }))
+                              }
+                              style={{ maxWidth: 60 }}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
+
+      {!isNew && (
+        <>
+          <p className="empty-hint">
+            Chỉ hiện đúng các câu đang thuộc đề này. Muốn thêm câu mới vào đề, tạo lại đề qua
+            "Tạo đề thi mới" (nạp từ file). Xoá 1 câu ở đây rồi bấm "Lưu đề thi" để có hiệu lực.
+          </p>
+          {([1, 2, 3] as const).map((part) => (
+            <section key={part}>
+              <h3 className="part-title">Phần {part}</h3>
+              {examQuestionsByPart(part).length === 0 && (
+                <p className="empty-hint">Đề này chưa có câu hỏi Phần {part}.</p>
+              )}
+              <div className="pickable-list">
+                {examQuestionsByPart(part).map((eq) => {
+                  const q = eq.question;
+                  const showCustomInput = scoringMode === "tuy_chinh" && customScoringMethod === "thu_cong";
+                  return (
+                    <div key={q.id} className="pickable-item">
+                      <div style={{ flex: 1 }}>
+                        <MathText text={q.content_latex} />
+                      </div>
+                      {showCustomInput && part !== 2 && (
+                        <input
+                          type="number"
+                          step="0.05"
+                          min={0}
+                          placeholder="Điểm"
+                          value={customPoints[q.id] ?? ""}
+                          onChange={(e) =>
+                            setCustomPoints((prev) => ({ ...prev, [q.id]: e.target.value }))
+                          }
+                          style={{ maxWidth: 90 }}
+                        />
+                      )}
+                      {showCustomInput && part === 2 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {(["a", "b", "c", "d"] as const).map((k) => (
+                            <input
+                              key={k}
+                              type="number"
+                              step="0.05"
+                              min={0}
+                              placeholder={k}
+                              value={customPart2Points[q.id]?.[k] ?? ""}
+                              onChange={(e) =>
+                                setCustomPart2Points((prev) => ({
+                                  ...prev,
+                                  [q.id]: {
+                                    a: prev[q.id]?.a ?? "",
+                                    b: prev[q.id]?.b ?? "",
+                                    c: prev[q.id]?.c ?? "",
+                                    d: prev[q.id]?.d ?? "",
+                                    [k]: e.target.value,
+                                  },
+                                }))
+                              }
+                              style={{ maxWidth: 60 }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-link btn-danger"
+                        onClick={() => handleRemoveFromExam(q.id)}
+                      >
+                        Xoá khỏi đề
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
 
       <div className="hover-card sticky-footer">
         <div className="sticky-footer-info">
