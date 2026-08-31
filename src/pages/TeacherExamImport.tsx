@@ -5,7 +5,7 @@ import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
 import { matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
-import { renderPdfToImages } from "../lib/pdfImport";
+import { renderPdfToImages, type PdfPageImage } from "../lib/pdfImport";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { TagPicker } from "../components/TagPicker";
@@ -92,7 +92,20 @@ export function TeacherExamImport() {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
-  const [stage, setStage] = useState<"upload" | "analyzing" | "review">("upload");
+  const [stage, setStage] = useState<"upload" | "analyzing" | "review" | "pdf-partial">("upload");
+  /**
+   * Kết quả phân tích PDF khi có ĐỢT LỖI (thêm 31/08/2026) — giữ lại ảnh
+   * từng trang + kết quả thô từng đợt để cho phép "Thử lại các đợt lỗi" mà
+   * không phải render/gửi lại các đợt đã đọc đúng (xem runPdfAnalysis).
+   */
+  const [pdfPartialState, setPdfPartialState] = useState<{
+    pageImages: PdfPageImage[];
+    chunkResults: ParsedExam[];
+    merged: ParsedExam;
+    totalChunks: number;
+    chunkErrors: string[];
+    fileBaseName: string;
+  } | null>(null);
   const [fileName, setFileName] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [pasteJson, setPasteJson] = useState("");
@@ -206,6 +219,50 @@ export function TeacherExamImport() {
    * công thức — không phụ thuộc định dạng lưu trữ gốc — đồng thời nhẹ và
    * chính xác hơn so với để AI tự đọc lại toàn bộ chữ từ ảnh độ phân giải cao.
    */
+  /**
+   * Gọi AI phân tích 1 danh sách ảnh trang PDF đã render sẵn — dùng chung cho
+   * cả lần đầu (handlePdfSelected) VÀ lần thử lại chỉ đúng đợt lỗi
+   * (handleRetryFailedPdfChunks, thêm 31/08/2026), để không lặp lại logic rẽ
+   * 3 nhánh: lỗi hẳn / thành công hết / thành công 1 phần.
+   */
+  async function runPdfAnalysis(
+    pageImages: PdfPageImage[],
+    fileBaseName: string,
+    previousResults?: ParsedExam[],
+  ) {
+    setAnalyzingProgress(`Đang gửi ${pageImages.length} trang cho AI phân tích...`);
+    const { parsed, failedChunks, totalChunks, chunkErrors, chunkResults } = await parseExamFromPdfPages(
+      pageImages,
+      undefined,
+      (done, total) =>
+        setAnalyzingProgress(`Đang phân tích đợt ${done}/${total} (mỗi đợt khoảng 20-40 giây)...`),
+      topics,
+      previousResults,
+    );
+    if (!parsed) {
+      // Hiện đúng lý do thật (vd. "Google đang quá tải", "hết thời gian chờ"...)
+      // thay vì 1 câu chung chung, để biết nên thử lại ngay hay chờ vài phút.
+      const reason = chunkErrors[0] ?? "không rõ lý do";
+      setError(
+        `AI chưa phân tích được đề này: ${reason} Bạn có thể bấm thử lại (nhiều khả năng qua ngay nếu là lỗi tạm thời từ Google), hoặc dán JSON đã xử lý sẵn ở ô bên dưới.`,
+      );
+      setPdfPartialState(null);
+      setStage("upload");
+      return;
+    }
+    if (failedChunks > 0) {
+      // ĐỔI 31/08/2026: trước đây tự động dùng luôn kết quả 1 phần + chỉ log
+      // console.warn — giáo viên không biết đã mất câu nào để chủ động thử
+      // lại. Giờ dừng ở màn hình riêng cho giáo viên tự chọn: thử lại CHỈ
+      // đúng đợt lỗi (không tốn lại quota các đợt đã đúng), hoặc dùng luôn.
+      setPdfPartialState({ pageImages, chunkResults, merged: parsed, totalChunks, chunkErrors, fileBaseName });
+      setStage("pdf-partial");
+      return;
+    }
+    setPdfPartialState(null);
+    loadParsed(parsed, fileBaseName);
+  }
+
   async function handlePdfSelected(file: File) {
     setError(null);
     setFileName(file.name);
@@ -218,30 +275,7 @@ export function TeacherExamImport() {
         setStage("upload");
         return;
       }
-      setAnalyzingProgress(`Đang gửi ${pageImages.length} trang cho AI phân tích...`);
-      const { parsed, failedChunks, totalChunks, chunkErrors } = await parseExamFromPdfPages(
-        pageImages,
-        undefined,
-        (done, total) =>
-          setAnalyzingProgress(
-            `Đang phân tích đợt ${done}/${total} (mỗi đợt khoảng 20-40 giây)...`,
-          ),
-        topics,
-      );
-      if (!parsed) {
-        // Hiện đúng lý do thật (vd. "Google đang quá tải", "hết thời gian chờ"...)
-        // thay vì 1 câu chung chung, để biết nên thử lại ngay hay chờ vài phút.
-        const reason = chunkErrors[0] ?? "không rõ lý do";
-        setError(
-          `AI chưa phân tích được đề này: ${reason} Bạn có thể bấm thử lại (nhiều khả năng qua ngay nếu là lỗi tạm thời từ Google), hoặc dán JSON đã xử lý sẵn ở ô bên dưới.`,
-        );
-        setStage("upload");
-        return;
-      }
-      if (failedChunks > 0) {
-        console.warn(`parseExamFromPdfPages: ${failedChunks}/${totalChunks} đợt lỗi.`, chunkErrors);
-      }
-      loadParsed(parsed, file.name.replace(/\.pdf$/i, ""));
+      await runPdfAnalysis(pageImages, file.name.replace(/\.pdf$/i, ""));
     } catch (err) {
       console.error(err);
       setError("Có lỗi khi đọc file PDF. Hãy chắc chắn đây là file PDF hợp lệ, không bị hỏng hoặc đặt mật khẩu.");
@@ -249,6 +283,30 @@ export function TeacherExamImport() {
     } finally {
       setAnalyzingProgress("");
     }
+  }
+
+  /** Thử lại CHỈ đúng các đợt bị lỗi ở lần phân tích trước (thêm 31/08/2026) — xem runPdfAnalysis/planChunkRetries. */
+  async function handleRetryFailedPdfChunks() {
+    if (!pdfPartialState) return;
+    const { pageImages, chunkResults, fileBaseName } = pdfPartialState;
+    setError(null);
+    setStage("analyzing");
+    try {
+      await runPdfAnalysis(pageImages, fileBaseName, chunkResults);
+    } catch (err) {
+      console.error(err);
+      setError("Có lỗi khi thử lại. Bạn có thể bấm thử lại lần nữa, hoặc dùng luôn kết quả hiện có.");
+      setStage("pdf-partial");
+    } finally {
+      setAnalyzingProgress("");
+    }
+  }
+
+  /** Bỏ qua các đợt lỗi, dùng luôn kết quả đã đọc được từ các đợt còn lại. */
+  function handleUsePartialPdfResult() {
+    if (!pdfPartialState) return;
+    loadParsed(pdfPartialState.merged, pdfPartialState.fileBaseName);
+    setPdfPartialState(null);
   }
 
   /** Cách dự phòng: đọc thẳng .docx bằng mammoth.js — không đọc được công thức MathType (xem wordImport.ts). */
@@ -538,6 +596,43 @@ export function TeacherExamImport() {
     return (
       <div className="page-loading">
         {analyzingProgress || "Đang đọc file và phân tích bằng AI..."}
+      </div>
+    );
+  }
+
+  if (stage === "pdf-partial" && pdfPartialState) {
+    const questionsRead =
+      pdfPartialState.merged.part1.length +
+      pdfPartialState.merged.part2.length +
+      pdfPartialState.merged.part3.length;
+    return (
+      <div className="teacher-page">
+        <h2>Một số đợt phân tích bị lỗi</h2>
+        <p className="empty-hint">
+          AI đã đọc được <strong>{questionsRead} câu</strong> từ các đợt thành công, nhưng{" "}
+          <strong>
+            {pdfPartialState.chunkErrors.length}/{pdfPartialState.totalChunks}
+          </strong>{" "}
+          đợt bị lỗi (thường là Google quá tải tạm thời — thử lại nhiều khả năng sẽ qua):
+        </p>
+        <ul className="empty-hint">
+          {pdfPartialState.chunkErrors.map((e, i) => (
+            <li key={i}>{e}</li>
+          ))}
+        </ul>
+        {error && <p className="form-error">{error}</p>}
+        <div className="form-row" style={{ flexDirection: "row", gap: 12 }}>
+          <button className="btn-primary" onClick={handleRetryFailedPdfChunks}>
+            Thử lại các đợt lỗi
+          </button>
+          <button className="btn-secondary" onClick={handleUsePartialPdfResult} disabled={questionsRead === 0}>
+            Dùng luôn kết quả hiện có
+          </button>
+        </div>
+        <p className="ai-hint" style={{ marginTop: 12 }}>
+          Thử lại CHỈ gọi AI lại cho đúng {pdfPartialState.chunkErrors.length} đợt bị lỗi — các đợt đã đọc đúng được
+          giữ nguyên, không tốn thêm thời gian/lượt gọi AI.
+        </p>
       </div>
     );
   }

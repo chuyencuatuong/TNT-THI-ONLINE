@@ -10,6 +10,7 @@
 import type { QuestionType, Topic } from "./types";
 import type { ExtractedImage } from "./wordImport";
 import { chunkArray } from "./chunk";
+import { mapWithConcurrency } from "./concurrency";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
   | string
@@ -691,7 +692,7 @@ export interface PageImageInput {
 }
 
 /** Tiền tố đánh dấu 1 dòng warning là lỗi thật của cả đợt (không phải ghi chú nội dung bình thường của AI) — dùng để đếm/lọc bằng máy mà vẫn đọc được bằng mắt. */
-const CHUNK_ERROR_PREFIX = "[LỖI ĐỢT]";
+export const CHUNK_ERROR_PREFIX = "[LỖI ĐỢT]";
 
 function emptyParsedExamWithError(pageNumbers: number[] | undefined, reason: string): ParsedExam {
   const rangeLabel = pageNumbers?.length
@@ -774,6 +775,42 @@ export function mergeParsedExams(results: ParsedExam[]): ParsedExam {
   );
 }
 
+/** Trả về true nếu kết quả 1 đợt là ĐỢT LỖI (có warning gắn tiền tố CHUNK_ERROR_PREFIX) — dùng để quyết định đợt nào cần gọi lại AI khi thử lại 1 phần (xem planChunkRetries). */
+export function isChunkResultFailed(result: ParsedExam): boolean {
+  return result.warnings.some((w) => w.startsWith(CHUNK_ERROR_PREFIX));
+}
+
+/**
+ * Lập kế hoạch gọi lại AI khi THỬ LẠI SAU KHI CÓ ĐỢT LỖI (thêm 31/08/2026):
+ * trả về mảng boolean cùng độ dài `chunkCount`, true tại vị trí CẦN gọi lại
+ * AI (chưa từng chạy, hoặc lần trước bị lỗi), false tại vị trí có thể tái sử
+ * dụng nguyên kết quả cũ (đã đọc thành công) — đỡ tốn thêm thời gian VÀ hạn
+ * mức 20 lượt gọi/ngày của free tier cho những đợt vốn đã đúng. Hàm thuần,
+ * tách riêng để unit-test không cần mạng thật.
+ */
+export function planChunkRetries(
+  chunkCount: number,
+  previousResults?: (ParsedExam | undefined)[],
+): boolean[] {
+  return Array.from({ length: chunkCount }, (_, i) => {
+    const prev = previousResults?.[i];
+    if (!prev) return true;
+    return isChunkResultFailed(prev);
+  });
+}
+
+/**
+ * Số đợt (chunk) được phép gọi AI ĐỒNG THỜI khi tạo đề từ PDF, thay vì chạy
+ * TUẦN TỰ từng đợt một như trước 31/08/2026 (đợt sau phải chờ đợt trước xong
+ * hẳn mới bắt đầu — cộng dồn thời gian chờ của MỌI đợt, kể cả khi 1 đợt bị
+ * chậm/phải thử lại do 503). CHƯA kiểm chứng được giới hạn RPM (request/phút)
+ * thật của gói Gemini free tier từ sandbox (giới hạn mạng — xem mục 6 tài
+ * liệu đề xuất kỹ thuật), nên chọn 2 làm mức an toàn/vừa phải: giảm đáng kể
+ * thời gian chờ với đề nhiều đợt mà không dội quá nhiều request cùng lúc dễ
+ * gây thêm lỗi 429. Có thể thử nâng lên 3 nếu thực tế vẫn ổn định.
+ */
+const PDF_CHUNK_CONCURRENCY = 2;
+
 export interface ParseFromPdfResult {
   /** null CHỈ khi không có đợt nào thành công (0 câu hỏi nào đọc được) — xem "chunkErrors" để biết lý do cụ thể từng đợt. */
   parsed: ParsedExam | null;
@@ -782,35 +819,58 @@ export interface ParseFromPdfResult {
   totalChunks: number;
   /** Lý do cụ thể của từng đợt bị lỗi (đã bóc khỏi CHUNK_ERROR_PREFIX), để hiện thẳng cho giáo viên thay vì chỉ nói chung chung "có lỗi". */
   chunkErrors: string[];
+  /** Kết quả THÔ của từng đợt, theo đúng thứ tự — truyền lại vào `previousResults` của lần gọi sau để THỬ LẠI CHỈ ĐÚNG CÁC ĐỢT LỖI (xem planChunkRetries). */
+  chunkResults: ParsedExam[];
 }
 
 /**
  * Phân tích đề từ danh sách ảnh trang PDF, tự chia thành nhiều đợt gọi AI
  * (mặc định 6 trang/đợt — nhỏ hơn hẳn 1 lần gọi cho cả đề dài, để mỗi đợt trả
  * lời nhanh hơn, đỡ có cảm giác "đứng hình" lâu, và nếu 1 đợt bị lỗi/timeout
- * thì các đợt còn lại vẫn tiếp tục chạy thay vì mất trắng toàn bộ). Ghép kết
- * quả các đợt lại theo thứ tự trang. Nếu đề dài phải chia đợt, 1 câu hỏi lỡ
- * nằm vắt ngang ranh giới 2 trang ở đúng điểm chia có thể bị đọc thiếu —
- * trường hợp này hiếm nhưng giáo viên vẫn cần xem lại ở bước xác nhận.
+ * thì các đợt còn lại vẫn tiếp tục chạy thay vì mất trắng toàn bộ).
+ *
+ * ĐỔI 31/08/2026: các đợt giờ chạy ĐỒNG THỜI tối đa PDF_CHUNK_CONCURRENCY đợt
+ * 1 lúc (worker pool qua mapWithConcurrency), thay vì tuần tự từng đợt một
+ * như trước — giảm đáng kể tổng thời gian chờ với đề nhiều đợt (vd. đề 3 đợt,
+ * mỗi đợt ~20-40s: trước ~60-120s cộng dồn, giờ gần bằng thời gian 1 đợt chậm
+ * nhất trong 2 đợt chạy cùng lúc). Ghép kết quả các đợt lại theo ĐÚNG thứ tự
+ * trang bất kể đợt nào xong trước (mapWithConcurrency đảm bảo thứ tự). Nếu đề
+ * dài phải chia đợt, 1 câu hỏi lỡ nằm vắt ngang ranh giới 2 trang ở đúng điểm
+ * chia có thể bị đọc thiếu — trường hợp này hiếm nhưng giáo viên vẫn cần xem
+ * lại ở bước xác nhận.
+ *
+ * `previousResults` (thêm 31/08/2026): truyền vào `chunkResults` của LẦN GỌI
+ * TRƯỚC (nếu có) để THỬ LẠI CHỈ ĐÚNG CÁC ĐỢT LỖI — đợt nào lần trước đã đọc
+ * thành công được tái sử dụng nguyên vẹn, không gọi lại AI (xem planChunkRetries).
  */
 export async function parseExamFromPdfPages(
   pageImages: PageImageInput[],
   chunkSize = 6,
   onProgress?: (done: number, total: number) => void,
   topics: Topic[] = [],
+  previousResults?: (ParsedExam | undefined)[],
 ): Promise<ParseFromPdfResult> {
   const pageNumberChunks = chunkArray(
     pageImages.map((_, i) => i + 1),
     chunkSize,
   );
   const imageChunks = chunkArray(pageImages, chunkSize);
+  const retryPlan = planChunkRetries(imageChunks.length, previousResults);
 
-  const results: ParsedExam[] = [];
-  for (let i = 0; i < imageChunks.length; i++) {
-    const r = await parseExamFromImages(imageChunks[i], pageNumberChunks[i], topics);
-    results.push(r);
-    onProgress?.(i + 1, imageChunks.length);
-  }
+  let doneCount = 0;
+  const results = await mapWithConcurrency(imageChunks, PDF_CHUNK_CONCURRENCY, async (chunk, i) => {
+    let r: ParsedExam;
+    if (retryPlan[i]) {
+      r = await parseExamFromImages(chunk, pageNumberChunks[i], topics);
+    } else {
+      // planChunkRetries chỉ trả false khi previousResults[i] tồn tại VÀ đã
+      // thành công ở lần gọi trước — an toàn tái sử dụng, không gọi lại AI.
+      r = previousResults?.[i] as ParsedExam;
+    }
+    doneCount += 1;
+    onProgress?.(doneCount, imageChunks.length);
+    return r;
+  });
 
   const chunkErrors = results
     .flatMap((r) => r.warnings)
@@ -828,7 +888,7 @@ export async function parseExamFromPdfPages(
   if (totalQuestions === 0 && failedChunks > 0) {
     // Không đợt nào đọc được câu hỏi nào — coi là thất bại toàn bộ, để giáo
     // viên biết ngay thay vì thấy màn hình xem trước trống trơn khó hiểu.
-    return { parsed: null, failedChunks, totalChunks: imageChunks.length, chunkErrors };
+    return { parsed: null, failedChunks, totalChunks: imageChunks.length, chunkErrors, chunkResults: results };
   }
   if (failedChunks > 0) {
     merged.warnings = [
@@ -836,7 +896,7 @@ export async function parseExamFromPdfPages(
       ...merged.warnings,
     ];
   }
-  return { parsed: merged, failedChunks, totalChunks: imageChunks.length, chunkErrors };
+  return { parsed: merged, failedChunks, totalChunks: imageChunks.length, chunkErrors, chunkResults: results };
 }
 
 // ---------------------------------------------------------------------------

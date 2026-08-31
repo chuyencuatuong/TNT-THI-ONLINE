@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   extractJsonBlock,
+  isChunkResultFailed,
   matchTopicByName,
   mergeExtractedTaxonomies,
   mergeParsedExams,
+  planChunkRetries,
   sanitizeJsonEscapes,
   type ExtractedTaxonomy,
   type ParsedExam,
@@ -159,5 +161,41 @@ describe("matchTopicByName", () => {
 
   it("trả về null khi danh sách topics rỗng", () => {
     expect(matchTopicByName("Ứng dụng đạo hàm", [])).toBeNull();
+  });
+});
+
+
+describe("isChunkResultFailed / planChunkRetries (thử lại chỉ đúng đợt lỗi, thêm 31/08/2026)", () => {
+  const ok: ParsedExam = { part1: [], part2: [], part3: [], warnings: [] };
+  const okWithNote: ParsedExam = {
+    part1: [],
+    part2: [],
+    part3: [],
+    warnings: ["Câu 3 có hình hơi mờ, xem lại"],
+  };
+  const failed: ParsedExam = {
+    part1: [],
+    part2: [],
+    part3: [],
+    warnings: ["[LỖI ĐỢT] Trang 1-6: AI trả lời rỗng."],
+  };
+
+  it("isChunkResultFailed: chỉ nhận diện đúng đợt lỗi (có tiền tố [LỖI ĐỢT]), không nhầm với ghi chú thường", () => {
+    expect(isChunkResultFailed(ok)).toBe(false);
+    expect(isChunkResultFailed(okWithNote)).toBe(false);
+    expect(isChunkResultFailed(failed)).toBe(true);
+  });
+
+  it("planChunkRetries: chưa có kết quả lần trước → cần gọi lại AI cho MỌI đợt", () => {
+    expect(planChunkRetries(3)).toEqual([true, true, true]);
+    expect(planChunkRetries(3, [])).toEqual([true, true, true]);
+  });
+
+  it("planChunkRetries: giữ lại đợt đã thành công, chỉ đánh dấu gọi lại đúng đợt lỗi", () => {
+    expect(planChunkRetries(3, [ok, failed, okWithNote])).toEqual([false, true, false]);
+  });
+
+  it("planChunkRetries: đợt chưa từng chạy ở lần trước (undefined trong mảng) vẫn cần gọi lại", () => {
+    expect(planChunkRetries(3, [ok, undefined, failed])).toEqual([false, true, true]);
   });
 });
