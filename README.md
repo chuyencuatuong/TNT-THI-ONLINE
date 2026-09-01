@@ -103,7 +103,7 @@ duy nhất).
 ## Cấu trúc dự án
 
 - `src/lib/scoring.ts` — bộ máy chấm điểm 3 phần (18 unit test, xem `scoring.test.ts`).
-- `src/lib/diagnosis.ts` — chẩn đoán mức độ nắm vững theo dạng bài/chương + theo mức độ tư duy (NB/TH/VD/VDC, hàm `diagnoseAllDifficulties` thêm 31/08/2026) + tính thời gian tập trung từng câu (25 unit test).
+- `src/lib/diagnosis.ts` — chẩn đoán mức độ nắm vững theo dạng bài/chương + theo mức độ tư duy (NB/TH/VD/VDC, hàm `diagnoseAllDifficulties` thêm 31/08/2026) + tính thời gian tập trung từng câu + phát hiện lỗi sai LẶP LẠI qua nhiều đề và xu hướng tiến bộ theo thời gian (`summarizeMasteryTrend`/`summarizeClassRecurringGroups`, Giai đoạn 2 gốc, thêm 31/08/2026) (40 unit test).
 - `src/lib/wordImport.ts` — trích xuất văn bản/hình ảnh từ file `.docx` bằng mammoth.js (6 unit test, cách dự phòng — không đọc được công thức MathType).
 - `src/lib/pdfImport.ts` — với mỗi trang PDF: render thành ảnh + đọc văn bản thật (pdf.js) ngay trên trình duyệt (cách chính để tạo đề).
 - `src/lib/pdfTextLayout.ts` — hàm thuần ghép các mục text rời rạc (kèm toạ độ) mà pdf.js trả về thành đoạn văn bản đọc được, tách riêng để unit-test không cần môi trường trình duyệt, 6 unit test.
@@ -127,7 +127,7 @@ duy nhất).
 
 ```bash
 npm install
-npm test        # chạy 275 unit test (xem danh sách module ở trên — số liệu cũ hơn đã lỗi thời qua nhiều đợt code; riêng ngày 31/08/2026 (Giai đoạn 1) thêm lessonStats.ts (12 test) + mở rộng diagnosis.ts/ai.ts cho Bài & mức độ tư duy)
+npm test        # chạy 290 unit test (xem danh sách module ở trên — số liệu cũ hơn đã lỗi thời qua nhiều đợt code; ngày 31/08/2026 thêm lessonStats.ts (12 test) + mở rộng diagnosis.ts/ai.ts cho Bài & mức độ tư duy (Giai đoạn 1), sau đó mở rộng thêm diagnosis.ts cho lỗi lặp lại/xu hướng theo Chương-Bài (Giai đoạn 2 gốc))
 npm run dev      # chạy thử giao diện tại localhost (cần file .env, xem .env.example)
 ```
 

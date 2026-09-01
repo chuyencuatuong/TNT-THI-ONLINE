@@ -42,7 +42,41 @@ Bạn cần lấy lại đúng bản `migration_008_kho_de_va_on_tap_leitner.sql
 repo hiện tại), copy lại nội dung file, Run lại đúng file đó — các file khác
 (002-007, 010-016) không có lỗi này, chạy lại bình thường là được.
 
-**Bản cập nhật mới nhất (31/08/2026 — dọn giao diện tạo/sửa đề + màn xem
+**Bản cập nhật mới nhất (31/08/2026 — Giai đoạn 2 gốc: lỗi sai lặp lại
+qua nhiều đề + xu hướng tiến bộ theo Chương/Bài)** — CHỈ đổi giao diện, không
+có migration SQL nào mới (tận dụng lại dữ liệu đã lưu sẵn, không cần bảng mới),
+chỉ cần tải code mới lên GitHub:
+
+- **Trang chi tiết học sinh, mục mới "Lỗi lặp lại & xu hướng theo Chương"**:
+  khác với biểu đồ "Tỉ lệ đúng theo chương" đã có từ trước (chỉ gộp % đúng
+  CỘNG DỒN mọi đề, không phân biệt lặp lại hay không), mục này chỉ liệt kê
+  đúng những Chương mà HAI lần làm bài GẦN NHẤT đều bị chẩn đoán yếu ("Có lỗ
+  hổng kiến thức"/"Có dấu hiệu mất gốc") — tức lỗi sai thật sự LẶP LẠI, không
+  phải lỡ sai 1 lần rồi thôi. Mỗi Chương lặp lại kèm 1 dòng nhận định xu
+  hướng ("Đang cải thiện"/"Có dấu hiệu đi xuống"/"Chưa đủ dữ liệu"), so sánh
+  điểm nửa đầu và nửa sau các lần làm bài có đủ dữ liệu (cần tối thiểu 3 lần
+  mới đủ để kết luận, tránh báo nhầm xu hướng chỉ vì 2 điểm dao động ngẫu
+  nhiên). Bấm vào 1 Chương để xem tiếp Chương đó có Bài cụ thể nào cũng đang
+  lặp lại lỗi hay không (drilldown Chương → Bài, dùng lại đúng dữ liệu Bài đã
+  có từ Giai đoạn 1).
+- **Dashboard tổng quan giáo viên, mục mới "Chương yếu lặp lại nhiều đề (cả
+  lớp)"**: gộp lại từ mục trên của TẤT CẢ học sinh trong lớp đang xem, chỉ
+  hiện Chương nào có ít nhất 1 học sinh đang lặp lại lỗi, kèm % học sinh
+  (trong số học sinh đã có đủ dữ liệu chương đó) đang bị lặp lại — giúp quyết
+  định nên ưu tiên dạy ôn tập lại Chương nào cho cả lớp.
+- Cả 2 mục trên tính TOÀN BỘ lịch sử làm bài của học sinh mỗi khi mở trang
+  (không lưu sẵn "snapshot" nào cả) — dùng lại đúng công thức chẩn đoán đã có
+  từ trước (theo điểm/thời gian làm/số lần đổi đáp án), chỉ chạy lại cho
+  TỪNG lượt làm bài riêng biệt theo thứ tự thời gian thay vì gộp chung 1 lượt
+  như chỗ "Xem chẩn đoán" cũ. KHÔNG phải một hệ thống phân loại "dạng lỗi
+  sai" mới (ví dụ sai do không hiểu khái niệm / sai do tính toán / sai do đọc
+  đề...) — việc đó cần biết CHI TIẾT học sinh đã làm gì sai ở từng câu, dữ
+  liệu hiện tại chưa ghi nhận được, nên chưa làm.
+
+<details>
+<summary>Bản cập nhật trước đó (31/08/2026 — dọn giao diện tạo/sửa đề + màn xem trước trước khi xuất bản)</summary>
+
+**Bản cập nhật (31/08/2026 — dọn giao diện tạo/sửa đề + màn xem
 trước trước khi xuất bản)** — CHỈ đổi giao diện, không có migration SQL nào
 mới, chỉ cần tải code mới lên GitHub:
 
@@ -60,6 +94,8 @@ mới, chỉ cần tải code mới lên GitHub:
   giống hệt như đề thật (đáp án đúng được đánh dấu rõ để kiểm tra lại), rồi
   mới bấm "Xác nhận xuất bản" — trước đây bấm "Xuất bản đề thi" là ghi thẳng
   vào hệ thống luôn, không có bước xem lại tổng thể trước khi chốt.
+
+</details>
 
 <details>
 <summary>Bản cập nhật trước đó (31/08/2026 — Giai đoạn 1: khung Lớp/Chương/Bài theo PPCT, tiến độ bài dạy, chẩn đoán theo mức độ tư duy)</summary>
