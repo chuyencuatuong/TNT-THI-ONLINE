@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
@@ -6,6 +6,7 @@ import { extractDocx } from "../lib/wordImport";
 import { matchLessonByName, matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
 import { renderPdfToImages, type PdfPageImage } from "../lib/pdfImport";
+import { ImportBenchmarkRecorder, isBenchmarkEnabled, type ImportBenchmarkRecord } from "../lib/importBenchmark";
 import { MathText } from "../components/MathText";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { TagPicker } from "../components/TagPicker";
@@ -280,6 +281,16 @@ export function TeacherExamImport() {
   const [error, setError] = useState<string | null>(null);
   const [analyzingProgress, setAnalyzingProgress] = useState("");
 
+  /**
+   * PHASE 0 (01/09/2026) — đo benchmark, KHÔNG đổi hành vi import cho giáo
+   * viên khác: chỉ bật ở `npm run dev`, hoặc bản deploy thật khi Thầy Tường tự
+   * thêm `?debug=1` vào URL (xem importBenchmark.ts). `benchmarkEnabledRef`
+   * tính 1 lần khi mount (không đổi giữa chừng 1 phiên) để tránh đọc lại
+   * window.location mỗi lần render.
+   */
+  const benchmarkEnabledRef = useRef(isBenchmarkEnabled(import.meta.env.DEV, window.location.search));
+  const [debugBenchmark, setDebugBenchmark] = useState<ImportBenchmarkRecord | null>(null);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
@@ -400,10 +411,43 @@ export function TeacherExamImport() {
    * (handleRetryFailedPdfChunks, thêm 31/08/2026), để không lặp lại logic rẽ
    * 3 nhánh: lỗi hẳn / thành công hết / thành công 1 phần.
    */
+  /**
+   * Kết thúc + in kết quả benchmark ra console (bảng dễ đọc) và lưu vào state
+   * để hiện nút tải JSON — CHỈ khi benchmark đang bật (xem benchmarkEnabledRef
+   * ở trên). Gọi ở MỌI điểm thoát của runPdfAnalysis (lỗi hẳn/1 phần/thành
+   * công) để không bỏ sót số liệu dù đợt phân tích kết thúc kiểu gì.
+   */
+  function finishAndReportBenchmark(benchmark: ImportBenchmarkRecorder | undefined, fileBaseName: string) {
+    if (!benchmark) return;
+    const record = benchmark.finish(fileBaseName);
+    // eslint-disable-next-line no-console
+    console.log(`[import-benchmark] ${fileBaseName} — tổng thời gian: ${Math.round(record.totalImportMs)}ms`);
+    // eslint-disable-next-line no-console
+    console.table(record.pages);
+    // eslint-disable-next-line no-console
+    console.table(record.geminiCalls);
+    // eslint-disable-next-line no-console
+    console.log("[import-benchmark] summary", record.summary);
+    setDebugBenchmark(record);
+  }
+
+  /** Tải bản ghi benchmark của lần import gần nhất thành file JSON — chỉ hiện khi debug đang bật (xem benchmarkEnabledRef). */
+  function handleDownloadBenchmark() {
+    if (!debugBenchmark) return;
+    const blob = new Blob([JSON.stringify(debugBenchmark, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `import-benchmark-${debugBenchmark.fileName.replace(/\.pdf$/i, "")}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function runPdfAnalysis(
     pageImages: PdfPageImage[],
     fileBaseName: string,
     previousResults?: ParsedExam[],
+    benchmark?: ImportBenchmarkRecorder,
   ) {
     setAnalyzingProgress(`Đang gửi ${pageImages.length} trang cho AI phân tích...`);
     const { parsed, failedChunks, totalChunks, chunkErrors, chunkResults } = await parseExamFromPdfPages(
@@ -414,6 +458,7 @@ export function TeacherExamImport() {
       topics,
       lessons,
       previousResults,
+      benchmark,
     );
     if (!parsed) {
       // Hiện đúng lý do thật (vd. "Google đang quá tải", "hết thời gian chờ"...)
@@ -424,6 +469,7 @@ export function TeacherExamImport() {
       );
       setPdfPartialState(null);
       setStage("upload");
+      finishAndReportBenchmark(benchmark, fileBaseName);
       return;
     }
     if (failedChunks > 0) {
@@ -433,9 +479,11 @@ export function TeacherExamImport() {
       // đúng đợt lỗi (không tốn lại quota các đợt đã đúng), hoặc dùng luôn.
       setPdfPartialState({ pageImages, chunkResults, merged: parsed, totalChunks, chunkErrors, fileBaseName });
       setStage("pdf-partial");
+      finishAndReportBenchmark(benchmark, fileBaseName);
       return;
     }
     setPdfPartialState(null);
+    finishAndReportBenchmark(benchmark, fileBaseName);
     loadParsed(parsed, fileBaseName);
   }
 
@@ -443,15 +491,16 @@ export function TeacherExamImport() {
     setError(null);
     setFileName(file.name);
     setStage("analyzing");
+    const benchmark = benchmarkEnabledRef.current ? new ImportBenchmarkRecorder() : undefined;
     try {
       setAnalyzingProgress("Đang đọc văn bản và render từng trang PDF...");
-      const pageImages = await renderPdfToImages(file);
+      const pageImages = await renderPdfToImages(file, {}, benchmark);
       if (pageImages.length === 0) {
         setError("Không đọc được trang nào từ file PDF này. Hãy kiểm tra lại file rồi thử lại.");
         setStage("upload");
         return;
       }
-      await runPdfAnalysis(pageImages, file.name.replace(/\.pdf$/i, ""));
+      await runPdfAnalysis(pageImages, file.name.replace(/\.pdf$/i, ""), undefined, benchmark);
     } catch (err) {
       console.error(err);
       setError("Có lỗi khi đọc file PDF. Hãy chắc chắn đây là file PDF hợp lệ, không bị hỏng hoặc đặt mật khẩu.");
@@ -467,8 +516,9 @@ export function TeacherExamImport() {
     const { pageImages, chunkResults, fileBaseName } = pdfPartialState;
     setError(null);
     setStage("analyzing");
+    const benchmark = benchmarkEnabledRef.current ? new ImportBenchmarkRecorder() : undefined;
     try {
-      await runPdfAnalysis(pageImages, fileBaseName, chunkResults);
+      await runPdfAnalysis(pageImages, fileBaseName, chunkResults, benchmark);
     } catch (err) {
       console.error(err);
       setError("Có lỗi khi thử lại. Bạn có thể bấm thử lại lần nữa, hoặc dùng luôn kết quả hiện có.");
@@ -729,6 +779,15 @@ export function TeacherExamImport() {
           Ctrl+V ở bước xem trước.
         </p>
         {error && <p className="form-error">{error}</p>}
+        {benchmarkEnabledRef.current && debugBenchmark && (
+          <p className="empty-hint">
+            [debug] Benchmark lần import gần nhất đã sẵn sàng —{" "}
+            <button type="button" className="btn-link" onClick={handleDownloadBenchmark}>
+              tải file JSON
+            </button>{" "}
+            (chi tiết cũng đã in ra console).
+          </p>
+        )}
 
         <div className="form-row">
           <label>Chọn file PDF</label>
@@ -817,6 +876,15 @@ export function TeacherExamImport() {
             <li key={i}>{e}</li>
           ))}
         </ul>
+        {benchmarkEnabledRef.current && debugBenchmark && (
+          <p className="empty-hint">
+            [debug] Benchmark lần import gần nhất đã sẵn sàng —{" "}
+            <button type="button" className="btn-link" onClick={handleDownloadBenchmark}>
+              tải file JSON
+            </button>{" "}
+            (chi tiết cũng đã in ra console).
+          </p>
+        )}
         {error && <p className="form-error">{error}</p>}
         <div className="form-row" style={{ flexDirection: "row", gap: 12 }}>
           <button className="btn-primary" onClick={handleRetryFailedPdfChunks}>
