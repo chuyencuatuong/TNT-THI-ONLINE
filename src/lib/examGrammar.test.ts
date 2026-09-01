@@ -37,6 +37,12 @@ describe("findLastOrderedLabelRun", () => {
   it("mảng nhãn rỗng (Phần 3, không có đáp án cho sẵn) → luôn complete = true", () => {
     expect(findLastOrderedLabelRun("bất kỳ nội dung gì", [])).toEqual({ found: [], complete: true });
   });
+
+  it("nhận nhãn có 1 khoảng trắng giữa chữ cái và dấu chấm (lỗi tách text item thật của pdf.js, đề Thầy Tường 01/09/2026, vd \"D .\")", () => {
+    const text = "A. một B. hai C. ba D . bốn";
+    const result = findLastOrderedLabelRun(text, ["A", "B", "C", "D"]);
+    expect(result.complete).toBe(true);
+  });
 });
 
 describe("detectExamStructure", () => {
@@ -79,6 +85,31 @@ describe("detectExamStructure", () => {
     expect(structure.sections[2].part).toBe("part3");
     // Phần 3 không cần nhãn — vẫn confident.
     expect(structure.sections[2].questions[0].choiceLabelsComplete).toBe(true);
+  });
+
+  it("câu có Lời giải nhắc lại \"Chọn A.\" sau đáp án KHÔNG được làm hỏng thứ tự (lỗi thật phát hiện trên đề Thầy Tường 01/09/2026)", () => {
+    // Trước khi sửa: quét nhãn trên CẢ đoạn "Lời giải" khiến "Chọn A." (xuất
+    // hiện SAU D.) trở thành lần xuất hiện SAU CÙNG của "A" → phá vỡ điều
+    // kiện A→B→C→D tăng dần, dù đáp án thật ở đầu câu hoàn toàn đúng thứ tự.
+    const pages: StructurePage[] = [
+      page(
+        1,
+        [
+          "PHẦN I: CÂU TRẮC NGHIỆM NHIỀU PHƯƠNG ÁN LỰA CHỌN",
+          "Câu 1: Cho hàm số y=f(x) có bảng biến thiên như sau:",
+          "A.   ; 2   . B.   1;1  . C.   0;  . D.   1;   .",
+          "Lời giải",
+          "Chọn A.",
+          "Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên khoảng đã cho.",
+          "Câu 2: Câu tiếp theo.",
+          "A. một   B. hai   C. ba   D. bốn",
+        ].join("\n"),
+      ),
+    ];
+    const structure = detectExamStructure(pages);
+    expect(structure.structureConfident).toBe(true);
+    expect(structure.sections[0].questions[0].choiceLabelsComplete).toBe(true);
+    expect(structure.sections[0].questions[0].choiceLabelsFound).toEqual(["A", "B", "C", "D"]);
   });
 
   it("câu vắt ngang 2 trang vẫn được ghép đúng (gán đúng trang bắt đầu câu)", () => {

@@ -122,6 +122,24 @@ function pageNumberAt(offsets: { start: number; pageNumber: number }[], index: n
 const SECTION_RE = /(^|\n)[ \t]*PH[ẦA]N\s*(I{1,3}|IV|[123])\b([^\n]*)/gi;
 const QUESTION_RE = /(^|\n)[ \t]*C[âa]u\s*(\d+)\s*[.:)]/g;
 
+/**
+ * Đánh dấu phần "Lời giải" (nếu đề có ghi lời giải chi tiết ngay dưới câu —
+ * PHÁT HIỆN THẬT trên đề của Thầy Tường, 01/09/2026): lời giải hầu như LUÔN
+ * nhắc lại đáp án đúng kiểu "Chọn A." — nếu quét nhãn đáp án trên CẢ đoạn lời
+ * giải, chữ cái nhắc lại này (xuất hiện SAU đáp án D) sẽ đứng SAU CÙNG, làm
+ * hỏng điều kiện "A→B→C→D tăng dần" (xem findLastOrderedLabelRun) dù đáp án
+ * A-B-C-D thật ở đầu câu hoàn toàn đúng thứ tự. Cách xử lý: chỉ dò nhãn đáp
+ * án trong đoạn văn bản TRƯỚC mốc "Lời giải" đầu tiên (nếu có) — đáp án luôn
+ * nằm trước phần lời giải trong mọi đề đã kiểm tra, nên không mất phần thật.
+ */
+const SOLUTION_MARKER_RE = /lời\s+giải/i;
+
+/** Cắt bớt đoạn văn bản 1 câu, chỉ giữ phần TRƯỚC mốc "Lời giải" đầu tiên (nếu có) — xem SOLUTION_MARKER_RE. Không có mốc này thì trả nguyên văn bản gốc. */
+function textBeforeSolutionMarker(text: string): string {
+  const m = SOLUTION_MARKER_RE.exec(text);
+  return m ? text.slice(0, m.index) : text;
+}
+
 function findSections(text: string, offsets: { start: number; pageNumber: number }[]): RawSectionMatch[] {
   const matches: RawSectionMatch[] = [];
   SECTION_RE.lastIndex = 0;
@@ -157,12 +175,16 @@ function findQuestions(text: string, offsets: { start: number; pageNumber: numbe
  * Tìm lần xuất hiện SAU CÙNG của từng nhãn (vd A, B, C, D), theo đúng thứ tự
  * tăng dần vị trí — xem giải thích rủi ro/cách giảm rủi ro ở đầu file. Nhãn
  * chỉ khớp dạng "X." hoặc "X)" đứng 1 mình (word boundary trước, để không
- * khớp giữa 1 từ khác) — KHÔNG khớp "X(" (toạ độ điểm).
+ * khớp giữa 1 từ khác) — KHÔNG khớp "X(" (toạ độ điểm). Cho phép TỐI ĐA 1
+ * khoảng trắng/tab giữa chữ cái và dấu (vd "D ." thay vì "D.") — phát hiện
+ * thật trên đề của Thầy Tường (01/09/2026): pdf.js đôi khi tách chữ cái và
+ * dấu câu thành 2 "text item" liền kề rồi nối lại có thêm 1 khoảng trắng,
+ * KHÔNG PHẢI lỗi định dạng gốc của đề.
  */
 export function findLastOrderedLabelRun(text: string, labels: string[]): { found: string[]; complete: boolean } {
   if (labels.length === 0) return { found: [], complete: true };
   const positions: number[] = labels.map((label) => {
-    const re = new RegExp(`\\b${label}[.)]`, "g");
+    const re = new RegExp(`\\b${label}[ \t]?[.)]`, "g");
     let last = -1;
     let mm: RegExpExecArray | null;
     while ((mm = re.exec(text))) last = mm.index;
@@ -234,7 +256,13 @@ export function detectExamStructure(pages: StructurePage[]): ExamStructure {
       lastQNum = q.sourceQuestionNumber;
 
       const labels = PART_LABELS[section.part];
-      const { found, complete } = labels.length > 0 ? findLastOrderedLabelRun(rawText, labels) : { found: [], complete: true };
+      // Chỉ dò nhãn đáp án TRƯỚC mốc "Lời giải" (nếu câu có ghi lời giải) —
+      // xem SOLUTION_MARKER_RE/textBeforeSolutionMarker: lời giải hay nhắc
+      // lại "Chọn A." ở CUỐI, dễ làm hỏng điều kiện thứ tự tăng dần nếu quét
+      // luôn cả đoạn đó.
+      const { found, complete } = labels.length > 0
+        ? findLastOrderedLabelRun(textBeforeSolutionMarker(rawText), labels)
+        : { found: [], complete: true };
       if (!complete) overallConfident = false;
 
       detected.push({
