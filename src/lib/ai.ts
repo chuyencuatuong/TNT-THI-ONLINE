@@ -18,6 +18,13 @@ import {
   type ImportBenchmarkRecorder,
   type ThinkingLevel,
 } from "./importBenchmark";
+// THÊM 01/09/2026 (Giai đoạn 1a — sau khi nghiên cứu Azota): bộ khung dò cấu
+// trúc đề (Phần/Câu/nhãn đáp án) THUẦN QUY TẮC, không gọi AI — xem lý do đầy
+// đủ ở đầu file examGrammar.ts. Chỉ dùng để RÚT GỌN việc AI phải làm (khỏi
+// phải tự tìm ranh giới câu), KHÔNG thay AI đọc nội dung/công thức — nếu dò
+// không chắc chắn (structureConfident = false) thì bỏ qua hoàn toàn, AI chạy
+// y hệt như trước đây.
+import { buildStructureScaffold, detectExamStructure, type DetectedQuestion, type StructurePage } from "./examGrammar";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
   | string
@@ -95,9 +102,25 @@ const GEMINI_TIMEOUT_MS = 90_000;
  * Google thỉnh thoảng trả lỗi 503 "quá tải" hoặc 429 "vượt giới hạn tốc độ"
  * — đây là lỗi TẠM THỜI theo đúng thông báo của Google, tự thử lại sau vài
  * giây thường sẽ qua. Không thử lại quá nhiều lần để tránh treo lâu vô ích.
+ *
+ * GIẢM 01/09/2026 (3 → 2, dựa trên benchmark thật — xem
+ * danh-gia-de-xuat-azota-chatgpt-v1.md mục G): 2 lần đo thật cho thấy CẢ 6/6
+ * lần gọi model chính (`gemini-3.7-flash`) đều lỗi trước khi model dự phòng
+ * xử lý được — tức lần thử thứ 3 ở model chính chưa từng "cứu" được 1 lượt
+ * nào trong 2 lần đo, chỉ cộng thêm thời gian chờ vô ích (có lần cả 1 lượt
+ * thử ăn trọn 90s timeout). Giảm xuống 2 lần cắt bớt phần chờ thừa này mà vẫn
+ * giữ ít nhất 1 lần thử lại trước khi chuyển model dự phòng.
+ *
+ * CHƯA giảm GEMINI_TIMEOUT_MS (90s) ở đợt này: cả 2 lần đo, lượt THÀNH CÔNG
+ * (ở model dự phòng) cũng mất 49.9s và 66.8s — nếu hạ timeout xuống thấp hơn
+ * mức đó ngay bây giờ sẽ có nguy cơ tự huỷ NGANG những lượt gọi đang xử lý
+ * đúng hướng, biến "chậm nhưng sẽ xong" thành "luôn thất bại rồi phải thử
+ * lại" — tệ hơn hiện tại. Nên giảm timeout SAU khi phần thu hẹp việc giao cho
+ * AI (parser tách câu, tách phân loại chương/bài khỏi luồng import...) đã
+ * làm xong và đo lại thời gian 1 lượt gọi thành công thực tế còn bao lâu.
  */
-const GEMINI_MAX_ATTEMPTS = 3;
-const GEMINI_RETRY_DELAYS_MS = [3000, 8000];
+const GEMINI_MAX_ATTEMPTS = 2;
+const GEMINI_RETRY_DELAYS_MS = [3000];
 /** Số lần thử ở ĐỢT DỰ PHÒNG (model dự phòng) — cố tình ít hơn model chính, để
  * khi cả 2 model đều đang có vấn đề, tổng thời gian chờ không bị nhân đôi. */
 const GEMINI_FALLBACK_MAX_ATTEMPTS = 2;
@@ -702,8 +725,105 @@ function classificationBlock(
   return { ruleText, jsonExample };
 }
 
-function buildExamParsePrompt(topics: Topic[], lessons: Lesson[]): string {
+// ---------------------------------------------------------------------------
+// Gợi ý Chương/Bài — LƯỢT GỌI AI RIÊNG, CHẠY NỀN (thêm 01/09/2026, việc #4
+// trong kế hoạch cải tiến sau khi nghiên cứu Azota). TRƯỚC đây việc này nằm
+// CHUNG trong đúng lượt gọi đọc câu hỏi/công thức/đáp án từ ảnh (xem
+// buildExamParseFromImagesPrompt/buildExamParsePrompt phía trên) — nghĩa là
+// giáo viên phải chờ AI xong CẢ 2 việc mới thấy được màn xem trước, dù việc
+// phân loại chương/Bài chỉ là GỢI Ý (giáo viên luôn xem lại/tự chọn ở bước
+// xác nhận, không ảnh hưởng gì đến độ chính xác câu hỏi/đáp án).
+//
+// Cách dùng đúng (xem TeacherExamImport.tsx): gọi classifyExamQuestions()
+// SAU KHI đã hiện xong màn xem trước (loadParsed) — CHỈ TEXT (content_latex
+// đã có sẵn, không cần gửi lại ảnh), nên rẻ và nhanh hơn hẳn lượt gọi chính.
+// Kết quả trả về được ghép vào state hiện có bằng "id" tự đặt, và CHỈ áp dụng
+// cho câu nào giáo viên CHƯA tự chọn chương (topic_id vẫn còn null tại thời
+// điểm kết quả về) — tránh ghi đè lựa chọn thủ công nếu giáo viên đã lỡ chọn
+// tay trong lúc chờ.
+// ---------------------------------------------------------------------------
+
+export interface QuestionClassificationInput {
+  /** id do phía gọi tự đặt (khuyến nghị dạng "part1-0", "part2-3"...) — dùng để ghép kết quả trả về đúng câu, không phụ thuộc AI có trả đúng thứ tự hay không. */
+  id: string;
+  content_latex: string;
+}
+
+export interface QuestionClassificationResult {
+  id: string;
+  topic_name: string | null;
+  lesson_name: string | null;
+}
+
+function buildClassifyQuestionsPrompt(
+  topics: Topic[],
+  lessons: Lesson[],
+  items: QuestionClassificationInput[],
+): string {
   const { ruleText, jsonExample } = classificationBlock(topics, lessons);
+  const itemsBlock = items
+    .map((it) => `- id "${it.id}": ${it.content_latex.replace(/\s+/g, " ").trim().slice(0, 800)}`)
+    .join("\n");
+  return `Bạn là trợ lý phân loại câu hỏi Toán THPT (Việt Nam, chương trình GDPT 2018) theo Chương/Bài. Dưới đây là danh sách các câu hỏi (chỉ phần nội dung, đã có sẵn công thức LaTeX) đã được số hoá từ trước — nhiệm vụ DUY NHẤT của bạn là gợi ý Chương/Bài cho từng câu, KHÔNG cần đọc/sửa lại nội dung câu hỏi.
+${ruleText}
+Danh sách câu hỏi (mỗi dòng 1 câu, kèm "id" để bạn trả lời đúng câu đó):
+${itemsBlock}
+
+QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: trả lời CHÍNH XÁC theo định dạng JSON sau, đủ 1 phần tử cho MỖI id ở trên (giữ nguyên đúng chuỗi "id" đã cho), không thêm chữ nào khác ngoài JSON, không dùng markdown code fence:
+{
+  "classifications": [{"id": "..."${jsonExample}}]
+}`;
+}
+
+/** Số câu hỏi gộp vào 1 lượt gọi AI khi phân loại Chương/Bài — nhỏ hơn nhiều so với lượt đọc câu hỏi chính (không cần gửi ảnh, chỉ text) nên gộp được nhiều câu hơn hẳn 1 đợt. */
+const CLASSIFY_CHUNK_SIZE = 40;
+const CLASSIFY_CONCURRENCY = 2;
+
+/**
+ * Gợi ý Chương/Bài cho danh sách câu hỏi — CHỈ DÙNG TEXT (content_latex),
+ * không gửi ảnh, nên nhẹ và nhanh hơn hẳn lượt đọc đề chính — dùng để chạy
+ * NỀN sau khi đã hiện xong màn xem trước (xem giải thích ở đầu khối này).
+ * Trả về mảng rỗng nếu không có câu nào hoặc chưa có chương nào (topics rỗng)
+ * — im lặng bỏ qua, KHÔNG coi là lỗi, vì đây chỉ là gợi ý phụ thêm, giáo viên
+ * vẫn luôn tự chọn được ở màn xem trước dù không có gợi ý AI.
+ */
+export async function classifyExamQuestions(
+  items: QuestionClassificationInput[],
+  topics: Topic[],
+  lessons: Lesson[],
+): Promise<QuestionClassificationResult[]> {
+  if (items.length === 0 || topics.length === 0) return [];
+  const chunks = chunkArray(items, CLASSIFY_CHUNK_SIZE);
+  const chunkResults = await mapWithConcurrency(chunks, CLASSIFY_CONCURRENCY, async (chunk) => {
+    let raw: string | null = null;
+    try {
+      raw = await callGeminiParts([{ text: buildClassifyQuestionsPrompt(topics, lessons, chunk) }], 4096);
+      if (!raw) return [];
+      const parsed = extractJsonBlock(raw) as { classifications?: QuestionClassificationResult[] };
+      return Array.isArray(parsed.classifications) ? parsed.classifications : [];
+    } catch (err) {
+      // Lỗi ở lượt gợi ý nền KHÔNG được làm hỏng gì cả — chỉ ghi log, câu hỏi
+      // liên quan đơn giản là không có gợi ý Chương/Bài, giáo viên tự chọn.
+      console.error("Không đọc được JSON khi phân loại Chương/Bài (chạy nền):", err, raw);
+      return [];
+    }
+  });
+  return chunkResults.flat();
+}
+
+function buildExamParsePrompt(topics: Topic[], lessons: Lesson[]): string {
+  // ĐỔI 01/09/2026 (Giai đoạn 1a, việc #4 trong kế hoạch cải tiến): KHÔNG còn
+  // nhét yêu cầu gợi ý Chương/Bài vào ĐÚNG lượt gọi AI chính này nữa — tách
+  // riêng thành 1 lượt gọi RIÊNG, chạy NỀN sau khi màn xem trước đã hiện ra
+  // (xem classifyExamQuestions() bên dưới + nơi gọi ở TeacherExamImport.tsx).
+  // Lý do: gợi ý Chương/Bài không quyết định tốc độ giáo viên xem được đề hay
+  // không (chỉ là gợi ý, giáo viên luôn xem lại/tự chọn) — trong khi việc gộp
+  // chung vào 1 lượt khiến lượt đọc câu hỏi/công thức chính phải "cõng" thêm
+  // việc phân loại trước khi trả lời được, kéo dài thời gian chờ mà giáo viên
+  // nhìn thấy màn hình trống. `topics`/`lessons` vẫn giữ nguyên trong tham số
+  // hàm này để KHÔNG phải sửa các nơi đang gọi buildExamParsePrompt(topics,
+  // lessons) — chỉ đơn giản không dùng chúng để tạo ruleText/jsonExample nữa.
+  const { ruleText, jsonExample } = classificationBlock([], []);
   return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là văn bản trích từ 1 file Word chứa đề thi, cùng với các hình ảnh nhúng trong file (nếu có) được gửi kèm — mỗi hình có placeholder dạng [HINH_n] xuất hiện trong văn bản, hình gửi kèm theo ĐÚNG thứ tự đó.
 
 Đề thi có 3 phần theo cấu trúc chuẩn:
@@ -785,7 +905,9 @@ export async function parseExamFromDocument(
 // ---------------------------------------------------------------------------
 
 function buildExamParseFromImagesPrompt(topics: Topic[], lessons: Lesson[]): string {
-  const { ruleText, jsonExample } = classificationBlock(topics, lessons);
+  // ĐỔI 01/09/2026 — xem giải thích đầy đủ ở buildExamParsePrompt() phía trên
+  // (cùng lý do, cùng thay đổi: gợi ý Chương/Bài tách ra lượt gọi nền riêng).
+  const { ruleText, jsonExample } = classificationBlock([], []);
   return `Bạn là trợ lý số hoá đề thi Toán THPT (Việt Nam, chương trình GDPT 2018). Dưới đây là dữ liệu của từng trang 1 file đề thi (PDF), gửi kèm theo ĐÚNG thứ tự trang. Mỗi trang gồm 2 phần:
 - "Văn bản trang N (đã trích chính xác 100%, dùng làm CƠ SỞ)": văn bản thật lấy trực tiếp từ file PDF — TIN TƯỞNG HOÀN TOÀN phần chữ tiếng Việt/số/ký hiệu này, KHÔNG cần tự đọc lại từ ảnh, không tự sửa chữ trừ khi rõ ràng bị thiếu do nằm trong công thức/hình. Phần này có thể thiếu chỗ có công thức Toán hoặc hình vẽ (vì công thức MathType/hình vẽ khi xuất PDF chỉ còn là HÌNH ẢNH, không phải chữ).
 - Ảnh chụp cả trang ngay sau đó: CHỈ dùng ảnh này để (a) đọc các công thức Toán đã thành hình rồi chuyển sang LaTeX chèn đúng chỗ còn thiếu trong văn bản, (b) nhận diện hình vẽ minh hoạ, (c) xác định đáp án đúng qua tín hiệu thị giác (màu, gạch chân, đậm...) mà văn bản thuần không thể hiện được.
@@ -858,8 +980,18 @@ export async function parseExamFromImages(
   // hàm chạy y hệt trước đây.
   benchmark?: ImportBenchmarkRecorder,
   benchmarkLabel?: string,
+  // THÊM 01/09/2026 — Giai đoạn 1a: khung Phần/Câu đã dò được BẰNG QUY TẮC
+  // (xem examGrammar.ts) cho ĐÚNG các trang trong đợt này, CHỈ truyền khi dò
+  // chắc chắn (structureConfident = true) trên toàn bộ đề — xem
+  // parseExamFromPdfPages. Khi có, chèn thêm 1 khối văn bản vào prompt để AI
+  // đỡ phải tự tìm ranh giới câu, chỉ cần điền công thức/đáp án đúng khung có
+  // sẵn — không đổi bất kỳ hành vi nào khác của prompt gốc.
+  structureHint?: DetectedQuestion[],
 ): Promise<ParsedExam> {
   const parts: GeminiPart[] = [{ text: buildExamParseFromImagesPrompt(topics, lessons) }];
+  if (structureHint && structureHint.length > 0) {
+    parts.push({ text: buildStructureScaffold(structureHint) });
+  }
   pageImages.forEach((img, i) => {
     const label = pageNumbers?.[i] ?? i + 1;
     const textBlock = img.pageText?.trim()
@@ -1010,11 +1142,42 @@ export async function parseExamFromPdfPages(
   const imageChunks = chunkArray(pageImages, chunkSize);
   const retryPlan = planChunkRetries(imageChunks.length, previousResults);
 
+  // THÊM 01/09/2026 — Giai đoạn 1a: dò cấu trúc đề (Phần/Câu/nhãn đáp án) MỘT
+  // LẦN DUY NHẤT trên TOÀN BỘ các trang, TRƯỚC khi chia đợt — bắt buộc phải
+  // dò trên toàn văn bản (không phải từng đợt riêng) vì 1 câu có thể vắt
+  // ngang ranh giới 2 đợt, và việc đánh giá "structureConfident" phải xét
+  // toàn đề để an toàn (xem examGrammar.ts). Nếu dò KHÔNG chắc chắn (thiếu
+  // nhãn đáp án ở bất kỳ đâu, sai thứ tự Phần, v.v.) thì bỏ qua hoàn toàn —
+  // mọi đợt gọi AI chạy y hệt hành vi trước đây, không có scaffold nào được
+  // chèn vào prompt.
+  const structurePages: StructurePage[] = pageImages.map((img, i) => ({
+    pageNumber: i + 1,
+    pageText: img.pageText ?? "",
+  }));
+  const structure = detectExamStructure(structurePages);
+  benchmark?.recordStructureConfidence(structure.structureConfident);
+  const allDetectedQuestions: DetectedQuestion[] = structure.structureConfident
+    ? structure.sections.flatMap((s) => s.questions)
+    : [];
+
   let doneCount = 0;
   const results = await mapWithConcurrency(imageChunks, PDF_CHUNK_CONCURRENCY, async (chunk, i) => {
     let r: ParsedExam;
     if (retryPlan[i]) {
-      r = await parseExamFromImages(chunk, pageNumberChunks[i], topics, lessons, benchmark, `batch-${i + 1}`);
+      const chunkPageNumbers = pageNumberChunks[i];
+      const structureHint =
+        allDetectedQuestions.length > 0
+          ? allDetectedQuestions.filter((q) => chunkPageNumbers.includes(q.pageNumber))
+          : undefined;
+      r = await parseExamFromImages(
+        chunk,
+        chunkPageNumbers,
+        topics,
+        lessons,
+        benchmark,
+        `batch-${i + 1}`,
+        structureHint,
+      );
     } else {
       // planChunkRetries chỉ trả false khi previousResults[i] tồn tại VÀ đã
       // thành công ở lần gọi trước — an toàn tái sử dụng, không gọi lại AI.

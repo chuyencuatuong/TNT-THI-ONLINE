@@ -179,6 +179,21 @@ describe("ImportBenchmarkRecorder", () => {
     // totalImportMs đo bằng đồng hồ thật (nowMs) — chỉ cần chắc chắn là số không âm, không so khớp giá trị cụ thể (chạy nhanh trong test, không đáng tin để assert bằng)
     expect(record.totalImportMs).toBeGreaterThanOrEqual(0);
   });
+
+  it("structureConfident mặc định null khi không gọi recordStructureConfidence (vd luồng nhập .docx không dò cấu trúc)", () => {
+    const recorder = new ImportBenchmarkRecorder();
+    expect(recorder.finish("de-thi.docx").structureConfident).toBeNull();
+  });
+
+  it("structureConfident lấy đúng giá trị lần gọi recordStructureConfidence gần nhất (01/09/2026, việc #1-3 kế hoạch cải tiến)", () => {
+    const recorderTrue = new ImportBenchmarkRecorder();
+    recorderTrue.recordStructureConfidence(true);
+    expect(recorderTrue.finish("de-thi.pdf").structureConfident).toBe(true);
+
+    const recorderFalse = new ImportBenchmarkRecorder();
+    recorderFalse.recordStructureConfidence(false);
+    expect(recorderFalse.finish("de-thi.pdf").structureConfident).toBe(false);
+  });
 });
 
 describe("isBenchmarkEnabled", () => {

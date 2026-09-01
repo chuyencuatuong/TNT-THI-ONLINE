@@ -86,6 +86,17 @@ export interface ImportBenchmarkRecord {
   jsonParseMsEntries: number[];
   totalImportMs: number;
   summary: ImportBenchmarkSummary;
+  /**
+   * THÊM 01/09/2026 (Giai đoạn 1a — bộ khung dò cấu trúc đề THUẦN QUY TẮC,
+   * xem examGrammar.ts): true nếu dò được cấu trúc Phần/Câu/nhãn đáp án ĐỦ
+   * CHẮC CHẮN để chèn "khung" vào prompt AI (giúp AI đỡ phải tự tìm ranh giới
+   * câu) cho lần import này; false nếu có dò nhưng KHÔNG đủ chắc (rơi về
+   * đúng hành vi cũ — AI tự tìm cấu trúc, không có khung nào được chèn); null
+   * nếu lần import này không đi qua luồng PDF (vd nhập từ .docx) nên không có
+   * bước dò cấu trúc nào chạy cả. Dùng để Thầy Tường tự xem trên đề thật xem
+   * bộ khung có thực sự "kích hoạt" hay không, chứ không tự khẳng định.
+   */
+  structureConfident: boolean | null;
 }
 
 function sum(values: number[]): number {
@@ -170,10 +181,16 @@ export class ImportBenchmarkRecorder {
   private pages: PageRenderMetric[] = [];
   private geminiCalls: GeminiCallMetric[] = [];
   private jsonParseMsEntries: number[] = [];
+  private structureConfidentValue: boolean | null = null;
   private readonly startedAt = nowMs();
 
   recordPdfLoad(ms: number): void {
     this.pdfLoadMsValue = ms;
+  }
+
+  /** Xem giải thích đầy đủ ở ImportBenchmarkRecord.structureConfident — gọi 1 lần duy nhất/lần import từ parseExamFromPdfPages(). */
+  recordStructureConfidence(confident: boolean): void {
+    this.structureConfidentValue = confident;
   }
 
   recordPage(metric: PageRenderMetric): void {
@@ -197,6 +214,7 @@ export class ImportBenchmarkRecorder {
       jsonParseMsEntries: this.jsonParseMsEntries,
       totalImportMs: nowMs() - this.startedAt,
       summary: buildImportBenchmarkSummary(this.pages, this.geminiCalls, this.jsonParseMsEntries, this.pdfLoadMsValue),
+      structureConfident: this.structureConfidentValue,
     };
   }
 }

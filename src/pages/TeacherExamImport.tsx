@@ -3,7 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
-import { matchLessonByName, matchTopicByName, parseExamFromDocument, parseExamFromPdfPages, type ParsedExam } from "../lib/ai";
+import {
+  classifyExamQuestions,
+  matchLessonByName,
+  matchTopicByName,
+  parseExamFromDocument,
+  parseExamFromPdfPages,
+  type ParsedExam,
+  type QuestionClassificationInput,
+  type QuestionClassificationResult,
+} from "../lib/ai";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
 import { renderPdfToImages, type PdfPageImage } from "../lib/pdfImport";
 import { ImportBenchmarkRecorder, isBenchmarkEnabled, type ImportBenchmarkRecord } from "../lib/importBenchmark";
@@ -377,6 +386,68 @@ export function TeacherExamImport() {
     });
   }
 
+  /**
+   * (Thêm 01/09/2026, việc #4 trong kế hoạch cải tiến) Gợi ý Chương/Bài chạy
+   * NỀN, gọi NGAY SAU KHI màn xem trước đã hiện ra (không chặn loadParsed) —
+   * xem lý do đầy đủ ở classifyExamQuestions() trong ai.ts. Nhận vào ĐÚNG
+   * danh sách vừa tạo (không đọc lại từ state, vì setState là bất đồng bộ)
+   * để biết chính xác id/nội dung từng câu cần phân loại.
+   *
+   * AN TOÀN: chỉ ghi kết quả vào câu nào topic_id VẪN CÒN null tại thời điểm
+   * kết quả về — nếu giáo viên đã lỡ tự chọn chương trong lúc chờ AI trả lời
+   * (vài giây), lựa chọn thủ công đó KHÔNG bị ghi đè.
+   */
+  async function runBackgroundClassification(loaded: { part1: EditableP1[]; part2: EditableP2[]; part3: EditableP3[] }) {
+    const items: QuestionClassificationInput[] = [
+      ...loaded.part1.map((q) => ({ id: `p1:${q.id}`, content_latex: q.content_latex })),
+      ...loaded.part2.map((q) => ({ id: `p2:${q.id}`, content_latex: q.content_latex })),
+      ...loaded.part3.map((q) => ({ id: `p3:${q.id}`, content_latex: q.content_latex })),
+    ];
+    if (items.length === 0) return;
+
+    let results: QuestionClassificationResult[];
+    try {
+      results = await classifyExamQuestions(items, topics, lessons);
+    } catch (err) {
+      // Lỗi ở gợi ý nền KHÔNG được làm hỏng màn xem trước đã hiện sẵn — giáo
+      // viên vẫn tự chọn Chương/Bài bình thường, chỉ mất phần gợi ý AI.
+      console.error("Gợi ý Chương/Bài chạy nền bị lỗi (không ảnh hưởng câu hỏi đã đọc):", err);
+      return;
+    }
+    if (results.length === 0) return;
+    const byId = new Map(results.map((r) => [r.id, r]));
+
+    // Gộp thêm các chương AI vừa gợi ý vào danh sách "Chương đề bao phủ" —
+    // CHỈ THÊM (không bao giờ tự bỏ), để không xoá mất lựa chọn giáo viên đã
+    // tự tick/bỏ tick tay trong lúc chờ kết quả.
+    const newlySuggestedTopicIds = results
+      .map((r) => matchTopicByName(r.topic_name, topics))
+      .filter((id): id is string => !!id);
+    if (newlySuggestedTopicIds.length > 0) {
+      setSelectedExamTopicIds((prev) => new Set([...prev, ...newlySuggestedTopicIds]));
+    }
+
+    function applySuggestion<T extends { id: string; topic_id: string | null }>(prefix: string, q: T): T {
+      if (q.topic_id !== null) return q;
+      const r = byId.get(`${prefix}:${q.id}`);
+      if (!r) return q;
+      const suggested = matchTopicByName(r.topic_name, topics);
+      if (!suggested) return q;
+      const suggestedLesson = matchLessonByName(r.lesson_name, suggested, lessons);
+      return {
+        ...q,
+        topic_id: suggested,
+        ai_suggested_topic_id: suggested,
+        lesson_id: suggestedLesson,
+        ai_suggested_lesson_id: suggestedLesson,
+      };
+    }
+
+    setPart1((prev) => prev.map((q) => applySuggestion("p1", q)));
+    setPart2((prev) => prev.map((q) => applySuggestion("p2", q)));
+    setPart3((prev) => prev.map((q) => applySuggestion("p3", q)));
+  }
+
   function loadParsed(parsed: ParsedExam, suggestedTitle?: string) {
     const withLocalIds = withIds(parsed, topics, lessons);
     setPart1(withLocalIds.part1);
@@ -393,6 +464,10 @@ export function TeacherExamImport() {
     );
     setSelectedExamTopicIds(suggested);
     setStage("review");
+    // Không chặn ở đây (không await) — màn xem trước hiện NGAY với câu hỏi/
+    // công thức/đáp án đã đọc xong; gợi ý Chương/Bài sẽ tự điền vào sau vài
+    // giây khi có kết quả, giáo viên vẫn xem/sửa được bình thường trong lúc chờ.
+    void runBackgroundClassification(withLocalIds);
   }
 
   /**
@@ -428,6 +503,8 @@ export function TeacherExamImport() {
     console.table(record.geminiCalls);
     // eslint-disable-next-line no-console
     console.log("[import-benchmark] summary", record.summary);
+    // eslint-disable-next-line no-console
+    console.log("[import-benchmark] structureConfident (khung dò cấu trúc THUẦN QUY TẮC có kích hoạt không):", record.structureConfident);
     setDebugBenchmark(record);
   }
 
