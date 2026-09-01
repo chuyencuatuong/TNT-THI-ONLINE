@@ -14,8 +14,13 @@ import {
   computeActiveSeconds,
   diagnoseAllDifficulties,
   diagnoseAllTopics,
+  diagnoseTopic,
+  summarizeMasteryTrend,
   type BlankQuestionSummary,
   type DifficultyOutcomeGroup,
+  type MasteryHistoryPoint,
+  type MasteryTrendSummary,
+  type QuestionOutcome,
   type TopicOutcomeGroup,
 } from "./diagnosis";
 import { applyReviewResult, markWrongFromExam, type JournalStreakState } from "./leitner";
@@ -1278,6 +1283,144 @@ export async function getClassLessonStats(studentIds: string[]): Promise<LessonS
   if (studentIds.length === 0) return [];
   const perStudent = await Promise.all(studentIds.map((id) => getStudentLessonStats(id)));
   return mergeLessonStats(perStudent);
+}
+
+// ---------------------------------------------------------------------------
+// Giai đoạn 2 gốc (31/08/2026): lỗi sai lặp lại qua nhiều đề + xu hướng theo
+// thời gian — TÁCH theo từng Chương/Bài (xem chú thích đầy đủ ở diagnosis.ts,
+// ngay trên summarizeMasteryTrend). Khác getStudentChapterStats/LessonStats ở
+// trên (chỉ gộp % CỘNG DỒN, không có chiều thời gian): 2 hàm dưới đây chạy
+// diagnoseTopic() cho TỪNG lượt làm bài riêng biệt rồi sắp theo thời gian.
+// ---------------------------------------------------------------------------
+
+type TrendRow = {
+  score: number;
+  time_spent_seconds: number;
+  change_count: number;
+  question: {
+    part: 1 | 2 | 3;
+    default_points: number | null;
+  } | null;
+  attempt: {
+    id: string;
+    started_at: string;
+    exam: { title: string } | null;
+  };
+};
+
+/** Gộp các dòng question_responses thô thành `attempt_id -> { started_at, exam_title, outcomes }`
+ * cho 1 nhóm (1 Chương hoặc 1 Bài) — dùng chung cho cả getStudentTopicTrend và getStudentLessonTrend. */
+function groupRowsByAttempt(rows: TrendRow[]): Map<string, { started_at: string; exam_title: string; outcomes: QuestionOutcome[] }> {
+  const byAttempt = new Map<string, { started_at: string; exam_title: string; outcomes: QuestionOutcome[] }>();
+  for (const row of rows) {
+    if (!row.question) continue;
+    const entry = byAttempt.get(row.attempt.id) ?? {
+      started_at: row.attempt.started_at,
+      exam_title: row.attempt.exam?.title ?? "(đề đã xoá)",
+      outcomes: [],
+    };
+    const maxScore = questionMaxScore(row.question);
+    entry.outcomes.push({
+      part: row.question.part,
+      scoreRatio: maxScore > 0 ? Math.min(1, row.score / maxScore) : 0,
+      timeSpentSeconds: row.time_spent_seconds,
+      changeCount: row.change_count,
+    });
+    byAttempt.set(row.attempt.id, entry);
+  }
+  return byAttempt;
+}
+
+function buildHistory(byAttempt: Map<string, { started_at: string; exam_title: string; outcomes: QuestionOutcome[] }>): MasteryHistoryPoint[] {
+  return Array.from(byAttempt.entries())
+    .map(([attempt_id, a]) => ({
+      attempt_id,
+      started_at: a.started_at,
+      exam_title: a.exam_title,
+      diagnosis: diagnoseTopic(a.outcomes),
+    }))
+    .sort((x, y) => x.started_at.localeCompare(y.started_at));
+}
+
+export interface TopicTrendGroup {
+  topic_id: string;
+  topic_name: string;
+  /** Sắp theo started_at TĂNG DẦN (cũ -> mới). */
+  history: MasteryHistoryPoint[];
+  trend: MasteryTrendSummary;
+}
+
+/** CHÚ Ý PGRST201 (giống getStudentChapterStats): phải chỉ rõ
+ * `topics!questions_topic_id_fkey(...)` vì `questions` có 2 khoá ngoại tới `topics`. */
+export async function getStudentTopicTrend(studentId: string): Promise<TopicTrendGroup[]> {
+  const { data, error } = await supabase
+    .from("question_responses")
+    .select(
+      "score, time_spent_seconds, change_count, question:questions(part, default_points, topic:topics!questions_topic_id_fkey(id, name)), attempt:exam_attempts!inner(id, started_at, student_id, exam:exams(title))",
+    )
+    .eq("attempt.student_id", studentId);
+  if (error) throw error;
+
+  type Row = TrendRow & { question: (TrendRow["question"] & { topic: { id: string; name: string } | null }) | null };
+
+  const byTopic = new Map<string, { topic_name: string; rows: Row[] }>();
+  for (const row of data as unknown as Row[]) {
+    const topic = row.question?.topic;
+    if (!topic) continue; // câu chưa gán chương -> không tính
+    const group = byTopic.get(topic.id) ?? { topic_name: topic.name, rows: [] };
+    group.rows.push(row);
+    byTopic.set(topic.id, group);
+  }
+
+  return Array.from(byTopic.entries()).map(([topic_id, group]) => {
+    const history = buildHistory(groupRowsByAttempt(group.rows));
+    return { topic_id, topic_name: group.topic_name, history, trend: summarizeMasteryTrend(history) };
+  });
+}
+
+export interface LessonTrendGroup {
+  lesson_id: string;
+  lesson_name: string;
+  /** Chương chứa Bài này — dùng để lọc breakdown theo đúng 1 chương (giống LessonStat.topic_id). */
+  topic_id: string;
+  history: MasteryHistoryPoint[];
+  trend: MasteryTrendSummary;
+}
+
+/** Bản tương ứng theo BÀI của getStudentTopicTrend — CHÚ Ý PGRST201 giống
+ * getStudentLessonStats: phải chỉ rõ `lessons!questions_lesson_id_fkey(...)`. */
+export async function getStudentLessonTrend(studentId: string): Promise<LessonTrendGroup[]> {
+  const { data, error } = await supabase
+    .from("question_responses")
+    .select(
+      "score, time_spent_seconds, change_count, question:questions(part, default_points, lesson:lessons!questions_lesson_id_fkey(id, name, topic_id)), attempt:exam_attempts!inner(id, started_at, student_id, exam:exams(title))",
+    )
+    .eq("attempt.student_id", studentId);
+  if (error) throw error;
+
+  type Row = TrendRow & {
+    question: (TrendRow["question"] & { lesson: { id: string; name: string; topic_id: string } | null }) | null;
+  };
+
+  const byLesson = new Map<string, { lesson_name: string; topic_id: string; rows: Row[] }>();
+  for (const row of data as unknown as Row[]) {
+    const lesson = row.question?.lesson;
+    if (!lesson) continue; // câu chưa gán Bài -> không tính
+    const group = byLesson.get(lesson.id) ?? { lesson_name: lesson.name, topic_id: lesson.topic_id, rows: [] };
+    group.rows.push(row);
+    byLesson.set(lesson.id, group);
+  }
+
+  return Array.from(byLesson.entries()).map(([lesson_id, group]) => {
+    const history = buildHistory(groupRowsByAttempt(group.rows));
+    return {
+      lesson_id,
+      lesson_name: group.lesson_name,
+      topic_id: group.topic_id,
+      history,
+      trend: summarizeMasteryTrend(history),
+    };
+  });
 }
 
 export interface AttemptQuestionDetail {

@@ -29,6 +29,8 @@ import {
   truncateLessonLabel,
   type LessonStat,
 } from "../lib/lessonStats";
+import { MASTERY_COLOR, summarizeClassRecurringGroups, type RecurringGroupInput } from "../lib/diagnosis";
+import type { TopicTrendGroup } from "../lib/api";
 import { AVATAR_PALETTE, initialsOf } from "../lib/avatar";
 import { resolveTier, TIER_LABELS } from "../lib/studentTier";
 import type { ClassRow, Profile } from "../lib/types";
@@ -83,6 +85,13 @@ export function TeacherDashboard() {
   const [lessonStatsByStudent, setLessonStatsByStudent] = useState<Map<string, LessonStat[]>>(
     new Map(),
   );
+  // Giai đoạn 2 gốc (31/08/2026), mục "cả lớp": chương nào có nhiều học sinh
+  // đang lặp lại lỗi sai qua nhiều đề gần đây — xem summarizeClassRecurringGroups
+  // (diagnosis.ts) + getStudentTopicTrend (api.ts). Tải 1 lần cho mọi học
+  // sinh giống chapterStatsByStudent ở trên, lọc theo lớp bằng useMemo bên dưới.
+  const [topicTrendByStudent, setTopicTrendByStudent] = useState<Map<string, TopicTrendGroup[]>>(
+    new Map(),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadedAt] = useState(() => new Date());
@@ -110,7 +119,7 @@ export function TeacherDashboard() {
         api.listClasses().then(setClasses),
       ]);
       const sevenDaysAgo = new Date(loadedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const [summaryResults, chapterResults, lessonResults] = await Promise.all([
+      const [summaryResults, chapterResults, lessonResults, topicTrendResults] = await Promise.all([
         Promise.all(
           students.map(async (s) => {
             const attempts = (await api.listStudentAttempts(s.id)).filter((a) => a.score);
@@ -127,6 +136,7 @@ export function TeacherDashboard() {
         ),
         Promise.all(students.map((s) => api.getStudentChapterStats(s.id))),
         Promise.all(students.map((s) => api.getStudentLessonStats(s.id))),
+        Promise.all(students.map((s) => api.getStudentTopicTrend(s.id))),
       ]);
       setSummaries(summaryResults);
       const map = new Map<string, ChapterStat[]>();
@@ -135,6 +145,9 @@ export function TeacherDashboard() {
       const lessonMap = new Map<string, LessonStat[]>();
       students.forEach((s, i) => lessonMap.set(s.id, lessonResults[i]));
       setLessonStatsByStudent(lessonMap);
+      const topicTrendMap = new Map<string, TopicTrendGroup[]>();
+      students.forEach((s, i) => topicTrendMap.set(s.id, topicTrendResults[i]));
+      setTopicTrendByStudent(topicTrendMap);
       api
         .getReviewSessionCountSince(sevenDaysAgo)
         .then(setReviewSessionsThisWeek)
@@ -206,6 +219,23 @@ export function TeacherDashboard() {
   const comparisonData = useMemo(
     () => buildComparisonRows(classStats, selectedStats),
     [classStats, selectedStats],
+  );
+
+  // Giai đoạn 2 gốc, mục "cả lớp" — tôn trọng đúng bộ lọc lớp (selectedClassId)
+  // giống classStats ở trên, KHÔNG phụ thuộc selectedId (học sinh đang chọn)
+  // vì đây là tổng quan cả lớp, không phải của riêng 1 học sinh.
+  const classRecurringTopics = useMemo(
+    () =>
+      summarizeClassRecurringGroups(
+        filteredSummaries.map((s): RecurringGroupInput[] =>
+          (topicTrendByStudent.get(s.profile.id) ?? []).map((t) => ({
+            id: t.topic_id,
+            name: t.topic_name,
+            trend: t.trend,
+          })),
+        ),
+      ),
+    [filteredSummaries, topicTrendByStudent],
   );
 
   const totalAttempts = filteredSummaries.reduce((sum, s) => sum + s.attemptCount, 0);
@@ -492,6 +522,38 @@ export function TeacherDashboard() {
             </ResponsiveContainer>
           )}
         </section>
+      </div>
+
+      <div className="hover-card" style={{ marginTop: "var(--space-5)" }}>
+        <h3>Chương yếu lặp lại nhiều đề (cả lớp)</h3>
+        <p className="empty-hint">
+          Với mỗi Chương, tính % học sinh có 2 lần làm bài gần nhất (đủ dữ liệu để chẩn đoán) đều
+          ở mức "Có lỗ hổng kiến thức" hoặc "Có dấu hiệu mất gốc" — gợi ý Chương nào nên ưu tiên
+          dạy ôn tập lại cho {selectedClass ? selectedClass.name : "cả lớp"}. Xem chi tiết lỗi lặp
+          lại theo từng học sinh ở trang "Xem chi tiết" của học sinh đó.
+        </p>
+        {classRecurringTopics.length === 0 ? (
+          <p className="empty-hint">
+            Chưa phát hiện Chương nào bị lặp lại lỗi sai ở nhiều học sinh — dấu hiệu tốt.
+          </p>
+        ) : (
+          <div className="diagnosis-list">
+            {classRecurringTopics.map((t) => (
+              <div key={t.id} className="diagnosis-card">
+                <div className="diagnosis-card-header">
+                  <span>{t.name}</span>
+                  <span className="diagnosis-badge" style={{ background: MASTERY_COLOR.mat_goc }}>
+                    {t.recurringPercent}%
+                  </span>
+                </div>
+                <p className="diagnosis-note">
+                  {t.recurringCount}/{t.studentCount} học sinh có dữ liệu đang lặp lại lỗi sai ở
+                  chương này.
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

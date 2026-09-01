@@ -7,7 +7,13 @@ import {
   diagnoseAllTopics,
   diagnoseTopic,
   DIFFICULTY_ORDER,
+  summarizeClassRecurringGroups,
+  summarizeMasteryTrend,
+  type MasteryHistoryPoint,
+  type MasteryLabel,
   type QuestionOutcome,
+  type RecurringGroupInput,
+  type TopicDiagnosis,
 } from "./diagnosis";
 
 const part1 = (scoreRatio: number, timeSpentSeconds: number, changeCount = 0): QuestionOutcome => ({
@@ -205,5 +211,173 @@ describe("blankQuestionAdvice", () => {
     const advice = blankQuestionAdvice(classifyBlankQuestions(["q1", "q2"], ["q2"]));
     expect(advice).toContain("1 câu chưa kịp xem");
     expect(advice).toContain("1 câu đã xem nhưng bỏ qua");
+  });
+});
+
+/** Dựng nhanh 1 điểm trên chuỗi thời gian mastery mà không cần chạy diagnoseTopic thật
+ * (test summarizeMasteryTrend độc lập với ngưỡng của diagnoseTopic). */
+function mkPoint(
+  label: MasteryLabel,
+  startedAt: string,
+  avgScoreRatio = label === "vung" ? 0.9 : label === "chua_chac_chan" ? 0.85 : label === "co_lo_hong" ? 0.6 : 0.2,
+): MasteryHistoryPoint {
+  const diagnosis: TopicDiagnosis = {
+    label,
+    sampleCount: label === "chua_du_du_lieu" ? 1 : 3,
+    avgScoreRatio,
+    avgTimeRatio: 1,
+    avgChangeCount: 0,
+    possiblyRushed: false,
+  };
+  return { attempt_id: `a-${startedAt}`, started_at: startedAt, exam_title: `Đề ${startedAt}`, diagnosis };
+}
+
+describe("summarizeMasteryTrend", () => {
+  it("history rỗng -> không lặp lại, xu hướng chưa rõ, latestLabel null", () => {
+    const result = summarizeMasteryTrend([]);
+    expect(result).toEqual({
+      isRecurring: false,
+      direction: "chua_ro",
+      latestLabel: null,
+      validPointCount: 0,
+    });
+  });
+
+  it("chỉ toàn 'chua_du_du_lieu' -> không tính là điểm hợp lệ nào", () => {
+    const history = [mkPoint("chua_du_du_lieu", "2026-01-01"), mkPoint("chua_du_du_lieu", "2026-02-01")];
+    const result = summarizeMasteryTrend(history);
+    expect(result.validPointCount).toBe(0);
+    expect(result.latestLabel).toBeNull();
+    expect(result.isRecurring).toBe(false);
+  });
+
+  it("2 lần gần nhất đều yếu (co_lo_hong/mat_goc) -> lặp lại", () => {
+    const history = [
+      mkPoint("vung", "2026-01-01"),
+      mkPoint("co_lo_hong", "2026-02-01"),
+      mkPoint("mat_goc", "2026-03-01"),
+    ];
+    expect(summarizeMasteryTrend(history).isRecurring).toBe(true);
+  });
+
+  it("chỉ 1 trong 2 lần gần nhất yếu -> KHÔNG tính là lặp lại", () => {
+    const history = [
+      mkPoint("co_lo_hong", "2026-01-01"),
+      mkPoint("vung", "2026-02-01"),
+      mkPoint("mat_goc", "2026-03-01"),
+    ];
+    expect(summarizeMasteryTrend(history).isRecurring).toBe(false);
+  });
+
+  it("bỏ qua các điểm 'chua_du_du_lieu' khi xét 2 lần gần nhất", () => {
+    const history = [
+      mkPoint("co_lo_hong", "2026-01-01"),
+      mkPoint("mat_goc", "2026-02-01"),
+      mkPoint("chua_du_du_lieu", "2026-03-01"), // lần này không đủ dữ liệu, không "cứu" được chuỗi lặp lại
+    ];
+    expect(summarizeMasteryTrend(history).isRecurring).toBe(true);
+  });
+
+  it("dưới 3 điểm hợp lệ -> xu hướng luôn 'chua_ro'", () => {
+    const history = [mkPoint("mat_goc", "2026-01-01", 0.2), mkPoint("vung", "2026-02-01", 0.95)];
+    expect(summarizeMasteryTrend(history).direction).toBe("chua_ro");
+  });
+
+  it("điểm nửa sau cao hơn hẳn nửa đầu -> 'cai_thien'", () => {
+    const history = [
+      mkPoint("mat_goc", "2026-01-01", 0.2),
+      mkPoint("co_lo_hong", "2026-02-01", 0.3),
+      mkPoint("chua_chac_chan", "2026-03-01", 0.8),
+      mkPoint("vung", "2026-04-01", 0.9),
+    ];
+    expect(summarizeMasteryTrend(history).direction).toBe("cai_thien");
+  });
+
+  it("điểm nửa sau thấp hơn hẳn nửa đầu -> 'di_xuong'", () => {
+    const history = [
+      mkPoint("vung", "2026-01-01", 0.9),
+      mkPoint("vung", "2026-02-01", 0.85),
+      mkPoint("co_lo_hong", "2026-03-01", 0.4),
+      mkPoint("mat_goc", "2026-04-01", 0.2),
+    ];
+    expect(summarizeMasteryTrend(history).direction).toBe("di_xuong");
+  });
+
+  it("chênh lệch nhỏ (dưới ngưỡng) -> vẫn 'chua_ro', không báo nhầm xu hướng", () => {
+    const history = [
+      mkPoint("chua_chac_chan", "2026-01-01", 0.82),
+      mkPoint("chua_chac_chan", "2026-02-01", 0.85),
+      mkPoint("chua_chac_chan", "2026-03-01", 0.84),
+      mkPoint("chua_chac_chan", "2026-04-01", 0.86),
+    ];
+    expect(summarizeMasteryTrend(history).direction).toBe("chua_ro");
+  });
+
+  it("latestLabel lấy đúng nhãn của lần CÓ đủ dữ liệu gần nhất, bỏ qua chua_du_du_lieu ở cuối", () => {
+    const history = [
+      mkPoint("mat_goc", "2026-01-01"),
+      mkPoint("vung", "2026-02-01"),
+      mkPoint("chua_du_du_lieu", "2026-03-01"),
+    ];
+    expect(summarizeMasteryTrend(history).latestLabel).toBe("vung");
+  });
+
+  it("tích hợp thật với diagnoseTopic (không phải dữ liệu dựng tay) vẫn hoạt động đúng", () => {
+    const weakOutcomes: QuestionOutcome[] = [
+      { part: 1, scoreRatio: 0.1, timeSpentSeconds: 90, changeCount: 0 },
+      { part: 1, scoreRatio: 0.2, timeSpentSeconds: 90, changeCount: 0 },
+    ];
+    const history: MasteryHistoryPoint[] = [
+      { attempt_id: "a1", started_at: "2026-01-01", exam_title: "Đề 1", diagnosis: diagnoseTopic(weakOutcomes) },
+      { attempt_id: "a2", started_at: "2026-02-01", exam_title: "Đề 2", diagnosis: diagnoseTopic(weakOutcomes) },
+    ];
+    const result = summarizeMasteryTrend(history);
+    expect(result.latestLabel).toBe("mat_goc");
+    expect(result.isRecurring).toBe(true);
+  });
+});
+
+describe("summarizeClassRecurringGroups", () => {
+  const weakTrend = summarizeMasteryTrend([
+    mkPoint("co_lo_hong", "2026-01-01"),
+    mkPoint("mat_goc", "2026-02-01"),
+  ]);
+  const okTrend = summarizeMasteryTrend([mkPoint("vung", "2026-01-01"), mkPoint("vung", "2026-02-01")]);
+  const noDataTrend = summarizeMasteryTrend([]);
+
+  it("không có học sinh nào -> mảng rỗng", () => {
+    expect(summarizeClassRecurringGroups([])).toEqual([]);
+  });
+
+  it("bỏ qua nhóm không có học sinh nào lặp lại (recurringCount = 0)", () => {
+    const perStudent: RecurringGroupInput[][] = [
+      [{ id: "t1", name: "Chương 1", trend: okTrend }],
+      [{ id: "t1", name: "Chương 1", trend: okTrend }],
+    ];
+    expect(summarizeClassRecurringGroups(perStudent)).toEqual([]);
+  });
+
+  it("tính đúng % lặp lại và chỉ đếm học sinh có dữ liệu hợp lệ (bỏ qua validPointCount = 0)", () => {
+    const perStudent: RecurringGroupInput[][] = [
+      [{ id: "t1", name: "Chương 1", trend: weakTrend }],
+      [{ id: "t1", name: "Chương 1", trend: weakTrend }],
+      [{ id: "t1", name: "Chương 1", trend: okTrend }],
+      [{ id: "t1", name: "Chương 1", trend: noDataTrend }], // học sinh này chưa có dữ liệu -> không tính vào mẫu số
+    ];
+    const result = summarizeClassRecurringGroups(perStudent);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ id: "t1", studentCount: 3, recurringCount: 2, recurringPercent: 67 });
+  });
+
+  it("sắp theo % lặp lại giảm dần", () => {
+    const perStudent: RecurringGroupInput[][] = [
+      [
+        { id: "low", name: "Chương thấp", trend: weakTrend },
+        { id: "high", name: "Chương cao", trend: weakTrend },
+      ],
+      [{ id: "high", name: "Chương cao", trend: weakTrend }],
+    ];
+    const result = summarizeClassRecurringGroups(perStudent);
+    expect(result.map((r) => r.id)).toEqual(["high", "low"]);
   });
 });

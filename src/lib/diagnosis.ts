@@ -302,3 +302,132 @@ export function blankQuestionAdvice(summary: BlankQuestionSummary): string | nul
   }
   return `${summary.timeoutCount} câu chưa kịp xem (có thể do thiếu thời gian) và ${summary.skippedCount} câu đã xem nhưng bỏ qua (có thể do chưa nắm kiến thức).`;
 }
+
+// ---------------------------------------------------------------------------
+// Giai đoạn 2 gốc (31/08/2026): "dạng lỗi sai lặp lại qua nhiều đề" + "xu
+// hướng tiến bộ qua thời gian" — TÁCH RIÊNG theo từng Chương/Bài, khác với 2
+// thứ đã có sẵn trước đó: `getStudentChapterStats` (chỉ gộp % đúng CỘNG DỒN
+// mọi đề, không tách theo thời gian/không phát hiện lặp lại) và
+// `getAttemptDiagnostics`/`diagnoseTopic` ở trên (chỉ chẩn đoán ĐÚNG 1 lượt
+// làm bài riêng lẻ, không so sánh qua nhiều lượt).
+//
+// Cách làm: chạy LẠI đúng `diagnoseTopic` ở trên cho TỪNG lượt làm bài của
+// học sinh (theo thứ tự thời gian), được 1 "chuỗi" chẩn đoán theo thời gian
+// cho mỗi Chương/Bài — rồi rút ra 2 kết luận:
+//   - "Lặp lại": 2 lần gần nhất CÓ ĐỦ DỮ LIỆU để chẩn đoán (bỏ qua các lần
+//     "chua_du_du_lieu") đều thuộc nhóm yếu (co_lo_hong/mat_goc).
+//   - "Xu hướng": so sánh điểm trung bình nửa đầu và nửa sau các lần có đủ dữ
+//     liệu — cần tối thiểu 3 lần mới đủ để kết luận, tránh nói "đi xuống" chỉ
+//     vì 2 điểm dữ liệu dao động ngẫu nhiên.
+//
+// CỐ TÌNH không lưu kết quả này vào bảng riêng (kiểu "mastery_snapshots") —
+// dữ liệu thô (question_responses) đã lưu đủ để tính lại bất cứ lúc nào,
+// tránh rủi ro dữ liệu snapshot bị lệch với dữ liệu gốc theo thời gian, và
+// giữ đúng triết lý "hàm thuần, không phụ thuộc DB" của cả file này.
+// ---------------------------------------------------------------------------
+
+/** 1 lượt làm bài đã được chẩn đoán cho 1 Chương/Bài cụ thể — 1 điểm trên
+ * "chuỗi thời gian" mastery của Chương/Bài đó. */
+export interface MasteryHistoryPoint {
+  attempt_id: string;
+  started_at: string;
+  exam_title: string;
+  diagnosis: TopicDiagnosis;
+}
+
+export type TrendDirection = "cai_thien" | "di_xuong" | "chua_ro";
+
+export const TREND_DIRECTION_LABEL: Record<TrendDirection, string> = {
+  cai_thien: "Đang cải thiện",
+  di_xuong: "Có dấu hiệu đi xuống",
+  chua_ro: "Chưa đủ dữ liệu để thấy rõ xu hướng",
+};
+
+export interface MasteryTrendSummary {
+  /** true nếu 2 lần gần nhất có đủ dữ liệu để chẩn đoán đều ở mức yếu (co_lo_hong/mat_goc) — lỗi sai LẶP LẠI qua nhiều đề. */
+  isRecurring: boolean;
+  direction: TrendDirection;
+  /** Nhãn của lần gần nhất CÓ đủ dữ liệu — null nếu chưa lần nào đủ dữ liệu. */
+  latestLabel: MasteryLabel | null;
+  /** Số lần làm bài có đủ dữ liệu để chẩn đoán (đã loại "chua_du_du_lieu") — dùng làm ngưỡng tin cậy khi hiển thị. */
+  validPointCount: number;
+}
+
+const RECURRING_WEAK_LABELS: MasteryLabel[] = ["co_lo_hong", "mat_goc"];
+const TREND_MIN_VALID_POINTS = 3;
+/** Chênh lệch scoreRatio tối thiểu (0-1) giữa nửa đầu/nửa sau để coi là 1 xu hướng thật, không phải dao động ngẫu nhiên. */
+const TREND_DIFF_THRESHOLD = 0.1;
+
+/** `history` phải đã sắp theo `started_at` TĂNG DẦN (cũ -> mới). */
+export function summarizeMasteryTrend(history: MasteryHistoryPoint[]): MasteryTrendSummary {
+  const valid = history.filter((h) => h.diagnosis.label !== "chua_du_du_lieu");
+  const latestLabel = valid.length > 0 ? valid[valid.length - 1].diagnosis.label : null;
+
+  const lastTwo = valid.slice(-2);
+  const isRecurring =
+    lastTwo.length === 2 && lastTwo.every((h) => RECURRING_WEAK_LABELS.includes(h.diagnosis.label));
+
+  let direction: TrendDirection = "chua_ro";
+  if (valid.length >= TREND_MIN_VALID_POINTS) {
+    const mid = Math.floor(valid.length / 2);
+    const avgScoreRatio = (points: MasteryHistoryPoint[]) =>
+      points.reduce((sum, h) => sum + h.diagnosis.avgScoreRatio, 0) / points.length;
+    const diff = avgScoreRatio(valid.slice(mid)) - avgScoreRatio(valid.slice(0, mid));
+    if (diff >= TREND_DIFF_THRESHOLD) direction = "cai_thien";
+    else if (diff <= -TREND_DIFF_THRESHOLD) direction = "di_xuong";
+  }
+
+  return { isRecurring, direction, latestLabel, validPointCount: valid.length };
+}
+
+/** 1 nhóm (1 Chương hoặc 1 Bài) của 1 học sinh, đã có `trend` từ
+ * `summarizeMasteryTrend` — dùng làm đầu vào chung cho
+ * `summarizeClassRecurringGroups` (không phân biệt Chương/Bài ở tầng này). */
+export interface RecurringGroupInput {
+  id: string;
+  name: string;
+  trend: MasteryTrendSummary;
+}
+
+export interface RecurringGroupSummary {
+  id: string;
+  name: string;
+  /** Số học sinh có ít nhất 1 lần chẩn đoán đủ dữ liệu cho nhóm này. */
+  studentCount: number;
+  /** Trong số đó, số học sinh đang bị lặp lại lỗi sai (isRecurring). */
+  recurringCount: number;
+  recurringPercent: number;
+}
+
+/**
+ * Gộp nhiều học sinh thành thống kê "cả lớp": % học sinh đang lặp lại lỗi
+ * sai ở CÙNG 1 Chương/Bài — dùng cho dashboard giáo viên quyết định nên ôn
+ * tập lại phần nào cho cả lớp (mục "cả lớp" bổ sung, Giai đoạn 2 gốc).
+ * CHỈ giữ lại nhóm có ít nhất 1 học sinh đang lặp lại (recurringCount > 0) —
+ * tránh liệt kê dài dòng toàn số 0%. Sắp theo % lặp lại giảm dần.
+ */
+export function summarizeClassRecurringGroups(
+  perStudent: RecurringGroupInput[][],
+): RecurringGroupSummary[] {
+  const map = new Map<string, { name: string; studentCount: number; recurringCount: number }>();
+  for (const groups of perStudent) {
+    for (const g of groups) {
+      if (g.trend.validPointCount === 0) continue;
+      const existing = map.get(g.id) ?? { name: g.name, studentCount: 0, recurringCount: 0 };
+      existing.studentCount += 1;
+      if (g.trend.isRecurring) existing.recurringCount += 1;
+      map.set(g.id, existing);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([id, v]) => ({
+      id,
+      name: v.name,
+      studentCount: v.studentCount,
+      recurringCount: v.recurringCount,
+      recurringPercent: v.studentCount > 0 ? Math.round((v.recurringCount / v.studentCount) * 100) : 0,
+    }))
+    .filter((r) => r.recurringCount > 0)
+    .sort((a, b) => b.recurringPercent - a.recurringPercent || b.recurringCount - a.recurringCount);
+}
+

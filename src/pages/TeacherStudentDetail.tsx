@@ -18,7 +18,7 @@ import {
   RadarChart,
 } from "recharts";
 import * as api from "../lib/api";
-import type { AttemptDiagnostics, AttemptReviewItem } from "../lib/api";
+import type { AttemptDiagnostics, AttemptReviewItem, LessonTrendGroup, TopicTrendGroup } from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
 import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
 import { QuestionReview } from "../components/QuestionReview";
@@ -27,6 +27,7 @@ import {
   MASTERY_COLOR,
   MASTERY_LABELS,
   MASTERY_NOTE,
+  TREND_DIRECTION_LABEL,
   type BlankQuestionSummary,
 } from "../lib/diagnosis";
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
@@ -105,6 +106,14 @@ export function TeacherStudentDetail() {
   const [chapterStats, setChapterStats] = useState<
     { chapter_name: string; accuracyPercent: number }[]
   >([]);
+  // Giai đoạn 2 gốc (31/08/2026): lỗi sai lặp lại qua nhiều đề + xu hướng
+  // theo thời gian, TÁCH theo Chương/Bài — xem getStudentTopicTrend/
+  // getStudentLessonTrend (api.ts) + summarizeMasteryTrend (diagnosis.ts).
+  // Khác hẳn `chapterStats` ở trên (chỉ gộp % CỘNG DỒN, không có chiều
+  // thời gian/không phát hiện lặp lại).
+  const [topicTrend, setTopicTrend] = useState<TopicTrendGroup[]>([]);
+  const [lessonTrend, setLessonTrend] = useState<LessonTrendGroup[]>([]);
+  const [openTrendTopicId, setOpenTrendTopicId] = useState<string | null>(null);
   // Cột/Radar toggle cho biểu đồ năng lực theo chương — cùng cơ chế với
   // TeacherDashboard.tsx (nâng cấp giao diện dashboard, đợt demo đã duyệt).
   const [chapterView, setChapterView] = useState<"cot" | "radar">("cot");
@@ -142,10 +151,14 @@ export function TeacherStudentDetail() {
   useEffect(() => {
     if (!studentId) return;
     (async () => {
-      const [attemptsData, stats] = await Promise.all([
+      const [attemptsData, stats, topicTrendData, lessonTrendData] = await Promise.all([
         api.listStudentAttempts(studentId),
         api.getStudentChapterStats(studentId),
+        api.getStudentTopicTrend(studentId),
+        api.getStudentLessonTrend(studentId),
       ]);
+      setTopicTrend(topicTrendData);
+      setLessonTrend(lessonTrendData);
       const scoredAttempts = attemptsData.filter((a) => a.score);
       setAttempts(scoredAttempts);
       setChapterStats(
@@ -340,6 +353,13 @@ export function TeacherStudentDetail() {
       ? attempts.reduce((sum, a) => sum + a.score!.total_score, 0) / attempts.length
       : null;
   const { tier, isOverride } = resolveTier(profile?.manual_tier ?? null, averageScoreForTier);
+
+  // Giai đoạn 2 gốc: chỉ giữ lại Chương đang thực sự "lặp lại" lỗi sai (2 lần
+  // gần nhất có đủ dữ liệu đều yếu) — tránh liệt kê dài dòng mọi chương từng
+  // học qua. Sắp Chương có nhiều dữ liệu hơn lên trước (đáng tin cậy hơn).
+  const recurringTopics = topicTrend
+    .filter((t) => t.trend.isRecurring)
+    .sort((a, b) => b.trend.validPointCount - a.trend.validPointCount);
 
   return (
     <div className="teacher-page">
@@ -736,6 +756,81 @@ export function TeacherStudentDetail() {
               <Bar dataKey="accuracyPercent" fill="#9c1420" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        )}
+      </section>
+
+      <section>
+        <h3>Lỗi lặp lại &amp; xu hướng theo Chương</h3>
+        <p className="empty-hint">
+          Chỉ liệt kê Chương mà 2 lần làm bài gần nhất có đủ dữ liệu để chẩn đoán (từ 2 câu thuộc
+          Chương đó trở lên trong 1 đề) đều ở mức "Có lỗ hổng kiến thức" hoặc "Có dấu hiệu mất gốc"
+          — tức lỗi sai LẶP LẠI qua nhiều đề, không phải lỡ sai 1 lần. Xu hướng so sánh điểm trung
+          bình nửa đầu và nửa sau các lần có đủ dữ liệu, cần ít nhất 3 lần mới đủ để kết luận.
+        </p>
+        {recurringTopics.length === 0 ? (
+          <p className="empty-hint">
+            Không có Chương nào lặp lại lỗi sai ở 2 lần làm bài gần nhất — dấu hiệu tốt.
+          </p>
+        ) : (
+          <div className="diagnosis-list">
+            {recurringTopics.map((t) => {
+              const isOpen = openTrendTopicId === t.topic_id;
+              const lessonsInTopic = lessonTrend.filter(
+                (l) => l.topic_id === t.topic_id && l.trend.isRecurring,
+              );
+              return (
+                <div key={t.topic_id} className="diagnosis-card">
+                  <div
+                    className="diagnosis-card-header"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setOpenTrendTopicId(isOpen ? null : t.topic_id)}
+                  >
+                    <span>{t.topic_name}</span>
+                    {t.trend.latestLabel && (
+                      <span
+                        className="diagnosis-badge"
+                        style={{ background: MASTERY_COLOR[t.trend.latestLabel] }}
+                      >
+                        {MASTERY_LABELS[t.trend.latestLabel]}
+                      </span>
+                    )}
+                  </div>
+                  <p className="diagnosis-note">
+                    {TREND_DIRECTION_LABEL[t.trend.direction]} · đã tính trên {t.trend.validPointCount}{" "}
+                    lần làm bài có đủ dữ liệu
+                    {lessonsInTopic.length > 0 &&
+                      ` · bấm để xem ${lessonsInTopic.length} Bài lặp lại lỗi trong chương này`}
+                  </p>
+                  {isOpen && lessonsInTopic.length > 0 && (
+                    <div className="diagnosis-list" style={{ marginTop: 8, paddingLeft: 12 }}>
+                      {lessonsInTopic.map((l) => (
+                        <div key={l.lesson_id} className="diagnosis-card">
+                          <div className="diagnosis-card-header">
+                            <span>{l.lesson_name}</span>
+                            {l.trend.latestLabel && (
+                              <span
+                                className="diagnosis-badge"
+                                style={{ background: MASTERY_COLOR[l.trend.latestLabel] }}
+                              >
+                                {MASTERY_LABELS[l.trend.latestLabel]}
+                              </span>
+                            )}
+                          </div>
+                          <p className="diagnosis-note">{TREND_DIRECTION_LABEL[l.trend.direction]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isOpen && lessonsInTopic.length === 0 && (
+                    <p className="empty-hint" style={{ marginTop: 8 }}>
+                      Chưa có Bài cụ thể nào trong chương này lặp lại lỗi (có thể do câu hỏi chưa
+                      được gán Bài, hoặc lỗi rải đều nhiều Bài khác nhau).
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
