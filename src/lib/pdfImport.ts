@@ -32,6 +32,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { joinTextItems } from "./pdfTextLayout";
+import { nowMs, type ImportBenchmarkRecorder } from "./importBenchmark";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
@@ -63,10 +64,18 @@ export interface RenderPdfOptions {
   maxWidthPx?: number;
 }
 
-/** Render toàn bộ trang của 1 file PDF thành danh sách ảnh + văn bản thật, theo đúng thứ tự trang. */
+/**
+ * Render toàn bộ trang của 1 file PDF thành danh sách ảnh + văn bản thật, theo
+ * đúng thứ tự trang.
+ *
+ * `benchmark` (PHASE 0, thêm 01/09/2026 — xem importBenchmark.ts): tham số
+ * OPTIONAL, chỉ dùng để đo đạc hiệu năng khi Thầy Tường tự bật debug — không
+ * truyền gì thì hàm chạy y hệt trước đây, không có rủi ro đổi hành vi.
+ */
 export async function renderPdfToImages(
   file: File,
   opts: RenderPdfOptions = {},
+  benchmark?: ImportBenchmarkRecorder,
 ): Promise<PdfPageImage[]> {
   const {
     scale = 1.2,
@@ -76,8 +85,10 @@ export async function renderPdfToImages(
     maxWidthPx = 1100,
   } = opts;
 
+  const pdfLoadStart = nowMs();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  benchmark?.recordPdfLoad(nowMs() - pdfLoadStart);
   const pageCount = Math.min(pdf.numPages, maxPages);
   const images: PdfPageImage[] = [];
 
@@ -94,12 +105,24 @@ export async function renderPdfToImages(
       throw new Error("Trình duyệt không hỗ trợ canvas để render PDF.");
     }
     // pdf.js v6 yêu cầu truyền cả canvas lẫn canvasContext.
+    const renderStart = nowMs();
     await page.render({ canvas, canvasContext: context, viewport }).promise;
     const dataUrl = canvas.toDataURL(mimeType, quality);
     const dataBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const renderMs = nowMs() - renderStart;
 
+    const textExtractStart = nowMs();
     const textContent = await page.getTextContent();
     const pageText = joinTextItems(textContent.items as TextItem[]);
+    const textExtractMs = nowMs() - textExtractStart;
+
+    benchmark?.recordPage({
+      pageNumber,
+      renderMs,
+      textExtractMs,
+      // ~bytes thật của ảnh sau khi giải mã base64 (mỗi 4 ký tự base64 ≈ 3 byte) — chỉ để so sánh tương đối giữa các lần đo, không cần chính xác tuyệt đối.
+      imagePayloadBytes: Math.ceil((dataBase64.length * 3) / 4),
+    });
 
     images.push({ pageNumber, mimeType, dataBase64, pageText });
   }

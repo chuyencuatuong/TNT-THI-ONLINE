@@ -11,6 +11,13 @@ import type { Lesson, Topic } from "./types";
 import type { ExtractedImage } from "./wordImport";
 import { chunkArray } from "./chunk";
 import { mapWithConcurrency } from "./concurrency";
+import {
+  nowMs,
+  resolveThinkingLevel,
+  type GeminiCallMetric,
+  type ImportBenchmarkRecorder,
+  type ThinkingLevel,
+} from "./importBenchmark";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
   | string
@@ -51,6 +58,23 @@ const GEMINI_MODEL =
 const GEMINI_FALLBACK_MODEL =
   (import.meta.env.VITE_GEMINI_FALLBACK_MODEL as string | undefined) ||
   "gemini-3.6-flash";
+
+/**
+ * PHASE 0 (thêm 01/09/2026) — biến môi trường TUỲ CHỌN để so sánh latency/độ
+ * chính xác khi hạ mức "suy luận" (thinking) của Gemini. Phát hiện thật trong
+ * phiên audit: `gemini-3.7-flash` là model có thinking mode — 1 yêu cầu JSON
+ * cực đơn giản đã tốn 154/183 token (84%) cho thinking
+ * (`usageMetadata.thoughtsTokenCount`), khả năng cao chiếm phần lớn latency
+ * 20-40s/đợt đã ghi nhận trước đây. Không set biến này → KHÔNG gửi field
+ * `thinkingConfig` lên Gemini, giữ nguyên hành vi mặc định hiện tại (Google tự
+ * chọn mức mặc định, hiện là "medium" theo tài liệu). Chỉ set khi chủ động
+ * muốn đo so sánh — xem audit-pdf-import-engine-v2-vong2.md mục K/Phase 0.
+ * Lưu ý đã tra cứu: dòng Gemini 3 Flash KHÔNG hỗ trợ tắt hẳn thinking (khác
+ * dòng 2.5 dùng `thinkingBudget=0`), giá trị thấp nhất gửi được là "low".
+ */
+const GEMINI_THINKING_LEVEL: ThinkingLevel | null = resolveThinkingLevel(
+  import.meta.env.VITE_GEMINI_THINKING_LEVEL as string | undefined,
+);
 
 function geminiEndpoint(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -115,6 +139,19 @@ interface GeminiCallResult {
    * hơn hoặc tăng maxOutputTokens, còn sai định dạng thường do AI quên escape).
    */
   truncated?: boolean;
+  /**
+   * PHASE 0 (thêm 01/09/2026) — số liệu benchmark của ĐÚNG lần gọi HTTP này
+   * (không tính retry/fallback khác, mỗi lần đó tự trả usage riêng). null khi
+   * lỗi xảy ra trước khi có response (network/timeout) — Google không trả
+   * usageMetadata trong trường hợp đó. Không ảnh hưởng luồng xử lý JSON hiện
+   * có (chỉ đọc thêm field sẵn có trong response, không đổi field text/truncated).
+   */
+  usage?: {
+    promptTokenCount: number | null;
+    candidatesTokenCount: number | null;
+    totalTokenCount: number | null;
+    thoughtsTokenCount: number | null;
+  } | null;
 }
 
 /**
@@ -132,19 +169,43 @@ async function callGeminiPartsDetailed(
   model: string = GEMINI_MODEL,
   maxAttemptsForModel: number = GEMINI_MAX_ATTEMPTS,
   isFallback = false,
+  /** PHASE 0 (thêm 01/09/2026) — optional, chỉ để ghi benchmark. Không truyền gì thì hành vi y hệt trước đây. */
+  benchmark?: ImportBenchmarkRecorder,
+  benchmarkLabel?: string,
 ): Promise<GeminiCallResult> {
   if (!GEMINI_API_KEY) {
     return { text: null, errorMessage: "Thiếu VITE_GEMINI_API_KEY — chưa cấu hình API key cho AI." };
   }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  const attemptStart = nowMs();
+  /** Ghi 1 dòng benchmark cho ĐÚNG lần gọi HTTP này (không phải cho toàn bộ chuỗi retry/fallback) — gọi ở mọi điểm return bên dưới. */
+  function recordAttempt(ok: boolean, usage: GeminiCallResult["usage"]): void {
+    if (!benchmark) return;
+    benchmark.recordGeminiCall({
+      label: `${benchmarkLabel ?? "call"}-attempt${attempt}${isFallback ? "-fallback" : ""}`,
+      model,
+      roundTripMs: nowMs() - attemptStart,
+      ok,
+      thinkingLevelRequested: GEMINI_THINKING_LEVEL,
+      promptTokenCount: usage?.promptTokenCount ?? null,
+      candidatesTokenCount: usage?.candidatesTokenCount ?? null,
+      totalTokenCount: usage?.totalTokenCount ?? null,
+      thoughtsTokenCount: usage?.thoughtsTokenCount ?? null,
+    } satisfies GeminiCallMetric);
+  }
   try {
     const res = await fetch(`${geminiEndpoint(model)}?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts }],
-        generationConfig: { temperature: 0.2, maxOutputTokens },
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens,
+          // GEMINI_THINKING_LEVEL = null (mặc định, chưa set biến môi trường) → KHÔNG thêm field này, giữ nguyên hành vi hiện tại.
+          ...(GEMINI_THINKING_LEVEL ? { thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL } } : {}),
+        },
       }),
       signal: controller.signal,
     });
@@ -163,9 +224,10 @@ async function callGeminiPartsDetailed(
       const serverOverload = res.status === 503 || res.status >= 500;
       const quotaExhausted = res.status === 429;
       const retriableSameModel = serverOverload && attempt < maxAttemptsForModel;
+      recordAttempt(false, null);
       if (retriableSameModel) {
         await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] ?? 8000);
-        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback, benchmark, benchmarkLabel);
       }
       if (!isFallback && (serverOverload || quotaExhausted) && model !== GEMINI_FALLBACK_MODEL) {
         console.warn(`Model "${model}" ${quotaExhausted ? "hết hạn mức/ngày" : "quá tải"} sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
@@ -176,6 +238,8 @@ async function callGeminiPartsDetailed(
           GEMINI_FALLBACK_MODEL,
           GEMINI_FALLBACK_MAX_ATTEMPTS,
           true,
+          benchmark,
+          benchmarkLabel,
         );
       }
       const base = describeGeminiHttpError(res.status);
@@ -192,21 +256,36 @@ async function callGeminiPartsDetailed(
     // "MAX_TOKENS" = Gemini dừng sinh chữ giữa chừng vì chạm giới hạn
     // maxOutputTokens gửi lên — xem GeminiCallResult.truncated ở trên.
     const truncated = candidate?.finishReason === "MAX_TOKENS";
+    // PHASE 0 (thêm 01/09/2026) — usageMetadata.thoughtsTokenCount là phát
+    // hiện thật trong phiên audit (xem const GEMINI_THINKING_LEVEL ở trên):
+    // trường này TỒN TẠI sẵn trong response nhưng CHƯA từng được đọc ở đây.
+    const usage: GeminiCallResult["usage"] = json?.usageMetadata
+      ? {
+          promptTokenCount: json.usageMetadata.promptTokenCount ?? null,
+          candidatesTokenCount: json.usageMetadata.candidatesTokenCount ?? null,
+          totalTokenCount: json.usageMetadata.totalTokenCount ?? null,
+          thoughtsTokenCount: json.usageMetadata.thoughtsTokenCount ?? null,
+        }
+      : null;
     if (!text?.trim()) {
+      recordAttempt(false, usage);
       if (truncated) {
         return {
           text: null,
           errorMessage: "AI bị dừng ngang do vượt giới hạn độ dài phản hồi (MAX_TOKENS) trước khi viết được nội dung nào — đợt này có thể quá dài, thử lại sau hoặc chia nhỏ hơn.",
           truncated: true,
+          usage,
         };
       }
-      return { text: null, errorMessage: "AI trả lời rỗng, không có nội dung để đọc." };
+      return { text: null, errorMessage: "AI trả lời rỗng, không có nội dung để đọc.", usage };
     }
-    return { text: text.trim(), errorMessage: null, truncated };
+    recordAttempt(true, usage);
+    return { text: text.trim(), errorMessage: null, truncated, usage };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
+      recordAttempt(false, null);
       if (attempt < maxAttemptsForModel) {
-        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback);
+        return callGeminiPartsDetailed(parts, maxOutputTokens, attempt + 1, model, maxAttemptsForModel, isFallback, benchmark, benchmarkLabel);
       }
       if (!isFallback && model !== GEMINI_FALLBACK_MODEL) {
         console.warn(`Model "${model}" liên tục timeout sau ${attempt} lần thử — tự chuyển sang model dự phòng "${GEMINI_FALLBACK_MODEL}".`);
@@ -217,6 +296,8 @@ async function callGeminiPartsDetailed(
           GEMINI_FALLBACK_MODEL,
           GEMINI_FALLBACK_MAX_ATTEMPTS,
           true,
+          benchmark,
+          benchmarkLabel,
         );
       }
       return {
@@ -224,6 +305,7 @@ async function callGeminiPartsDetailed(
         errorMessage: `Gọi AI quá ${GEMINI_TIMEOUT_MS / 1000}s không có phản hồi (đã thử lại ${maxAttemptsForModel} lần${isFallback ? " với model dự phòng" : ""}) — có thể do mạng chậm hoặc ảnh gửi lên quá nặng.`,
       };
     }
+    recordAttempt(false, null);
     console.error("Gọi Gemini thất bại:", err);
     return { text: null, errorMessage: "Lỗi kết nối mạng khi gọi AI — kiểm tra lại internet rồi thử lại." };
   } finally {
@@ -771,6 +853,11 @@ export async function parseExamFromImages(
   pageNumbers?: number[],
   topics: Topic[] = [],
   lessons: Lesson[] = [],
+  // PHASE 0 (01/09/2026) — 2 tham số OPTIONAL cuối, chỉ dùng để đo benchmark
+  // khi Thầy Tường tự bật debug (xem importBenchmark.ts). Không truyền gì thì
+  // hàm chạy y hệt trước đây.
+  benchmark?: ImportBenchmarkRecorder,
+  benchmarkLabel?: string,
 ): Promise<ParsedExam> {
   const parts: GeminiPart[] = [{ text: buildExamParseFromImagesPrompt(topics, lessons) }];
   pageImages.forEach((img, i) => {
@@ -790,13 +877,24 @@ export async function parseExamFromImages(
   // mất trắng cả đợt dù nội dung AI đọc được thực ra đúng. Cả 2 model đều hỗ
   // trợ tới 65536 token/lượt trả lời nên còn nhiều dư địa để nâng thêm nếu
   // vẫn gặp lại.
-  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(parts, 16384);
+  const { text: raw, errorMessage, truncated } = await callGeminiPartsDetailed(
+    parts,
+    16384,
+    1,
+    GEMINI_MODEL,
+    GEMINI_MAX_ATTEMPTS,
+    false,
+    benchmark,
+    benchmarkLabel,
+  );
   if (!raw) {
     return emptyParsedExamWithError(pageNumbers, errorMessage ?? "AI không trả lời.");
   }
 
   try {
+    const jsonParseStart = nowMs();
     const parsed = extractJsonBlock(raw) as Partial<ParsedExam>;
+    benchmark?.recordJsonParse(nowMs() - jsonParseStart);
     return {
       part1: Array.isArray(parsed.part1) ? parsed.part1 : [],
       part2: Array.isArray(parsed.part2) ? parsed.part2 : [],
@@ -902,6 +1000,8 @@ export async function parseExamFromPdfPages(
   topics: Topic[] = [],
   lessons: Lesson[] = [],
   previousResults?: (ParsedExam | undefined)[],
+  // PHASE 0 (01/09/2026) — optional, chỉ để ghi benchmark (xem importBenchmark.ts). Không truyền gì thì chạy y hệt trước đây.
+  benchmark?: ImportBenchmarkRecorder,
 ): Promise<ParseFromPdfResult> {
   const pageNumberChunks = chunkArray(
     pageImages.map((_, i) => i + 1),
@@ -914,7 +1014,7 @@ export async function parseExamFromPdfPages(
   const results = await mapWithConcurrency(imageChunks, PDF_CHUNK_CONCURRENCY, async (chunk, i) => {
     let r: ParsedExam;
     if (retryPlan[i]) {
-      r = await parseExamFromImages(chunk, pageNumberChunks[i], topics, lessons);
+      r = await parseExamFromImages(chunk, pageNumberChunks[i], topics, lessons, benchmark, `batch-${i + 1}`);
     } else {
       // planChunkRetries chỉ trả false khi previousResults[i] tồn tại VÀ đã
       // thành công ở lần gọi trước — an toàn tái sử dụng, không gọi lại AI.
