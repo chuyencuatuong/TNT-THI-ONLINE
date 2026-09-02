@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { extractDocx } from "../lib/wordImport";
+import { extractTexTitle, parseExamFromTex } from "../lib/texImport";
 import {
   classifyExamQuestions,
   matchLessonByName,
@@ -691,6 +692,39 @@ export function TeacherExamImport() {
     }
   }
 
+  /**
+   * Cách nhập MỚI (02/09/2026): đọc file .tex theo khuôn mẫu cố định — xem
+   * docs/quy-uoc-nhap-de-tex.md. KHÔNG gọi AI ở bước này (AI đã "tex hoá" đề
+   * ở 1 bước riêng NGOÀI web, bằng Gem Gemini theo Instructions đã soạn sẵn)
+   * — nên đọc gần như tức thì, không phụ thuộc hạn mức/quá tải của Gemini,
+   * và tránh hẳn các lỗi từng gặp ở pipeline PDF (nhãn đáp án lẫn vào "Lời
+   * giải", pdf.js tách chữ...) vì không có bước trích xuất text từ ảnh nào cả.
+   */
+  function handleTexSelected(file: File) {
+    setError(null);
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      if (!text.trim()) {
+        setError("File .tex rỗng hoặc không đọc được nội dung.");
+        return;
+      }
+      const parsed = parseExamFromTex(text);
+      if (parsed.part1.length + parsed.part2.length + parsed.part3.length === 0) {
+        setError(
+          "Không đọc được câu hỏi nào từ file .tex này — kiểm tra lại đúng khuôn mẫu (xem docs/quy-uoc-nhap-de-tex.md), hoặc xem cảnh báo bên dưới.",
+        );
+        setWarnings(parsed.warnings);
+        return;
+      }
+      const suggestedTitle = extractTexTitle(text) ?? file.name.replace(/\.tex$/i, "");
+      loadParsed(parsed, suggestedTitle);
+    };
+    reader.onerror = () => setError("Có lỗi khi đọc file .tex. Hãy thử tải lại file rồi chọn lại.");
+    reader.readAsText(file, "utf-8");
+  }
+
   function handlePasteJsonSubmit() {
     setError(null);
     try {
@@ -918,6 +952,31 @@ export function TeacherExamImport() {
           />
           {fileName && <span className="empty-hint">Đã chọn: {fileName}</span>}
         </div>
+
+        <details style={{ marginTop: 20 }} open>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+            Nhanh hơn: tải file .tex đã "tex hoá" sẵn bằng AI (mới)
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            <p className="ai-hint">
+              Nếu đề đã được chuyển sang định dạng <code>.tex</code> theo đúng khuôn mẫu (vd bằng 1
+              Gem Gemini riêng, xem docs/gem-instructions-tex-hoa-de.md) — web đọc thẳng file này,
+              KHÔNG gọi AI, gần như tức thì, và không bị ảnh hưởng bởi hạn mức/quá tải của Gemini.
+              Vẫn cần xem lại và xác nhận từng câu ở bước tiếp theo như mọi cách nhập khác.
+            </p>
+            <div className="form-row">
+              <label>Chọn file .tex</label>
+              <input
+                type="file"
+                accept=".tex"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleTexSelected(f);
+                }}
+              />
+            </div>
+          </div>
+        </details>
 
         <details style={{ marginTop: 28 }}>
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>Cách khác</summary>
