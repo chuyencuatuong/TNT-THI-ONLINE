@@ -387,39 +387,56 @@ export function TeacherExamImport() {
   }
 
   /**
-   * (Thêm 01/09/2026, việc #4 trong kế hoạch cải tiến) Gợi ý Chương/Bài chạy
-   * NỀN, gọi NGAY SAU KHI màn xem trước đã hiện ra (không chặn loadParsed) —
-   * xem lý do đầy đủ ở classifyExamQuestions() trong ai.ts. Nhận vào ĐÚNG
-   * danh sách vừa tạo (không đọc lại từ state, vì setState là bất đồng bộ)
-   * để biết chính xác id/nội dung từng câu cần phân loại.
+   * ĐỔI 01/09/2026 (theo yêu cầu Thầy Tường — không tự chạy nền nữa, tách
+   * hẳn thành nút bấm riêng ở màn "Xem trước & xác nhận"): trước đây gọi tự
+   * động ngay sau loadParsed, giờ giáo viên chủ động bấm khi cần — vd đề đã
+   * tự chọn Chương/Bài tay xong không cần tốn thêm lượt gọi AI, hoặc muốn
+   * bấm lại sau khi sửa câu hỏi. Đọc THẲNG state hiện tại (part1/part2/part3)
+   * tại thời điểm bấm, không phải bản snapshot lúc mới tạo.
    *
-   * AN TOÀN: chỉ ghi kết quả vào câu nào topic_id VẪN CÒN null tại thời điểm
-   * kết quả về — nếu giáo viên đã lỡ tự chọn chương trong lúc chờ AI trả lời
-   * (vài giây), lựa chọn thủ công đó KHÔNG bị ghi đè.
+   * AN TOÀN (giữ nguyên như bản chạy nền cũ): chỉ ghi kết quả vào câu nào
+   * topic_id VẪN CÒN null — không ghi đè Chương/Bài Thầy đã tự chọn tay.
    */
-  async function runBackgroundClassification(loaded: { part1: EditableP1[]; part2: EditableP2[]; part3: EditableP3[] }) {
-    const items: QuestionClassificationInput[] = [
-      ...loaded.part1.map((q) => ({ id: `p1:${q.id}`, content_latex: q.content_latex })),
-      ...loaded.part2.map((q) => ({ id: `p2:${q.id}`, content_latex: q.content_latex })),
-      ...loaded.part3.map((q) => ({ id: `p3:${q.id}`, content_latex: q.content_latex })),
-    ];
-    if (items.length === 0) return;
+  const [classifyingChapters, setClassifyingChapters] = useState(false);
+  const [classifyStatus, setClassifyStatus] = useState<string | null>(null);
 
+  async function handleClassifyChapters() {
+    const items: QuestionClassificationInput[] = [
+      ...part1.map((q) => ({ id: `p1:${q.id}`, content_latex: q.content_latex })),
+      ...part2.map((q) => ({ id: `p2:${q.id}`, content_latex: q.content_latex })),
+      ...part3.map((q) => ({ id: `p3:${q.id}`, content_latex: q.content_latex })),
+    ];
+    if (items.length === 0) {
+      setClassifyStatus("Chưa có câu hỏi nào để phân loại.");
+      return;
+    }
+    if (topics.length === 0) {
+      setClassifyStatus("Chưa có Chương nào trong hệ thống để gợi ý — vào Ngân hàng câu hỏi tạo Chương trước.");
+      return;
+    }
+
+    setClassifyingChapters(true);
+    setClassifyStatus(null);
     let results: QuestionClassificationResult[];
     try {
       results = await classifyExamQuestions(items, topics, lessons);
     } catch (err) {
-      // Lỗi ở gợi ý nền KHÔNG được làm hỏng màn xem trước đã hiện sẵn — giáo
-      // viên vẫn tự chọn Chương/Bài bình thường, chỉ mất phần gợi ý AI.
-      console.error("Gợi ý Chương/Bài chạy nền bị lỗi (không ảnh hưởng câu hỏi đã đọc):", err);
+      console.error("Phân loại Chương/Bài bằng AI bị lỗi:", err);
+      setClassifyStatus("Có lỗi khi gọi AI phân loại — thử lại, hoặc tự chọn Chương/Bài từng câu bên dưới.");
+      setClassifyingChapters(false);
       return;
     }
-    if (results.length === 0) return;
+    setClassifyingChapters(false);
+
+    if (results.length === 0) {
+      setClassifyStatus("AI không gợi ý được Chương/Bài nào — kiểm tra lại danh sách Chương đã tạo, hoặc tự chọn thủ công.");
+      return;
+    }
     const byId = new Map(results.map((r) => [r.id, r]));
 
     // Gộp thêm các chương AI vừa gợi ý vào danh sách "Chương đề bao phủ" —
     // CHỈ THÊM (không bao giờ tự bỏ), để không xoá mất lựa chọn giáo viên đã
-    // tự tick/bỏ tick tay trong lúc chờ kết quả.
+    // tự tick/bỏ tick tay từ trước.
     const newlySuggestedTopicIds = results
       .map((r) => matchTopicByName(r.topic_name, topics))
       .filter((id): id is string => !!id);
@@ -443,9 +460,33 @@ export function TeacherExamImport() {
       };
     }
 
-    setPart1((prev) => prev.map((q) => applySuggestion("p1", q)));
-    setPart2((prev) => prev.map((q) => applySuggestion("p2", q)));
-    setPart3((prev) => prev.map((q) => applySuggestion("p3", q)));
+    let appliedCount = 0;
+    setPart1((prev) =>
+      prev.map((q) => {
+        const next = applySuggestion("p1", q);
+        if (next !== q) appliedCount += 1;
+        return next;
+      }),
+    );
+    setPart2((prev) =>
+      prev.map((q) => {
+        const next = applySuggestion("p2", q);
+        if (next !== q) appliedCount += 1;
+        return next;
+      }),
+    );
+    setPart3((prev) =>
+      prev.map((q) => {
+        const next = applySuggestion("p3", q);
+        if (next !== q) appliedCount += 1;
+        return next;
+      }),
+    );
+    setClassifyStatus(
+      appliedCount > 0
+        ? `Đã gán gợi ý Chương/Bài cho ${appliedCount} câu (câu đã tự chọn tay từ trước được giữ nguyên).`
+        : "AI có phản hồi nhưng không có câu nào cần gán thêm (mọi câu đã có Chương từ trước, hoặc không khớp Chương nào).",
+    );
   }
 
   function loadParsed(parsed: ParsedExam, suggestedTitle?: string) {
@@ -454,9 +495,12 @@ export function TeacherExamImport() {
     setPart2(withLocalIds.part2);
     setPart3(withLocalIds.part3);
     setWarnings(parsed.warnings);
+    setClassifyStatus(null);
     if (suggestedTitle && !title) setTitle(suggestedTitle);
     // Gợi ý sẵn "Chương mà đề bao phủ" = hợp các chương AI đã gợi ý cho từng
-    // câu — giáo viên xem lại/đổi ở bước xem trước, không tự động chốt.
+    // câu (nếu có) — giáo viên xem lại/đổi ở bước xem trước, không tự động
+    // chốt. Phân loại Chương/Bài giờ KHÔNG còn tự chạy ở đây nữa — xem nút
+    // "Quét & gợi ý Chương/Bài bằng AI" ở màn xem trước (handleClassifyChapters).
     const suggested = new Set(
       [...withLocalIds.part1, ...withLocalIds.part2, ...withLocalIds.part3]
         .map((q) => q.topic_id)
@@ -464,10 +508,6 @@ export function TeacherExamImport() {
     );
     setSelectedExamTopicIds(suggested);
     setStage("review");
-    // Không chặn ở đây (không await) — màn xem trước hiện NGAY với câu hỏi/
-    // công thức/đáp án đã đọc xong; gợi ý Chương/Bài sẽ tự điền vào sau vài
-    // giây khi có kết quả, giáo viên vẫn xem/sửa được bình thường trong lúc chờ.
-    void runBackgroundClassification(withLocalIds);
   }
 
   /**
@@ -1310,7 +1350,20 @@ export function TeacherExamImport() {
       <div className="hover-card section-card">
         <div className="section-card-head">
           <h3>Chương & phân loại</h3>
-          <div className="section-card-head-sub">AI đã gợi ý sẵn theo nội dung từng câu — xem lại trước khi xuất bản</div>
+          <div className="section-card-head-sub">
+            Bấm để AI quét toàn bộ câu hỏi và tự gán gợi ý Chương/Bài — câu nào Thầy đã tự chọn tay sẽ được giữ nguyên.
+          </div>
+        </div>
+        <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleClassifyChapters}
+            disabled={classifyingChapters}
+          >
+            {classifyingChapters ? "Đang phân loại..." : "🔍 Quét & gợi ý Chương/Bài bằng AI"}
+          </button>
+          {classifyStatus && <span className="empty-hint">{classifyStatus}</span>}
         </div>
         <div className="field-grid">
           <div className="field">
@@ -1340,7 +1393,7 @@ export function TeacherExamImport() {
             />
           </div>
           <div className="field field-span2">
-            <label>Chương mà đề này bao phủ (đã tự chọn sẵn theo gợi ý AI — xem lại/đổi nếu cần)</label>
+            <label>Chương mà đề này bao phủ (tự chọn tay, hoặc bấm "Quét & gợi ý Chương/Bài bằng AI" ở trên)</label>
             {/* Chưa chọn Khối cho đề thì hiện đủ Chương của cả 3 khối 10/11/12 —
                 nhóm theo Khối (đã sắp sẵn theo grade rồi order_index từ
                 api.listTopics) để dễ tìm thay vì 1 danh sách phẳng ~24 dòng
