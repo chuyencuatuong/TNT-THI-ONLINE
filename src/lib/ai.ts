@@ -775,9 +775,54 @@ QUAN TRỌNG VỀ ĐỊNH DẠNG JSON: trả lời CHÍNH XÁC theo định dạ
 }`;
 }
 
-/** Số câu hỏi gộp vào 1 lượt gọi AI khi phân loại Chương/Bài — nhỏ hơn nhiều so với lượt đọc câu hỏi chính (không cần gửi ảnh, chỉ text) nên gộp được nhiều câu hơn hẳn 1 đợt. */
-const CLASSIFY_CHUNK_SIZE = 40;
+// THÊM 01/09/2026 — PHÁT HIỆN THẬT khi Thầy Tường bấm nút phân loại trên đề
+// 22 câu: JSON trả về bị lỗi "Expected ',' or ']' after array element" — dấu
+// hiệu điển hình của phản hồi bị CẮT NGANG do chạm giới hạn maxOutputTokens
+// giữa chừng (không phải lỗi escape LaTeX, sanitizeJsonEscapes không cứu
+// được). Tên chương/Bài tiếng Việt có dấu tốn nhiều token hơn chữ không dấu,
+// và model vẫn tốn thêm token "suy nghĩ" (thinking) như đã ghi nhận ở phần
+// đọc đề chính — 22 câu gộp CHUNG 1 lượt gọi dễ vượt quá 4096 token cũ. Xử
+// lý 2 lớp: (1) giảm số câu/đợt (chia nhỏ hơn → mỗi phản hồi ngắn hơn, ít
+// rủi ro hơn) + nâng giới hạn token phản hồi (còn rẻ hơn nhiều so với 16384
+// của lượt đọc đề chính, vì đây chỉ là text ngắn); (2) NẾU vẫn bị cắt, cứu
+// vãn từng phần tử JSON đọc được thay vì mất trắng cả đợt (xem
+// salvagePartialClassifications) — vì đây chỉ là GỢI Ý phụ, mất 1-2 câu vẫn
+// tốt hơn mất sạch.
+const CLASSIFY_CHUNK_SIZE = 15;
+const CLASSIFY_MAX_OUTPUT_TOKENS = 8192;
 const CLASSIFY_CONCURRENCY = 2;
+
+/**
+ * Cứu vãn 1 phần kết quả phân loại khi JSON tổng thể không đọc được (thường
+ * do bị CẮT NGANG giữa chừng — xem giải thích ở CLASSIFY_CHUNK_SIZE). Tách
+ * riêng từng object PHẲNG dạng {"id": "...", "topic_name": ..., "lesson_name": ...}
+ * bằng regex rồi thử JSON.parse TỪNG object 1 — object nào lỗi/dở dang (vd
+ * phần tử cuối bị cắt ngang) bị bỏ qua, không làm hỏng các object khác đã đọc
+ * đúng trước đó. An toàn vì đây chỉ là GỢI Ý (giáo viên luôn xem lại/đổi
+ * được), không phải nội dung câu hỏi/đáp án — khác hẳn mức độ rủi ro cho phép
+ * ở phần đọc đề chính. Hàm thuần, tách riêng để test không cần gọi mạng.
+ */
+export function salvagePartialClassifications(raw: string): QuestionClassificationResult[] {
+  const results: QuestionClassificationResult[] = [];
+  const objectRe = /\{[^{}]*\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = objectRe.exec(raw))) {
+    try {
+      const obj = JSON.parse(sanitizeJsonEscapes(m[0])) as Partial<QuestionClassificationResult>;
+      if (typeof obj.id === "string") {
+        results.push({
+          id: obj.id,
+          topic_name: typeof obj.topic_name === "string" ? obj.topic_name : null,
+          lesson_name: typeof obj.lesson_name === "string" ? obj.lesson_name : null,
+        });
+      }
+    } catch {
+      // Object lỗi/dở dang (thường là phần tử cuối bị cắt ngang) — bỏ qua,
+      // không làm hỏng các object khác đã tách/đọc đúng.
+    }
+  }
+  return results;
+}
 
 /**
  * Gợi ý Chương/Bài cho danh sách câu hỏi — CHỈ DÙNG TEXT (content_latex),
@@ -797,14 +842,27 @@ export async function classifyExamQuestions(
   const chunkResults = await mapWithConcurrency(chunks, CLASSIFY_CONCURRENCY, async (chunk) => {
     let raw: string | null = null;
     try {
-      raw = await callGeminiParts([{ text: buildClassifyQuestionsPrompt(topics, lessons, chunk) }], 4096);
+      raw = await callGeminiParts(
+        [{ text: buildClassifyQuestionsPrompt(topics, lessons, chunk) }],
+        CLASSIFY_MAX_OUTPUT_TOKENS,
+      );
       if (!raw) return [];
       const parsed = extractJsonBlock(raw) as { classifications?: QuestionClassificationResult[] };
       return Array.isArray(parsed.classifications) ? parsed.classifications : [];
     } catch (err) {
+      // JSON lỗi/cắt ngang — thử cứu vãn từng phần tử đọc được trước khi bỏ
+      // cuộc hoàn toàn (xem salvagePartialClassifications).
+      const salvaged = raw ? salvagePartialClassifications(raw) : [];
+      if (salvaged.length > 0) {
+        console.warn(
+          `JSON phân loại Chương/Bài bị lỗi 1 phần — cứu được ${salvaged.length}/${chunk.length} câu trong đợt, phần còn lại bỏ trống (giáo viên tự chọn):`,
+          err,
+        );
+        return salvaged;
+      }
       // Lỗi ở lượt gợi ý nền KHÔNG được làm hỏng gì cả — chỉ ghi log, câu hỏi
       // liên quan đơn giản là không có gợi ý Chương/Bài, giáo viên tự chọn.
-      console.error("Không đọc được JSON khi phân loại Chương/Bài (chạy nền):", err, raw);
+      console.error("Không đọc được JSON khi phân loại Chương/Bài:", err, raw);
       return [];
     }
   });

@@ -7,6 +7,7 @@ import {
   mergeExtractedTaxonomies,
   mergeParsedExams,
   planChunkRetries,
+  salvagePartialClassifications,
   sanitizeJsonEscapes,
   type ExtractedTaxonomy,
   type ParsedExam,
@@ -236,5 +237,46 @@ describe("isChunkResultFailed / planChunkRetries (thử lại chỉ đúng đợ
 
   it("planChunkRetries: đợt chưa từng chạy ở lần trước (undefined trong mảng) vẫn cần gọi lại", () => {
     expect(planChunkRetries(3, [ok, undefined, failed])).toEqual([false, true, true]);
+  });
+});
+
+describe("salvagePartialClassifications", () => {
+  it("cứu được các phần tử ĐỌC ĐÚNG khi JSON bị cắt ngang giữa chừng (lỗi thật khi bấm nút phân loại 22 câu, 01/09/2026)", () => {
+    // Mô phỏng đúng dạng lỗi thật gặp: mảng "classifications" có nhiều phần
+    // tử đọc đúng, nhưng bị CẮT NGANG (không có dấu ] đóng mảng/object cuối)
+    // do chạm giới hạn token phản hồi giữa chừng.
+    const raw = `{
+  "classifications": [
+    {"id": "p1:local-1", "topic_name": "Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số", "lesson_name": "Bài 1. Tính đơn điệu và cực trị của hàm số"},
+    {"id": "p1:local-2", "topic_name": "Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số", "lesson_name": "Bài 1. Tính đơn điệu và cực trị của hàm số"},
+    {"id": "p1:local-3", "topic_name": "Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số", "lesson_name": "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số"},
+    {"id": "p1:local-4", "topic_name": "Ứng dụng đạo hàm để khảo`;
+    const result = salvagePartialClassifications(raw);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({
+      id: "p1:local-1",
+      topic_name: "Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+      lesson_name: "Bài 1. Tính đơn điệu và cực trị của hàm số",
+    });
+    expect(result[2].id).toBe("p1:local-3");
+    // Phần tử thứ 4 bị cắt dở (không có dấu } đóng) — bị bỏ qua, không làm hỏng 3 phần tử trước.
+  });
+
+  it("đọc đủ khi JSON không bị lỗi gì (trường hợp bình thường)", () => {
+    const raw = `{"classifications": [{"id": "a", "topic_name": "X", "lesson_name": null}, {"id": "b", "topic_name": null, "lesson_name": null}]}`;
+    expect(salvagePartialClassifications(raw)).toEqual([
+      { id: "a", topic_name: "X", lesson_name: null },
+      { id: "b", topic_name: null, lesson_name: null },
+    ]);
+  });
+
+  it("trả về mảng rỗng khi không tách được object nào hợp lệ", () => {
+    expect(salvagePartialClassifications("không phải JSON gì cả")).toEqual([]);
+    expect(salvagePartialClassifications("")).toEqual([]);
+  });
+
+  it("bỏ qua object không có \"id\" dạng chuỗi (không đủ để ghép kết quả)", () => {
+    const raw = `[{"topic_name": "X"}, {"id": "ok", "topic_name": "Y", "lesson_name": "Z"}]`;
+    expect(salvagePartialClassifications(raw)).toEqual([{ id: "ok", topic_name: "Y", lesson_name: "Z" }]);
   });
 });
