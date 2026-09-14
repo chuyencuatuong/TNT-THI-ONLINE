@@ -252,3 +252,96 @@ export function combineScores(
     totalScore: round2(part1 + part2 + part3),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Chấm 1 CÂU BẤT KỲ từ đáp án đã có (14/09/2026 — tính năng "GV sửa điểm sau
+// khi HS nộp bài").
+//
+// Trước đây toàn bộ chuỗi if/else "Phần 1 -> Phần 2 -> Phần 3, chuẩn hay tuỳ
+// chỉnh" nằm INLINE trong api.submitAttempt. Khi có thêm luồng CHẤM LẠI
+// (api.regradeAttempt), nếu chép lại chuỗi đó lần thứ hai thì 2 luồng sẽ trôi
+// dạt khỏi nhau theo thời gian — điểm lúc nộp và điểm sau khi GV sửa 1 câu
+// khác có thể lệch nhau mà không ai phát hiện. Tách ra đây để CẢ HAI luồng
+// gọi đúng 1 hàm, và hàm đó test được độc lập.
+// ---------------------------------------------------------------------------
+
+/** Câu hỏi ở mức tối thiểu mà hàm chấm cần biết — cố ý KHÔNG dùng QuestionRow
+ * đầy đủ để test không phải dựng cả chục trường không liên quan. */
+export interface QuestionForScoring {
+  part: 1 | 2 | 3;
+  correct_answer: unknown;
+  default_points: number | null;
+}
+
+export interface QuestionScoreResult {
+  score: number;
+  /** Chỉ khác null với Phần 2 (số ý đúng, 0-4) — ghi vào
+   * question_responses.sub_correct_count. */
+  subCorrectCount: number | null;
+}
+
+/**
+ * Chấm 1 câu theo đúng chế độ tính điểm của đề.
+ *
+ * `resolved` là kết quả `resolveExamScoring` cho riêng câu này (có thể
+ * undefined nếu câu không còn trong đề — khi đó rơi về barem chuẩn).
+ * `isCustomScoring` phải là `exam.scoring_mode === "tuy_chinh"` — tách riêng
+ * khỏi `resolved` vì ở chế độ chuẩn ta vẫn có `resolved` (chứa maxScore chuẩn)
+ * nhưng KHÔNG được dùng các hàm *Custom.
+ */
+export function scoreQuestionWithAnswer(
+  question: QuestionForScoring,
+  answer: unknown,
+  resolved: ResolvedQuestionScoring | undefined,
+  isCustomScoring: boolean,
+): QuestionScoreResult {
+  const useCustom = isCustomScoring && !!resolved;
+
+  if (question.part === 1) {
+    const correct = (question.correct_answer as { choice: Part1Answer }).choice;
+    const studentChoice = (answer as { choice: Part1Answer } | null)?.choice ?? null;
+    return {
+      score: useCustom
+        ? scorePart1Custom(correct, studentChoice, resolved!.maxScore)
+        : scorePart1Question(correct, studentChoice),
+      subCorrectCount: null,
+    };
+  }
+
+  if (question.part === 2) {
+    const correct = question.correct_answer as Part2SubAnswers;
+    const studentAnswer = answer as Partial<Part2SubAnswers> | null;
+    const result =
+      useCustom && resolved!.part2SubPoints
+        ? scorePart2Custom(correct, studentAnswer, resolved!.part2SubPoints)
+        : useCustom
+          ? scorePart2AllOrNothing(correct, studentAnswer, resolved!.maxScore)
+          : scorePart2Question(correct, studentAnswer);
+    return { score: result.score, subCorrectCount: result.correctCount };
+  }
+
+  const correct = question.correct_answer as { value: string };
+  return {
+    score: scorePart3Question(
+      correct.value,
+      (answer as { value: string } | null)?.value ?? null,
+      useCustom ? resolved!.maxScore : question.default_points ?? 0.5,
+    ),
+    subCorrectCount: null,
+  };
+}
+
+/** Điểm tối đa THẬT của 1 câu trong 1 đề cụ thể — `resolved` có thì dùng, không
+ * thì rơi về barem chuẩn THPT. Dùng để biết câu đó đã "trọn điểm" hay chưa
+ * (ngưỡng ghi/rút nhật ký câu sai). */
+export function maxScoreOf(
+  question: QuestionForScoring,
+  resolved: ResolvedQuestionScoring | undefined,
+): number {
+  if (resolved) return resolved.maxScore;
+  return question.part === 1
+    ? PART1_POINTS_PER_QUESTION
+    : question.part === 2
+      ? 1
+      : question.default_points ?? 0.5;
+}

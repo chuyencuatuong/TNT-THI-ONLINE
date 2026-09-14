@@ -21,12 +21,18 @@ export function QuestionReview({
   finalAnswer,
   score,
   maxScore,
+  teacherAdjusted = false,
 }: {
   number: number;
   question: QuestionRow;
   finalAnswer: unknown;
   score: number;
   maxScore: number;
+  /** Câu này đã được giáo viên sửa đáp án sau khi nộp bài (14/09/2026).
+   * `finalAnswer` hiển thị bên dưới VẪN là đáp án gốc học sinh đã điền — nhãn
+   * này là để giải thích vì sao điểm không khớp với đáp án đó, tránh học sinh
+   * hiểu nhầm là chấm sai. */
+  teacherAdjusted?: boolean;
 }) {
   const isFullyCorrect = maxScore > 0 && score >= maxScore - 0.005;
   const isPartial = score > 0.005 && !isFullyCorrect;
@@ -43,8 +49,13 @@ export function QuestionReview({
         <span>
           Câu {number}. <MathText text={question.content_latex} />
         </span>
-        <span className={`badge question-review-badge ${statusClass}`}>
-          {statusLabel} · {score.toFixed(2)}/{maxScore.toFixed(2)} điểm
+        <span className="question-review-badges">
+          {teacherAdjusted && (
+            <span className="badge question-review-adjusted">Thầy đã điều chỉnh</span>
+          )}
+          <span className={`badge question-review-badge ${statusClass}`}>
+            {statusLabel} · {score.toFixed(2)}/{maxScore.toFixed(2)} điểm
+          </span>
         </span>
       </div>
       {question.image_url && (

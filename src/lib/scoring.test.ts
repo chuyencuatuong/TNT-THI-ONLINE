@@ -10,6 +10,8 @@ import {
   scorePart2Custom,
   scorePart2AllOrNothing,
   resolveExamScoring,
+  maxScoreOf,
+  scoreQuestionWithAnswer,
 } from "./scoring";
 
 describe("Phần 1 - trắc nghiệm 4 phương án", () => {
@@ -238,5 +240,108 @@ describe("Tính điểm linh hoạt (Đợt 3, mục 2)", () => {
       const resolved = resolveExamScoring("tuy_chinh", "tu_dong", []);
       expect(resolved.size).toBe(0);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scoreQuestionWithAnswer / maxScoreOf — hàm chấm 1 câu dùng CHUNG cho lúc nộp
+// bài (submitAttempt) và lúc giáo viên chấm lại (regradeAttempt, 14/09/2026).
+// Điểm quan trọng nhất cần khoá lại bằng test: 2 luồng đó phải cho ra ĐÚNG
+// cùng một con số, nên hàm này phải khớp với các hàm chấm lẻ sẵn có.
+// ---------------------------------------------------------------------------
+describe("scoreQuestionWithAnswer", () => {
+  const p1 = { part: 1 as const, correct_answer: { choice: "B" }, default_points: null };
+  const p2 = {
+    part: 2 as const,
+    correct_answer: { a: true, b: false, c: true, d: false },
+    default_points: null,
+  };
+  const p3 = { part: 3 as const, correct_answer: { value: "3,5" }, default_points: 0.5 };
+
+  it("Phần 1 chế độ chuẩn: đúng được 0.25đ, sai 0đ, bỏ trống 0đ", () => {
+    expect(scoreQuestionWithAnswer(p1, { choice: "B" }, undefined, false).score).toBe(0.25);
+    expect(scoreQuestionWithAnswer(p1, { choice: "A" }, undefined, false).score).toBe(0);
+    expect(scoreQuestionWithAnswer(p1, null, undefined, false).score).toBe(0);
+  });
+
+  it("Phần 1 chế độ tuỳ chỉnh: dùng đúng điểm tối đa của câu", () => {
+    const resolved = { maxScore: 0.4, part2SubPoints: null };
+    expect(scoreQuestionWithAnswer(p1, { choice: "B" }, resolved, true).score).toBe(0.4);
+    expect(scoreQuestionWithAnswer(p1, { choice: "C" }, resolved, true).score).toBe(0);
+  });
+
+  it("có resolved nhưng đề ở chế độ CHUẨN thì vẫn chấm theo barem chuẩn", () => {
+    // Đây là cái bẫy dễ sai nhất: resolveExamScoring luôn trả về resolved kể
+    // cả ở chế độ chuẩn, nên không được lấy resolved làm căn cứ dùng hàm Custom.
+    const resolved = { maxScore: 0.25, part2SubPoints: null };
+    expect(scoreQuestionWithAnswer(p1, { choice: "B" }, resolved, false).score).toBe(0.25);
+  });
+
+  it("Phần 2 chế độ chuẩn: trả về cả số ý đúng theo bảng tỉ lệ THPT", () => {
+    const r = scoreQuestionWithAnswer(
+      p2,
+      { a: true, b: false, c: true, d: true },
+      undefined,
+      false,
+    );
+    expect(r.subCorrectCount).toBe(3);
+    expect(r.score).toBe(PART2_SCORE_TABLE[3]);
+  });
+
+  it("Phần 2 thủ công: cộng điểm riêng từng ý đúng", () => {
+    const resolved = { maxScore: 2, part2SubPoints: { a: 0.5, b: 0.5, c: 0.5, d: 0.5 } };
+    const r = scoreQuestionWithAnswer(p2, { a: true, b: false, c: false, d: false }, resolved, true);
+    expect(r.subCorrectCount).toBe(3);
+    expect(r.score).toBe(1.5);
+  });
+
+  it("Phần 2 tự động: đúng cả 4 ý mới có điểm", () => {
+    const resolved = { maxScore: 0.4, part2SubPoints: null };
+    expect(
+      scoreQuestionWithAnswer(p2, { a: true, b: false, c: true, d: true }, resolved, true).score,
+    ).toBe(0);
+    expect(
+      scoreQuestionWithAnswer(p2, { a: true, b: false, c: true, d: false }, resolved, true).score,
+    ).toBe(0.4);
+  });
+
+  it("Phần 3: so sánh theo dạng đã chuẩn hoá, dùng default_points ở chế độ chuẩn", () => {
+    expect(scoreQuestionWithAnswer(p3, { value: "3.5" }, undefined, false).score).toBe(0.5);
+    expect(scoreQuestionWithAnswer(p3, { value: "3,50" }, undefined, false).score).toBe(0.5);
+    expect(scoreQuestionWithAnswer(p3, { value: "4" }, undefined, false).score).toBe(0);
+    expect(scoreQuestionWithAnswer(p3, null, undefined, false).score).toBe(0);
+  });
+
+  it("Phần 3 tuỳ chỉnh: dùng maxScore thay cho default_points", () => {
+    const resolved = { maxScore: 1.25, part2SubPoints: null };
+    expect(scoreQuestionWithAnswer(p3, { value: "3,5" }, resolved, true).score).toBe(1.25);
+  });
+
+  it("cho ra ĐÚNG cùng kết quả với các hàm chấm lẻ đang dùng ở chế độ chuẩn", () => {
+    expect(scoreQuestionWithAnswer(p1, { choice: "B" }, undefined, false).score).toBe(
+      scorePart1Question("B", "B"),
+    );
+    const direct = scorePart2Question(p2.correct_answer as never, { a: true, b: true });
+    const viaHelper = scoreQuestionWithAnswer(p2, { a: true, b: true }, undefined, false);
+    expect(viaHelper.score).toBe(direct.score);
+    expect(viaHelper.subCorrectCount).toBe(direct.correctCount);
+  });
+});
+
+describe("maxScoreOf", () => {
+  it("không có resolved thì rơi về barem chuẩn THPT", () => {
+    expect(maxScoreOf({ part: 1, correct_answer: null, default_points: null }, undefined)).toBe(0.25);
+    expect(maxScoreOf({ part: 2, correct_answer: null, default_points: null }, undefined)).toBe(1);
+    expect(maxScoreOf({ part: 3, correct_answer: null, default_points: 0.75 }, undefined)).toBe(0.75);
+    expect(maxScoreOf({ part: 3, correct_answer: null, default_points: null }, undefined)).toBe(0.5);
+  });
+
+  it("có resolved thì luôn ưu tiên điểm tối đa thật của đề", () => {
+    expect(
+      maxScoreOf(
+        { part: 1, correct_answer: null, default_points: null },
+        { maxScore: 0.4, part2SubPoints: null },
+      ),
+    ).toBe(0.4);
   });
 });

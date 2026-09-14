@@ -1,13 +1,13 @@
 import { supabase } from "./supabaseClient";
 import {
   combineScores,
+  maxScoreOf,
   resolveExamScoring,
-  scorePart1Custom,
+  type ResolvedQuestionScoring,
   scorePart1Question,
-  scorePart2AllOrNothing,
-  scorePart2Custom,
   scorePart2Question,
   scorePart3Question,
+  scoreQuestionWithAnswer,
 } from "./scoring";
 import {
   classifyBlankQuestions,
@@ -589,6 +589,7 @@ export function questionMaxScore(q: Pick<QuestionRow, "part" | "default_points">
 async function recordWrongAnswersFromExam(
   studentId: string,
   wrongQuestionIds: string[],
+  sourceAttemptId?: string,
 ): Promise<void> {
   if (wrongQuestionIds.length === 0) return;
   const nowIso = new Date().toISOString();
@@ -601,6 +602,9 @@ async function recordWrongAnswersFromExam(
       correct_streak: state.correctStreak,
       last_reviewed_session_id: state.lastReviewedSessionId,
       retired_at: state.retiredAt,
+      // migration_018: nhớ câu này vào nhật ký từ lượt làm bài nào, để khi GV
+      // chấm lại đúng lượt đó mới rút câu ra (xem regradeAttempt).
+      ...(sourceAttemptId ? { source_attempt_id: sourceAttemptId } : {}),
     };
   });
   const { error } = await supabase
@@ -697,36 +701,15 @@ export async function submitAttempt(
             )
           : 0;
 
-    let score = 0;
-    let subCorrectCount: number | null = null;
+    // Chấm bằng hàm thuần dùng CHUNG với luồng chấm lại khi GV sửa điểm
+    // (api.regradeAttempt) — xem scoreQuestionWithAnswer trong scoring.ts.
     const resolved = scoring.get(q.id);
-    const isCustomScoring = exam?.scoring_mode === "tuy_chinh" && resolved;
-
-    if (q.part === 1) {
-      const correct = (q.correct_answer as Part1Answer).choice;
-      const studentChoice = (finalAnswer as Part1Answer | null)?.choice ?? null;
-      score = isCustomScoring
-        ? scorePart1Custom(correct, studentChoice, resolved.maxScore)
-        : scorePart1Question(correct, studentChoice);
-    } else if (q.part === 2) {
-      const correct = q.correct_answer as Part2Answer;
-      const studentAnswer = finalAnswer as Partial<Part2Answer> | null;
-      const result =
-        isCustomScoring && resolved.part2SubPoints
-          ? scorePart2Custom(correct, studentAnswer, resolved.part2SubPoints)
-          : isCustomScoring
-            ? scorePart2AllOrNothing(correct, studentAnswer, resolved.maxScore)
-            : scorePart2Question(correct, studentAnswer);
-      score = result.score;
-      subCorrectCount = result.correctCount;
-    } else {
-      const correct = q.correct_answer as Part3Answer;
-      score = scorePart3Question(
-        correct.value,
-        (finalAnswer as Part3Answer | null)?.value ?? null,
-        isCustomScoring ? resolved.maxScore : q.default_points ?? 0.5,
-      );
-    }
+    const { score, subCorrectCount } = scoreQuestionWithAnswer(
+      q,
+      finalAnswer,
+      resolved,
+      exam?.scoring_mode === "tuy_chinh",
+    );
 
     if (q.part === 1) part1Score += score;
     else if (q.part === 2) part2Score += score;
@@ -787,10 +770,311 @@ export async function submitAttempt(
     .eq("id", attemptId);
 
   if (studentId) {
-    await recordWrongAnswersFromExam(studentId, wrongQuestionIds);
+    await recordWrongAnswersFromExam(studentId, wrongQuestionIds, attemptId);
   }
 
   return scoreRow as AttemptScoreRow;
+}
+
+// ---------------------------------------------------------------------------
+// GIÁO VIÊN SỬA ĐIỂM SAU KHI HỌC SINH NỘP BÀI (14/09/2026, migration_018)
+//
+// Cách làm: KHÔNG cộng/trừ thẳng vào tổng điểm, mà sửa lại ĐÁP ÁN của đúng
+// câu bị trục trặc rồi CHẤM LẠI cả lượt. Nhờ vậy "năng lực theo Chương/Bài",
+// phần chẩn đoán và nhật ký câu sai đều tự khớp theo — nếu chỉ sửa tổng điểm
+// thì mọi số liệu đó vẫn coi câu ấy là sai.
+//
+// `answer_events` (log thô từng lần học sinh bấm chọn) KHÔNG BAO GIỜ bị sửa —
+// đó là bằng chứng hành vi thật, dùng cho thời gian làm bài/số lần đổi đáp án.
+// Đáp án GV sửa nằm riêng ở question_responses.teacher_answer.
+// ---------------------------------------------------------------------------
+
+/** 1 câu trong màn hình "Sửa điểm" của giáo viên. */
+export interface AttemptEditableItem {
+  question_id: string;
+  part: 1 | 2 | 3;
+  order_index: number;
+  question: QuestionRow;
+  /** Đáp án HỌC SINH thật sự điền lúc làm bài (không bao giờ bị ghi đè). */
+  studentAnswer: unknown;
+  /** Đáp án GIÁO VIÊN đã sửa — null nghĩa là chưa sửa câu này. */
+  teacherAnswer: unknown;
+  /** Đáp án đang được dùng để chấm = teacherAnswer ?? studentAnswer. */
+  effectiveAnswer: unknown;
+  score: number;
+  /** Điểm tối đa THẬT của câu này trong đề này (tôn trọng chế độ tính điểm
+   * tuỳ chỉnh của đề, xem resolveExamScoring). */
+  maxScore: number;
+  /** Barem đã giải cho riêng câu này — trả về luôn để màn hình sửa điểm XEM
+   * TRƯỚC được tổng điểm mới ngay khi giáo viên gõ, bằng đúng hàm chấm của
+   * máy chủ (scoreQuestionWithAnswer), không phải đoán. */
+  resolved: ResolvedQuestionScoring | undefined;
+  teacherEditedAt: string | null;
+}
+
+export interface AttemptEditingData {
+  items: AttemptEditableItem[];
+  /** exam.scoring_mode === "tuy_chinh" — cần cho scoreQuestionWithAnswer. */
+  isCustomScoring: boolean;
+}
+
+/**
+ * Toàn bộ dữ liệu cho màn hình "Sửa điểm": từng câu kèm đáp án gốc của học
+ * sinh, đáp án GV đã sửa (nếu có) và điểm hiện tại. Khác `getAttemptReview`
+ * ở chỗ trả thêm `teacherAnswer` và dùng điểm tối đa THẬT theo chế độ tính
+ * điểm của đề, vì màn hình sửa điểm cần đúng barem đang áp dụng.
+ */
+export async function getAttemptForEditing(
+  attemptId: string,
+  examId: string,
+): Promise<AttemptEditingData> {
+  const [examQuestions, exam, { data: responses, error }] = await Promise.all([
+    getExamQuestions(examId),
+    getExam(examId),
+    supabase
+      .from("question_responses")
+      .select("question_id, final_answer, teacher_answer, score, teacher_edited_at")
+      .eq("attempt_id", attemptId),
+  ]);
+  if (error) throw error;
+
+  const scoring = resolveExamScoring(
+    exam?.scoring_mode ?? "chuan_thpt",
+    exam?.custom_scoring_method ?? null,
+    examQuestions.map((eq) => ({
+      question_id: eq.question.id,
+      part: eq.part,
+      default_points: eq.question.default_points,
+      custom_points: eq.custom_points,
+      custom_part2_points: eq.custom_part2_points,
+    })),
+  );
+
+  const byQuestion = new Map(
+    (responses ?? []).map((r) => [(r as { question_id: string }).question_id, r]),
+  );
+
+  const items = examQuestions.map((eq) => {
+    const q = eq.question;
+    const r = byQuestion.get(q.id) as
+      | {
+          final_answer: unknown;
+          teacher_answer: unknown;
+          score: number;
+          teacher_edited_at: string | null;
+        }
+      | undefined;
+    const studentAnswer = r?.final_answer ?? null;
+    const teacherAnswer = r?.teacher_answer ?? null;
+    const resolved = scoring.get(q.id);
+    return {
+      question_id: q.id,
+      part: q.part,
+      order_index: eq.order_index,
+      question: q,
+      studentAnswer,
+      teacherAnswer,
+      effectiveAnswer: teacherAnswer ?? studentAnswer,
+      score: r?.score ?? 0,
+      maxScore: maxScoreOf(q, resolved),
+      resolved,
+      teacherEditedAt: r?.teacher_edited_at ?? null,
+    };
+  });
+
+  return { items, isCustomScoring: exam?.scoring_mode === "tuy_chinh" };
+}
+
+export interface RegradeAttemptInput {
+  attemptId: string;
+  examId: string;
+  studentId: string;
+  /** Giáo viên đang thao tác (profiles.id) — lưu lại để biết ai đã sửa. */
+  teacherId: string;
+  /** Lý do điều chỉnh, HIỂN THỊ CHO HỌC SINH ở trang kết quả. */
+  reason: string;
+  /**
+   * question_id -> đáp án mới. Giá trị `null` nghĩa là BỎ phần sửa của giáo
+   * viên ở câu đó, quay về đúng đáp án gốc học sinh đã điền. Câu không có
+   * trong map thì giữ nguyên hiện trạng (kể cả phần đã sửa trước đó).
+   */
+  edits: Record<string, unknown>;
+}
+
+export interface RegradeAttemptResult {
+  score: AttemptScoreRow;
+  /** Số câu đang có đáp án do giáo viên sửa (sau lần chấm lại này). */
+  editedCount: number;
+  /** Số câu được rút khỏi nhật ký ôn tập vì giờ đã đúng. */
+  journalRemovedCount: number;
+}
+
+/**
+ * Chấm lại 1 lượt làm bài sau khi giáo viên sửa đáp án một số câu.
+ *
+ * Điểm được tính bằng ĐÚNG hàm dùng lúc nộp bài (scoreQuestionWithAnswer
+ * trong scoring.ts) nên không có rủi ro 2 luồng chấm lệch barem nhau.
+ *
+ * Nhật ký câu sai được đồng bộ theo (đã chốt với Thầy Tường):
+ *   - Câu giờ CHƯA trọn điểm -> đưa vào nhật ký, streak về 0.
+ *   - Câu giờ ĐÃ trọn điểm   -> rút khỏi nhật ký, NHƯNG chỉ khi dòng nhật ký
+ *     đó đúng là do CHÍNH lượt bài này tạo ra (source_attempt_id). Nếu học
+ *     sinh còn sai câu đó ở một lượt khác mới hơn thì giữ nguyên — bằng chứng
+ *     mới nhất vẫn nói em chưa nắm câu đó.
+ */
+export async function regradeAttempt(
+  input: RegradeAttemptInput,
+): Promise<RegradeAttemptResult> {
+  const { attemptId, examId, studentId, teacherId, reason, edits } = input;
+
+  const [examQuestions, exam, { data: existingRows, error: respErr }] = await Promise.all([
+    getExamQuestions(examId),
+    getExam(examId),
+    supabase
+      .from("question_responses")
+      .select("*")
+      .eq("attempt_id", attemptId),
+  ]);
+  if (respErr) throw respErr;
+
+  const scoring = resolveExamScoring(
+    exam?.scoring_mode ?? "chuan_thpt",
+    exam?.custom_scoring_method ?? null,
+    examQuestions.map((eq) => ({
+      question_id: eq.question.id,
+      part: eq.part,
+      default_points: eq.question.default_points,
+      custom_points: eq.custom_points,
+      custom_part2_points: eq.custom_part2_points,
+    })),
+  );
+  const isCustomScoring = exam?.scoring_mode === "tuy_chinh";
+
+  const existingByQuestion = new Map(
+    (existingRows ?? []).map((r) => [(r as { question_id: string }).question_id, r as Record<string, unknown>]),
+  );
+
+  const nowIso = new Date().toISOString();
+  let part1Score = 0;
+  let part2Score = 0;
+  let part3Score = 0;
+  let editedCount = 0;
+  const wrongQuestionIds: string[] = [];
+  const correctQuestionIds: string[] = [];
+  const rowsToUpsert: Record<string, unknown>[] = [];
+
+  for (const eq of examQuestions) {
+    const q = eq.question;
+    const existing = existingByQuestion.get(q.id);
+    const hasEdit = Object.prototype.hasOwnProperty.call(edits, q.id);
+    // `null` trong edits = bỏ phần sửa, quay về đáp án gốc của học sinh.
+    const teacherAnswer = hasEdit ? edits[q.id] ?? null : (existing?.teacher_answer ?? null);
+    const studentAnswer = existing?.final_answer ?? null;
+    const effectiveAnswer = teacherAnswer ?? studentAnswer;
+
+    const resolved = scoring.get(q.id);
+    const { score, subCorrectCount } = scoreQuestionWithAnswer(
+      q,
+      effectiveAnswer,
+      resolved,
+      isCustomScoring,
+    );
+
+    if (q.part === 1) part1Score += score;
+    else if (q.part === 2) part2Score += score;
+    else part3Score += score;
+
+    if (score < maxScoreOf(q, resolved)) wrongQuestionIds.push(q.id);
+    else correctQuestionIds.push(q.id);
+    if (teacherAnswer !== null) editedCount++;
+
+    rowsToUpsert.push({
+      // Giữ nguyên mọi số liệu hành vi đã ghi lúc làm bài (thời gian làm, số
+      // lần đổi đáp án, mốc trả lời) — chấm lại KHÔNG được làm sai lệch chúng.
+      attempt_id: attemptId,
+      question_id: q.id,
+      final_answer: studentAnswer,
+      score,
+      sub_correct_count: subCorrectCount,
+      time_spent_seconds: (existing?.time_spent_seconds as number) ?? 0,
+      change_count: (existing?.change_count as number) ?? 0,
+      first_response_at: (existing?.first_response_at as string | null) ?? null,
+      last_response_at: (existing?.last_response_at as string | null) ?? null,
+      teacher_answer: teacherAnswer,
+      // Chỉ đổi dấu vết "ai sửa lúc nào" ở những câu THẬT SỰ được đụng tới lần
+      // này; các câu khác giữ nguyên dấu vết cũ của chúng.
+      teacher_edited_at: hasEdit ? nowIso : (existing?.teacher_edited_at as string | null) ?? null,
+      teacher_edited_by: hasEdit ? teacherId : (existing?.teacher_edited_by as string | null) ?? null,
+    });
+  }
+
+  const { error: upsertErr } = await supabase
+    .from("question_responses")
+    .upsert(rowsToUpsert, { onConflict: "attempt_id,question_id" });
+  if (upsertErr) throw upsertErr;
+
+  const totals = combineScores(part1Score, part2Score, part3Score);
+
+  // original_total_score chỉ ghi 1 lần duy nhất (lần điều chỉnh ĐẦU TIÊN) —
+  // các lần sửa sau không ghi đè, để luôn so được với điểm máy chấm ban đầu.
+  const { data: currentScore } = await supabase
+    .from("attempt_scores")
+    .select("total_score, original_total_score")
+    .eq("attempt_id", attemptId)
+    .maybeSingle();
+  const originalTotal =
+    (currentScore?.original_total_score as number | null | undefined) ??
+    (currentScore?.total_score as number | undefined) ??
+    null;
+
+  const { data: scoreRow, error: scoreErr } = await supabase
+    .from("attempt_scores")
+    .upsert({
+      attempt_id: attemptId,
+      part1_score: totals.part1Score,
+      part2_score: totals.part2Score,
+      part3_score: totals.part3Score,
+      total_score: totals.totalScore,
+      adjusted_at: nowIso,
+      adjusted_by: teacherId,
+      adjustment_reason: reason.trim() || null,
+      original_total_score: originalTotal,
+    })
+    .select()
+    .single();
+  if (scoreErr) throw scoreErr;
+
+  // --- Đồng bộ nhật ký câu sai ---
+  await recordWrongAnswersFromExam(studentId, wrongQuestionIds, attemptId);
+
+  let journalRemovedCount = 0;
+  if (correctQuestionIds.length > 0) {
+    // Chỉ rút những dòng do CHÍNH lượt bài này tạo ra (hoặc dòng cũ chưa có
+    // source_attempt_id — có từ trước migration_018, không rõ nguồn).
+    const { data: removable, error: findErr } = await supabase
+      .from("wrong_answer_journal")
+      .select("id, question_id, source_attempt_id")
+      .eq("student_id", studentId)
+      .in("question_id", correctQuestionIds);
+    if (findErr) throw findErr;
+    const idsToDelete = (removable ?? [])
+      .filter(
+        (r) =>
+          (r as { source_attempt_id: string | null }).source_attempt_id === null ||
+          (r as { source_attempt_id: string | null }).source_attempt_id === attemptId,
+      )
+      .map((r) => (r as { id: string }).id);
+    if (idsToDelete.length > 0) {
+      const { error: delErr } = await supabase
+        .from("wrong_answer_journal")
+        .delete()
+        .in("id", idsToDelete);
+      if (delErr) throw delErr;
+      journalRemovedCount = idsToDelete.length;
+    }
+  }
+
+  return { score: scoreRow as AttemptScoreRow, editedCount, journalRemovedCount };
 }
 
 /**
@@ -1585,6 +1869,10 @@ export interface AttemptReviewItem {
   finalAnswer: unknown;
   score: number;
   maxScore: number;
+  /** Giáo viên đã sửa đáp án câu này sau khi nộp bài (14/09/2026,
+   * migration_018). `finalAnswer` ở trên VẪN là đáp án gốc học sinh đã điền —
+   * cờ này chỉ để giao diện giải thích vì sao điểm không khớp với đáp án đó. */
+  teacherAdjusted: boolean;
 }
 
 /**
@@ -1602,15 +1890,20 @@ export async function getAttemptReview(
     getExamQuestions(examId),
     supabase
       .from("question_responses")
-      .select("question_id, final_answer, score")
+      .select("question_id, final_answer, score, teacher_answer")
       .eq("attempt_id", attemptId),
   ]);
   if (error) throw error;
 
   const responseMap = new Map(
-    (responses as { question_id: string; final_answer: unknown; score: number }[]).map(
-      (r) => [r.question_id, r],
-    ),
+    (
+      responses as {
+        question_id: string;
+        final_answer: unknown;
+        score: number;
+        teacher_answer: unknown;
+      }[]
+    ).map((r) => [r.question_id, r]),
   );
 
   return examQuestions.map((eq) => {
@@ -1625,6 +1918,7 @@ export async function getAttemptReview(
       finalAnswer: resp?.final_answer ?? null,
       score: resp?.score ?? 0,
       maxScore,
+      teacherAdjusted: (resp?.teacher_answer ?? null) !== null,
     };
   });
 }

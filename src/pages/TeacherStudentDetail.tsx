@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../lib/auth";
 import {
   BarChart,
   Bar,
@@ -23,6 +24,7 @@ import { generateReportSummary } from "../lib/ai";
 import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
 import { QuestionReview } from "../components/QuestionReview";
 import { MathText } from "../components/MathText";
+import { AttemptScoreEditor } from "../components/AttemptScoreEditor";
 import {
   BLANK_REASON_LABELS,
   MASTERY_COLOR,
@@ -104,6 +106,9 @@ function groupByExam(attempts: ScoredAttempt[]): ExamGroup[] {
 
 export function TeacherStudentDetail() {
   const { studentId } = useParams<{ studentId: string }>();
+  // Giáo viên đang đăng nhập — lưu lại vào dấu vết điều chỉnh điểm (ai sửa).
+  const { profile: currentUser } = useAuth();
+  const currentTeacherId = currentUser?.id ?? null;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [classesById, setClassesById] = useState<Map<string, ClassRow>>(new Map());
   const [attempts, setAttempts] = useState<
@@ -167,6 +172,17 @@ export function TeacherStudentDetail() {
   >([]);
   const [lastReviewAt, setLastReviewAt] = useState<string | null>(null);
   const [openJournalStage, setOpenJournalStage] = useState<JournalStage | null>(null);
+  // "Sửa điểm" từng lượt làm (14/09/2026) — cùng cơ chế toggle 1-tại-1-thời-điểm
+  // với "Xem câu sai"/"Xem cả bài"/"Xem chẩn đoán" ở trên. KHÔNG cache như các
+  // toggle kia: mỗi lần mở phải tải lại dữ liệu mới nhất, vì đây là màn hình
+  // GHI dữ liệu — mở bằng bản cũ rồi lưu đè là cách chắc chắn nhất để mất
+  // phần sửa của lần trước.
+  const [openEditorFor, setOpenEditorFor] = useState<string | null>(null);
+  const [editorData, setEditorData] = useState<api.AttemptEditingData | null>(null);
+  const [loadingEditor, setLoadingEditor] = useState(false);
+  const [editorNotice, setEditorNotice] = useState<string | null>(null);
+  /** Tăng lên để buộc tải lại toàn bộ dữ liệu trang sau khi chấm lại điểm. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!studentId) return;
@@ -212,7 +228,7 @@ export function TeacherStudentDetail() {
         .catch((err) => console.error("Không lấy được nhật ký câu sai:", err));
       setLoading(false);
     })();
-  }, [studentId]);
+  }, [studentId, reloadKey]);
 
   async function handleGenerateReport() {
     if (!studentId || !profile) return;
@@ -307,6 +323,41 @@ export function TeacherStudentDetail() {
         setLoadingDiagnosis(false);
       }
     }
+  }
+
+  async function toggleScoreEditor(attemptId: string, examId: string) {
+    if (openEditorFor === attemptId) {
+      setOpenEditorFor(null);
+      setEditorData(null);
+      return;
+    }
+    setOpenEditorFor(attemptId);
+    setEditorData(null);
+    setEditorNotice(null);
+    setLoadingEditor(true);
+    try {
+      setEditorData(await api.getAttemptForEditing(attemptId, examId));
+    } finally {
+      setLoadingEditor(false);
+    }
+  }
+
+  /**
+   * Sau khi chấm lại: tải lại TOÀN BỘ trang thay vì chỉ vá con số điểm tại
+   * chỗ. Chấm lại làm thay đổi cả điểm, năng lực theo chương/bài, phần chẩn
+   * đoán lẫn nhật ký câu sai — vá từng mảnh rời rạc là cách chắc chắn để giao
+   * diện hiển thị số liệu cũ ở đâu đó mà không ai để ý.
+   */
+  function handleRegraded(result: api.RegradeAttemptResult) {
+    setOpenEditorFor(null);
+    setEditorData(null);
+    setEditorNotice(
+      `Đã chấm lại: điểm mới ${result.score.total_score.toFixed(2)}` +
+        (result.journalRemovedCount > 0
+          ? ` · rút ${result.journalRemovedCount} câu khỏi nhật ký ôn tập`
+          : ""),
+    );
+    setReloadKey((k) => k + 1);
   }
 
   // Hủy/bỏ hủy 1 lượt làm THỦ CÔNG — dùng chung cột `invalidated` với cơ chế
@@ -521,6 +572,14 @@ export function TeacherStudentDetail() {
 
       <section>
         <h3>Kết quả theo từng đề thi</h3>
+        {editorNotice && (
+          <div className="score-editor-notice">
+            {editorNotice}
+            <button type="button" className="btn-link" onClick={() => setEditorNotice(null)}>
+              Đóng
+            </button>
+          </div>
+        )}
         <p className="empty-hint">
           Mỗi đề liệt kê đủ các lần làm, kèm chênh lệch điểm và thời gian hoàn thành so với lần
           đầu và lần ngay trước đó (lần n-1) — để thấy rõ học sinh có tiến bộ qua các lần làm lại
@@ -581,6 +640,8 @@ export function TeacherStudentDetail() {
                         const isWrongOpen = openReviewFor?.attemptId === a.id && openReviewFor.mode === "wrong";
                         const isFullOpen = openReviewFor?.attemptId === a.id && openReviewFor.mode === "full";
                         const isDiagnosisOpen = openDiagnosisFor === a.id;
+                        const isEditorOpen = openEditorFor === a.id;
+                        const adjusted = a.score?.adjusted_at ?? null;
                         return (
                           <Fragment key={a.id}>
                           <tr>
@@ -589,6 +650,25 @@ export function TeacherStudentDetail() {
                             <td>
                               <strong>{score.toFixed(2)}</strong>
                               {a.invalidated && <span className="badge badge-danger" style={{ marginLeft: 6 }}>Đã huỷ</span>}
+                              {adjusted && (
+                                <span
+                                  className="badge badge-warn"
+                                  style={{ marginLeft: 6 }}
+                                  title={`Điểm máy chấm ban đầu: ${
+                                    a.score?.original_total_score?.toFixed(2) ?? "—"
+                                  }${a.score?.adjustment_reason ? ` · Lý do: ${a.score.adjustment_reason}` : ""}`}
+                                >
+                                  Đã chỉnh
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                className="btn-link"
+                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
+                                onClick={() => void toggleScoreEditor(a.id, a.exam_id)}
+                              >
+                                {isEditorOpen ? "Đóng sửa điểm" : "Sửa điểm"}
+                              </button>
                               <button
                                 type="button"
                                 className="btn-link btn-danger"
@@ -682,6 +762,28 @@ export function TeacherStudentDetail() {
                               </button>
                             </td>
                           </tr>
+                          {isEditorOpen && (
+                            <tr>
+                              <td colSpan={11} className="proctoring-detail-cell">
+                                {loadingEditor || !editorData ? (
+                                  <span className="empty-hint">Đang tải bài làm...</span>
+                                ) : (
+                                  <AttemptScoreEditor
+                                    attemptId={a.id}
+                                    examId={a.exam_id}
+                                    studentId={studentId!}
+                                    teacherId={currentTeacherId ?? ""}
+                                    data={editorData}
+                                    onSaved={handleRegraded}
+                                    onCancel={() => {
+                                      setOpenEditorFor(null);
+                                      setEditorData(null);
+                                    }}
+                                  />
+                                )}
+                              </td>
+                            </tr>
+                          )}
                           {isOpen && (
                             <tr>
                               <td colSpan={11} className="proctoring-detail-cell">
@@ -730,6 +832,7 @@ export function TeacherStudentDetail() {
                                           finalAnswer={item.finalAnswer}
                                           score={item.score}
                                           maxScore={item.maxScore}
+                                          teacherAdjusted={item.teacherAdjusted}
                                         />
                                       ))}
                                     </div>

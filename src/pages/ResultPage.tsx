@@ -149,6 +149,28 @@ export function ResultPage() {
       )}
       <div className="score-total">{score.total_score.toFixed(2)} / 10</div>
 
+      {/* Điểm đã được giáo viên điều chỉnh (14/09/2026) — hiện CÔNG KHAI cho
+          học sinh kèm lý do, đã chốt là minh bạch: tránh các em thắc mắc "sao
+          điểm tự nhiên khác" và tự nhắc giáo viên ghi lý do tử tế. */}
+      {score.adjusted_at && (
+        <div className="score-adjusted-note">
+          <div className="score-adjusted-head">
+            Điểm bài này đã được thầy điều chỉnh
+            {score.original_total_score !== null && score.original_total_score !== undefined && (
+              <span className="score-adjusted-from">
+                {score.original_total_score.toFixed(2)} → {score.total_score.toFixed(2)}
+              </span>
+            )}
+          </div>
+          {score.adjustment_reason && (
+            <div className="score-adjusted-reason">Lý do: {score.adjustment_reason}</div>
+          )}
+          <div className="score-adjusted-time">
+            Điều chỉnh lúc {new Date(score.adjusted_at).toLocaleString("vi-VN")}
+          </div>
+        </div>
+      )}
+
       <div className="result-actions">
         <button type="button" className="btn-secondary" onClick={() => window.print()}>
           Tải phiếu kết quả
@@ -403,6 +425,7 @@ export function ResultPage() {
                       finalAnswer={r.finalAnswer}
                       score={r.score}
                       maxScore={r.maxScore}
+                      teacherAdjusted={r.teacherAdjusted}
                     />
                   ))}
                 </div>

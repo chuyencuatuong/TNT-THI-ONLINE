@@ -227,6 +227,10 @@ export interface WrongAnswerJournalRow {
   last_reviewed_session_id: string | null;
   retired_at: string | null;
   created_at: string;
+  /** Lượt làm bài đã đưa câu này vào nhật ký lần gần nhất (migration_018) —
+   * null với các dòng có từ trước 14/09/2026. Dùng để rút câu khỏi nhật ký
+   * chính xác khi giáo viên chấm lại đúng lượt bài đó. */
+  source_attempt_id?: string | null;
 }
 
 /** 1 buổi ôn tập câu sai — mỗi lần học sinh mở màn hình ôn tập là 1 buổi mới,
@@ -311,6 +315,16 @@ export interface AttemptScoreRow {
   part3_score: number;
   total_score: number;
   computed_at: string;
+  // --- Giáo viên điều chỉnh điểm sau khi nộp bài (14/09/2026, migration_018) ---
+  // Tất cả đều null với các lượt làm bài CHƯA từng được điều chỉnh (mặc định).
+  /** Thời điểm điều chỉnh gần nhất. */
+  adjusted_at?: string | null;
+  /** Giáo viên đã điều chỉnh gần nhất (profiles.id). */
+  adjusted_by?: string | null;
+  /** Lý do điều chỉnh — HIỂN THỊ CHO HỌC SINH ở trang kết quả. */
+  adjustment_reason?: string | null;
+  /** Tổng điểm trước lần điều chỉnh ĐẦU TIÊN (chỉ ghi 1 lần, không ghi đè). */
+  original_total_score?: number | null;
 }
 
 export interface ReportRow {
