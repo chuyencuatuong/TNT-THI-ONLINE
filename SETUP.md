@@ -32,6 +32,11 @@ nhiều lần, không xoá dữ liệu):**
    File này chỉ thêm chỉ mục (index) cho màn hình "Xử lý câu sai" (14/09/2026).
    Không chạy thì web vẫn chạy đúng y hệt, chỉ chậm dần khi nhật ký câu sai và
    số buổi ôn tập nhiều lên. Không thêm/sửa/xoá bảng hay cột nào.
+10. `supabase/migration_018_gv_sua_diem_sau_khi_nop.sql` — **BẮT BUỘC nếu muốn
+    dùng tính năng "Sửa điểm"** (giáo viên chỉnh lại điểm sau khi học sinh nộp
+    bài, khi có trục trặc khách quan). Chỉ thêm cột mới + mở quyền cho giáo
+    viên; KHÔNG đụng tới dữ liệu điểm đã có. Chưa chạy file này thì nút "Sửa
+    điểm" sẽ báo lỗi thiếu cột, phần còn lại của web vẫn chạy bình thường.
 
 Nếu bạn nhớ chắc đã chạy 1 vài file nào rồi thì vẫn cứ chạy lại bình thường,
 không ảnh hưởng gì. Chạy đủ 8 file đầu là chắc chắn CSDL khớp hoàn toàn với
