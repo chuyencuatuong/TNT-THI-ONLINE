@@ -23,6 +23,13 @@ import { ExamCountdown } from "../components/ExamCountdown";
 import { ShareCardModal } from "../components/ShareCard";
 import type { ShareCardData } from "../lib/renderShareCard";
 import { computeStudyStreak, levelLabelForStreak } from "../lib/streak";
+import {
+  computeNudge,
+  EMPTY_JOURNAL_SUMMARY,
+  JOURNAL_STAGE_HINTS,
+  JOURNAL_STAGE_LABELS,
+  type JournalStage,
+} from "../lib/journalProgress";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 
 /** Từ bao nhiêu ngày ôn tập liên tiếp trở lên thì mới đáng để khoe — dưới
@@ -35,7 +42,11 @@ export function StudentDashboard() {
   const [attempts, setAttempts] = useState<
     (ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null })[]
   >([]);
-  const [wrongCount, setWrongCount] = useState(0);
+  // Tiến độ xử lý câu sai (tổng + tách Lần 1/2/3) và mốc ôn gần nhất — nguồn
+  // cho THẺ ƯU TIÊN ở đầu trang (yêu cầu 14/09/2026: bấm vào là thấy ngay còn
+  // bao nhiêu câu phải làm lại).
+  const [journal, setJournal] = useState(EMPTY_JOURNAL_SUMMARY);
+  const [lastReviewAt, setLastReviewAt] = useState<string | null>(null);
   const [chapterStats, setChapterStats] = useState<ChapterStat[]>([]);
   const [activityDates, setActivityDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,13 +70,15 @@ export function StudentDashboard() {
     Promise.all([
       api.listExams(),
       api.listStudentAttempts(profile.id),
-      api.getWrongAnswerJournalCount(profile.id),
+      api.getWrongAnswerJournalSummary(profile.id),
       api.getStudentChapterStats(profile.id),
       api.getStudentActivityDates(profile.id),
-    ]).then(([e, a, wc, cs, ad]) => {
+      api.getLastReviewSessionAt(profile.id),
+    ]).then(([e, a, js, cs, ad, lr]) => {
       setExams(e);
       setAttempts(a);
-      setWrongCount(wc);
+      setJournal(js);
+      setLastReviewAt(lr);
       setChapterStats(cs);
       setActivityDates(ad);
       setLoading(false);
@@ -137,11 +150,75 @@ export function StudentDashboard() {
     );
   }, [chapterStats]);
 
+  // Mức nhắc nhở xử lý câu sai — quy ước hiển thị thuần, xem journalProgress.ts.
+  const nudge = computeNudge({ summary: journal, lastReviewAt, now: new Date() });
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   return (
     <div className="dashboard">
       <h2>Chào em, {profile?.full_name}!</h2>
+
+      {/* THẺ ƯU TIÊN "Ôn tập câu sai" (yêu cầu 14/09/2026) — đặt NGAY DƯỚI lời
+          chào, TRÊN cả đề được chỉ định: câu sai tồn đọng là việc phải xử lý
+          dứt điểm, còn đề chỉ định thì đã có đếm ngược riêng nhắc. Trước đây
+          khối này nằm ở cột phải giữa trang, HS phải cuộn mới thấy. Khi nhật
+          ký sạch, thẻ vẫn hiện nhưng ở dạng "đã xong" (nền nhạt) để HS biết
+          mình đang không nợ câu nào — không im lặng biến mất. */}
+      <Link
+        to="/hoc-sinh/on-tap-cau-sai"
+        className={`review-priority-card review-priority-card--${nudge.level}`}
+      >
+        <div className="review-priority-main">
+          <div className="review-priority-eyebrow">Ưu tiên · Ôn tập câu sai</div>
+          <div className="review-priority-headline">
+            {journal.total === 0 ? (
+              "Không còn câu sai nào cần ôn"
+            ) : (
+              <>
+                Còn <strong>{journal.total}</strong> câu phải làm lại
+              </>
+            )}
+          </div>
+          <div className="review-priority-note">{nudge.message}</div>
+        </div>
+
+        {journal.total > 0 && (
+          <div className="review-priority-stages">
+            {([1, 2, 3] as JournalStage[]).map((stage) => (
+              <div
+                key={stage}
+                className={`review-stage-pill review-stage-pill--${stage}${
+                  journal.byStage[stage - 1] === 0 ? " review-stage-pill--empty" : ""
+                }`}
+                title={JOURNAL_STAGE_HINTS[stage]}
+              >
+                <span className="review-stage-pill-n">{journal.byStage[stage - 1]}</span>
+                <span className="review-stage-pill-label">{JOURNAL_STAGE_LABELS[stage]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="review-priority-cta">
+          <span className="btn-primary review-priority-btn">
+            {journal.total === 0 ? "Xem nhật ký" : "Làm lại ngay"}
+          </span>
+          {journal.total > 0 && (
+            <span className="review-priority-progress" aria-hidden>
+              <span
+                className="review-priority-progress-fill"
+                style={{ width: `${journal.progressPercent}%` }}
+              />
+            </span>
+          )}
+          {journal.total > 0 && (
+            <span className="review-priority-progress-text">
+              Đã đi được {journal.progressPercent}% chặng đường
+            </span>
+          )}
+        </div>
+      </Link>
 
       {featuredExam && featuredStatus && (
         <div className="featured-assigned-card">
@@ -302,29 +379,6 @@ export function StudentDashboard() {
         </div>
 
         <div className="student-2col-col">
-          <section>
-            <h3>Ôn tập câu sai</h3>
-            {wrongCount === 0 ? (
-              <p className="empty-hint">
-                Chưa có câu nào trong nhật ký ôn tập — nhật ký sẽ tự có câu sau khi bạn làm sai 1
-                câu nào đó trong lúc làm đề.
-              </p>
-            ) : (
-              <div className="card-list">
-                <div className="card hover-card">
-                  <div className="card-title">{wrongCount} câu đang cần ôn</div>
-                  <p className="card-desc">
-                    Làm đúng đủ 3 buổi ôn tập riêng biệt liên tiếp thì câu đó mới được rút khỏi
-                    nhật ký.
-                  </p>
-                  <Link className="btn-primary" to="/hoc-sinh/on-tap-cau-sai">
-                    Bắt đầu ôn tập
-                  </Link>
-                </div>
-              </div>
-            )}
-          </section>
-
           {priorityChapter && (
             <section>
               <h3>Chương cần ôn ưu tiên</h3>

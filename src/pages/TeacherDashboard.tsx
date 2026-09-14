@@ -33,6 +33,16 @@ import { MASTERY_COLOR, summarizeClassRecurringGroups, type RecurringGroupInput 
 import type { TopicTrendGroup } from "../lib/api";
 import { AVATAR_PALETTE, initialsOf } from "../lib/avatar";
 import { resolveTier, TIER_LABELS } from "../lib/studentTier";
+import {
+  computeNudge,
+  EMPTY_JOURNAL_SUMMARY,
+  JOURNAL_STAGE_HINTS,
+  JOURNAL_STAGE_LABELS,
+  NUDGE_SORT_ORDER,
+  type JournalStage,
+  type JournalSummary,
+  type NudgeState,
+} from "../lib/journalProgress";
 import type { ClassRow, Profile } from "../lib/types";
 
 const TIER_BADGE_CLASS: Record<string, string> = {
@@ -96,6 +106,12 @@ export function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadedAt] = useState(() => new Date());
   const [reviewSessionsThisWeek, setReviewSessionsThisWeek] = useState<number | null>(null);
+  // Tiến độ xử lý câu sai của TOÀN BỘ học sinh (14/09/2026) — 2 truy vấn duy
+  // nhất cho cả lớp, KHÔNG lặp theo từng học sinh như các map bên trên (xem
+  // api.listActiveJournalProgressByStudent). Học sinh không có dòng nào thì
+  // không nằm trong map -> nơi dùng rơi về EMPTY_JOURNAL_SUMMARY.
+  const [journalByStudent, setJournalByStudent] = useState<Map<string, JournalSummary>>(new Map());
+  const [lastReviewByStudent, setLastReviewByStudent] = useState<Map<string, string>>(new Map());
   // Bộ lọc theo LỚP (Nhóm 1, "quản lý lớp học", 28/08/2026) — trước đây trang
   // này gộp chung TẤT CẢ học sinh của mọi lớp thực tế vào 1 "cả lớp" vô nghĩa
   // (Thầy Tường có 4 lớp <5 HS mỗi lớp, tiến độ khác nhau hẳn nhau). null =
@@ -152,6 +168,15 @@ export function TeacherDashboard() {
         .getReviewSessionCountSince(sevenDaysAgo)
         .then(setReviewSessionsThisWeek)
         .catch((err) => console.error("Không lấy được số buổi ôn tập:", err));
+      Promise.all([
+        api.listActiveJournalProgressByStudent(),
+        api.listLastReviewSessionByStudent(),
+      ])
+        .then(([journalMap, lastReviewMap]) => {
+          setJournalByStudent(journalMap);
+          setLastReviewByStudent(lastReviewMap);
+        })
+        .catch((err) => console.error("Không lấy được tiến độ ôn câu sai:", err));
       setLoading(false);
     })();
   }, [loadedAt]);
@@ -250,6 +275,40 @@ export function TeacherDashboard() {
     setSelectedId(null); // tránh học sinh đang chọn thuộc lớp khác lớp vừa lọc
   }
 
+  // Bảng "Xử lý câu sai" — ghép summary + mốc ôn gần nhất cho từng học sinh
+  // của LỚP ĐANG CHỌN, xếp cần-chú-ý lên trước (gấp -> nhắc -> ổn -> sạch),
+  // trong cùng mức thì nhiều câu tồn đọng hơn lên trước.
+  const journalRows = useMemo(() => {
+    const now = new Date();
+    return filteredSummaries
+      .map((s) => {
+        const summary = journalByStudent.get(s.profile.id) ?? EMPTY_JOURNAL_SUMMARY;
+        const lastReviewAt = lastReviewByStudent.get(s.profile.id) ?? null;
+        const nudge: NudgeState = computeNudge({ summary, lastReviewAt, now });
+        return { profile: s.profile, summary, nudge };
+      })
+      .sort((a, b) => {
+        const order = NUDGE_SORT_ORDER[a.nudge.level] - NUDGE_SORT_ORDER[b.nudge.level];
+        if (order !== 0) return order;
+        if (b.summary.total !== a.summary.total) return b.summary.total - a.summary.total;
+        return a.profile.full_name.localeCompare(b.profile.full_name, "vi");
+      });
+  }, [filteredSummaries, journalByStudent, lastReviewByStudent]);
+
+  // Tổng của lớp đang chọn — cộng từ chính journalRows để con số ở dải thống
+  // kê đầu trang không bao giờ lệch với bảng bên dưới.
+  const journalClassTotals = useMemo(() => {
+    const byStage: [number, number, number] = [0, 0, 0];
+    let total = 0;
+    let needAttention = 0;
+    for (const row of journalRows) {
+      total += row.summary.total;
+      for (let i = 0; i < 3; i++) byStage[i] += row.summary.byStage[i];
+      if (row.nudge.level === "gap" || row.nudge.level === "nhac") needAttention += 1;
+    }
+    return { total, byStage, needAttention };
+  }, [journalRows]);
+
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
   return (
@@ -305,6 +364,15 @@ export function TeacherDashboard() {
           <div className="student-stat-cell-value student-stat-cell-value--muted">
             {reviewSessionsThisWeek === null ? "—" : reviewSessionsThisWeek}
           </div>
+        </div>
+        <div className="student-stat-cell">
+          <div className="student-stat-cell-label">Câu sai chưa ôn xong</div>
+          <div className="student-stat-cell-value">{journalClassTotals.total}</div>
+          {journalClassTotals.needAttention > 0 && (
+            <div className="student-stat-cell-sub">
+              {journalClassTotals.needAttention} HS cần nhắc
+            </div>
+          )}
         </div>
       </div>
 
@@ -522,6 +590,95 @@ export function TeacherDashboard() {
             </ResponsiveContainer>
           )}
         </section>
+      </div>
+
+      {/* Theo dõi xử lý câu sai (14/09/2026) — trước đợt này giáo viên KHÔNG có
+          chỗ nào nhìn được nhật ký câu sai của học sinh, dù dữ liệu đã ghi từ
+          migration_008. Cột Lần 1/2/3 là số câu đang ở từng chặng Leitner
+          (streak 0/1/2) — xem src/lib/journalProgress.ts. */}
+      <div className="hover-card" style={{ marginTop: "var(--space-5)" }}>
+        <div className="teacher-chart-header">
+          <div>
+            <h3 style={{ marginBottom: 2 }}>Xử lý câu sai {selectedClass ? `— ${selectedClass.name}` : "— tất cả lớp"}</h3>
+            <div className="empty-hint" style={{ padding: 0 }}>
+              Mỗi câu phải làm đúng ở 3 buổi ôn tập riêng biệt liên tiếp mới được rút khỏi nhật ký.
+              Lần 1 = chưa đúng buổi nào · Lần 2 = đã đúng 1 buổi · Lần 3 = đã đúng 2 buổi, chỉ còn
+              1 buổi nữa.
+            </div>
+          </div>
+          <div className="journal-legend">
+            {([1, 2, 3] as JournalStage[]).map((st) => (
+              <span key={st} className={`journal-legend-item journal-legend-item--${st}`}>
+                {JOURNAL_STAGE_LABELS[st]}: {journalClassTotals.byStage[st - 1]}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {journalRows.length === 0 ? (
+          <p className="empty-hint">Chưa có học sinh nào trong lựa chọn hiện tại.</p>
+        ) : (
+          <div className="journal-table-wrap">
+            <table className="history-table journal-table">
+              <thead>
+                <tr>
+                  <th>Học sinh</th>
+                  <th className="journal-num">Còn lại</th>
+                  <th className="journal-num" title={JOURNAL_STAGE_HINTS[1]}>Lần 1</th>
+                  <th className="journal-num" title={JOURNAL_STAGE_HINTS[2]}>Lần 2</th>
+                  <th className="journal-num" title={JOURNAL_STAGE_HINTS[3]}>Lần 3</th>
+                  <th className="journal-num">Lần ôn gần nhất</th>
+                  <th>Trạng thái</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {journalRows.map((row) => (
+                  <tr key={row.profile.id} className={`journal-row journal-row--${row.nudge.level}`}>
+                    <td>{row.profile.full_name}</td>
+                    <td className="journal-num">
+                      <strong>{row.summary.total}</strong>
+                    </td>
+                    {([1, 2, 3] as JournalStage[]).map((st) => (
+                      <td key={st} className="journal-num">
+                        <span
+                          className={`journal-cell journal-cell--${st}${
+                            row.summary.byStage[st - 1] === 0 ? " journal-cell--zero" : ""
+                          }`}
+                        >
+                          {row.summary.byStage[st - 1]}
+                        </span>
+                      </td>
+                    ))}
+                    <td className="journal-num">
+                      {row.nudge.daysSinceReview === null
+                        ? "Chưa ôn"
+                        : row.nudge.daysSinceReview === 0
+                          ? "Hôm nay"
+                          : `${row.nudge.daysSinceReview} ngày trước`}
+                    </td>
+                    <td>
+                      <span className={`journal-badge journal-badge--${row.nudge.level}`}>
+                        {row.nudge.level === "gap"
+                          ? "Cần nhắc gấp"
+                          : row.nudge.level === "nhac"
+                            ? "Nên nhắc"
+                            : row.nudge.level === "ok"
+                              ? "Đang ôn đều"
+                              : "Sạch nhật ký"}
+                      </span>
+                    </td>
+                    <td>
+                      <Link className="btn-link" to={`/giao-vien/hoc-sinh/${row.profile.id}`}>
+                        Chi tiết →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="hover-card" style={{ marginTop: "var(--space-5)" }}>

@@ -4,6 +4,13 @@ import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { questionMaxScore } from "../lib/api";
 import { pickRandomForSession } from "../lib/leitner";
+import {
+  JOURNAL_STAGE_HINTS,
+  JOURNAL_STAGE_LABELS,
+  stageOfStreak,
+  summarizeJournal,
+  type JournalStage,
+} from "../lib/journalProgress";
 import { computeBatchSizes, locateInBatches, splitIntoBatches } from "../lib/reviewBatching";
 import {
   clearReviewProgress,
@@ -118,6 +125,11 @@ export function StudentReviewPage() {
   // kiếm/bấm chip.
   const [overviewSearch, setOverviewSearch] = useState("");
   const [activeChapterFilters, setActiveChapterFilters] = useState<Set<string>>(new Set());
+  // Lọc theo CHẶNG (Lần 1/2/3 — xem journalProgress.ts), bổ sung 14/09/2026
+  // cùng cơ chế với chip chương: rỗng = không lọc. Có bộ lọc này thì HS mới
+  // "xử lý dứt điểm" được theo nhóm (vd. dồn sức cho các câu Lần 3 để rút
+  // chúng khỏi nhật ký ngay trong buổi này).
+  const [activeStageFilters, setActiveStageFilters] = useState<Set<JournalStage>>(new Set());
 
   // Buổi ôn tập đang diễn ra (khi stage === "session"/"awaiting-round").
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -249,11 +261,14 @@ export function StudentReviewPage() {
         const key = e.question.topic_id ?? "__khac__";
         if (!activeChapterFilters.has(key)) return false;
       }
+      if (activeStageFilters.size > 0 && !activeStageFilters.has(stageOfStreak(e.correct_streak))) {
+        return false;
+      }
       return true;
     });
     return groupByTopic(filtered);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allEntries, topicsById, overviewSearch, activeChapterFilters]);
+  }, [allEntries, topicsById, overviewSearch, activeChapterFilters, activeStageFilters]);
   const overviewVisibleCount = overviewGroups.reduce((sum, g) => sum + g.entries.length, 0);
 
   function toggleChapterFilter(key: string) {
@@ -263,6 +278,25 @@ export function StudentReviewPage() {
       else next.add(key);
       return next;
     });
+  }
+
+  function toggleStageFilter(stage: JournalStage) {
+    setActiveStageFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(stage)) next.delete(stage);
+      else next.add(stage);
+      return next;
+    });
+  }
+
+  /** Chỉ chọn đúng các câu thuộc 1 chặng (bỏ chọn hết phần còn lại) — nút tắt
+   * cho thao tác hay dùng nhất: "ôn dứt điểm nhóm Lần 3". */
+  function selectOnlyStage(stage: JournalStage) {
+    setSelectedIds(
+      new Set(
+        allEntries.filter((e) => stageOfStreak(e.correct_streak) === stage).map((e) => e.id),
+      ),
+    );
   }
 
   async function handleStartSession(entries: JournalEntryWithQuestion[]) {
@@ -401,6 +435,9 @@ export function StudentReviewPage() {
 
   if (stage === "overview") {
     const overviewRounds = computeBatchSizes(selectedIds.size).length;
+    // Tổng hợp toàn nhật ký (KHÔNG phụ thuộc bộ lọc đang bật) — dải "Lần
+    // 1/2/3" phải luôn nói đúng tổng thật, giống cách chip chương đang làm.
+    const journal = summarizeJournal(allEntries);
     return (
       <div className="review-overview-page">
         <div className="review-page-header">
@@ -415,6 +452,55 @@ export function StudentReviewPage() {
             Đã chọn <strong>{selectedIds.size}</strong>/{allEntries.length} câu
           </span>
         </div>
+
+        {/* Dải chặng Lần 1/2/3 (14/09/2026) — vừa là bảng tổng, vừa là bộ lọc:
+            bấm vào 1 chặng để chỉ xem nhóm đó, bấm "Chỉ ôn nhóm này" để chọn
+            luôn đúng nhóm đó cho buổi ôn. */}
+        <div className="review-stage-strip">
+          {([1, 2, 3] as JournalStage[]).map((st) => {
+            const n = journal.byStage[st - 1];
+            const active = activeStageFilters.has(st);
+            return (
+              <div
+                key={st}
+                className={`review-stage-tile review-stage-tile--${st}${
+                  active ? " review-stage-tile--active" : ""
+                }${n === 0 ? " review-stage-tile--empty" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="review-stage-tile-main"
+                  onClick={() => toggleStageFilter(st)}
+                  aria-pressed={active}
+                  title={JOURNAL_STAGE_HINTS[st]}
+                >
+                  <span className="review-stage-tile-n">{n}</span>
+                  <span className="review-stage-tile-label">{JOURNAL_STAGE_LABELS[st]}</span>
+                  <span className="review-stage-tile-hint">{JOURNAL_STAGE_HINTS[st]}</span>
+                </button>
+                {n > 0 && (
+                  <button
+                    type="button"
+                    className="review-stage-tile-action"
+                    onClick={() => selectOnlyStage(st)}
+                  >
+                    Chỉ ôn nhóm này
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {activeStageFilters.size > 0 && (
+          <button
+            type="button"
+            className="btn-link review-stage-clear"
+            onClick={() => setActiveStageFilters(new Set())}
+          >
+            Bỏ lọc theo lần ({activeStageFilters.size} nhóm đang lọc)
+          </button>
+        )}
 
         <div className="review-toolbar">
           <input
@@ -498,6 +584,11 @@ export function StudentReviewPage() {
                           <MathText text={entry.question.content_latex} />
                         </span>
                         <span className="review-card-meta">
+                          <span
+                            className={`review-card-stage review-card-stage--${stageOfStreak(entry.correct_streak)}`}
+                          >
+                            {JOURNAL_STAGE_LABELS[stageOfStreak(entry.correct_streak)]}
+                          </span>
                           <span
                             className="review-streak-dots"
                             title={`Đã đúng liên tiếp ${entry.correct_streak}/3 buổi`}

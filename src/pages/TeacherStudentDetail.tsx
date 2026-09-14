@@ -22,6 +22,7 @@ import type { AttemptDiagnostics, AttemptReviewItem, LessonTrendGroup, TopicTren
 import { generateReportSummary } from "../lib/ai";
 import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
 import { QuestionReview } from "../components/QuestionReview";
+import { MathText } from "../components/MathText";
 import {
   BLANK_REASON_LABELS,
   MASTERY_COLOR,
@@ -33,6 +34,15 @@ import {
 import { completionMinutes, formatMinutes, formatScoreDelta, formatTimeDelta } from "../lib/format";
 import { resolveTier, TIER_LABELS } from "../lib/studentTier";
 import {
+  computeNudge,
+  EMPTY_JOURNAL_SUMMARY,
+  JOURNAL_STAGE_HINTS,
+  JOURNAL_STAGE_LABELS,
+  stageOfStreak,
+  summarizeJournal,
+  type JournalStage,
+} from "../lib/journalProgress";
+import {
   DIFFICULTY_LABELS,
   GENDER_LABELS,
   type AttemptScoreRow,
@@ -41,6 +51,8 @@ import {
   type ExamRow,
   type Profile,
   type ProctoringEventRow,
+  type QuestionRow,
+  type WrongAnswerJournalRow,
 } from "../lib/types";
 
 const TIER_BADGE_CLASS: Record<string, string> = {
@@ -147,6 +159,14 @@ export function TeacherStudentDetail() {
     Record<string, AttemptDiagnostics>
   >({});
   const [loadingDiagnosis, setLoadingDiagnosis] = useState(false);
+  // Nhật ký câu sai của học sinh này (14/09/2026) — GV xem được còn bao nhiêu
+  // câu chưa ôn xong, tách theo chặng Lần 1/2/3 (journalProgress.ts). RLS
+  // "wrong_journal_select" đã cho phép is_teacher() đọc.
+  const [journalEntries, setJournalEntries] = useState<
+    (WrongAnswerJournalRow & { question: QuestionRow })[]
+  >([]);
+  const [lastReviewAt, setLastReviewAt] = useState<string | null>(null);
+  const [openJournalStage, setOpenJournalStage] = useState<JournalStage | null>(null);
 
   useEffect(() => {
     if (!studentId) return;
@@ -181,6 +201,15 @@ export function TeacherStudentDetail() {
         .getBlankQuestionCounts(scoredAttempts.map((a) => a.id))
         .then(setBlankCounts)
         .catch((err) => console.error("Không lấy được dữ liệu câu bỏ trống:", err));
+      Promise.all([
+        api.listActiveJournalEntries(studentId),
+        api.getLastReviewSessionAt(studentId),
+      ])
+        .then(([entries, last]) => {
+          setJournalEntries(entries);
+          setLastReviewAt(last);
+        })
+        .catch((err) => console.error("Không lấy được nhật ký câu sai:", err));
       setLoading(false);
     })();
   }, [studentId]);
@@ -361,6 +390,22 @@ export function TeacherStudentDetail() {
     .filter((t) => t.trend.isRecurring)
     .sort((a, b) => b.trend.validPointCount - a.trend.validPointCount);
 
+  // Tiến độ xử lý câu sai của học sinh này (14/09/2026).
+  const journalSummary = summarizeJournal(journalEntries);
+  const journalNudge = computeNudge({
+    summary: journalSummary,
+    lastReviewAt,
+    now: new Date(),
+  });
+  const journalEntriesOfOpenStage =
+    openJournalStage === null
+      ? []
+      : journalEntries
+          .filter((e) => stageOfStreak(e.correct_streak) === openJournalStage)
+          .sort(
+            (a, b) => new Date(b.last_wrong_at).getTime() - new Date(a.last_wrong_at).getTime(),
+          );
+
   return (
     <div className="teacher-page">
       <h2>
@@ -382,6 +427,80 @@ export function TeacherStudentDetail() {
           ))}
         </div>
       )}
+
+      {/* Xử lý câu sai (14/09/2026) — đặt ngay đầu trang chi tiết vì đây là
+          việc GV có thể nhắc học sinh làm NGAY, khác với các biểu đồ phân
+          tích bên dưới. Bấm vào 1 chặng để xem đúng danh sách câu ở chặng đó. */}
+      <section>
+        <div className="teacher-chart-header">
+          <div>
+            <h3 style={{ marginBottom: 2 }}>Xử lý câu sai</h3>
+            <div className="empty-hint" style={{ padding: 0 }}>
+              {journalNudge.message}
+              {journalNudge.daysSinceReview !== null && journalSummary.total > 0 && (
+                <> · Ôn gần nhất {journalNudge.daysSinceReview} ngày trước.</>
+              )}
+            </div>
+          </div>
+          <span className={`journal-badge journal-badge--${journalNudge.level}`}>
+            {journalSummary.total} câu còn lại
+          </span>
+        </div>
+
+        {journalSummary.total === 0 ? (
+          <p className="empty-hint">
+            Nhật ký câu sai đang sạch — không còn câu nào chờ ôn lại.
+          </p>
+        ) : (
+          <>
+            <div className="review-stage-strip">
+              {([1, 2, 3] as JournalStage[]).map((st) => {
+                const n = journalSummary.byStage[st - 1];
+                return (
+                  <div
+                    key={st}
+                    className={`review-stage-tile review-stage-tile--${st}${
+                      openJournalStage === st ? " review-stage-tile--active" : ""
+                    }${n === 0 ? " review-stage-tile--empty" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="review-stage-tile-main"
+                      onClick={() => setOpenJournalStage(openJournalStage === st ? null : st)}
+                      aria-pressed={openJournalStage === st}
+                      disabled={n === 0}
+                    >
+                      <span className="review-stage-tile-n">{n}</span>
+                      <span className="review-stage-tile-label">{JOURNAL_STAGE_LABELS[st]}</span>
+                      <span className="review-stage-tile-hint">{JOURNAL_STAGE_HINTS[st]}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {openJournalStage !== null && (
+              <div className="journal-entry-list">
+                {journalEntriesOfOpenStage.length === 0 ? (
+                  <p className="empty-hint">Không có câu nào ở {JOURNAL_STAGE_LABELS[openJournalStage]}.</p>
+                ) : (
+                  journalEntriesOfOpenStage.map((entry) => (
+                    <div key={entry.id} className="journal-entry">
+                      <div className="journal-entry-text">
+                        <MathText text={entry.question.content_latex} />
+                      </div>
+                      <div className="journal-entry-meta">
+                        Sai gần nhất {new Date(entry.last_wrong_at).toLocaleDateString("vi-VN")} · vào
+                        nhật ký từ {new Date(entry.first_wrong_at).toLocaleDateString("vi-VN")}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <section>
         <h3>Xu hướng điểm số</h3>

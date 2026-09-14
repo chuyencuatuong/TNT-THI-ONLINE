@@ -24,6 +24,12 @@ import {
   type TopicOutcomeGroup,
 } from "./diagnosis";
 import { applyReviewResult, markWrongFromExam, type JournalStreakState } from "./leitner";
+import {
+  summarizeJournal,
+  summarizeJournalByStudent,
+  type JournalProgressInput,
+  type JournalSummary,
+} from "./journalProgress";
 import { mergeChapterStats, type ChapterStat } from "./chapterStats";
 import { mergeLessonStats, type LessonStat } from "./lessonStats";
 import type {
@@ -1743,6 +1749,78 @@ export async function getWrongAnswerJournalCount(studentId: string): Promise<num
     .is("retired_at", null);
   if (error) throw error;
   return count ?? 0;
+}
+
+/**
+ * Tiến độ xử lý câu sai của 1 học sinh, đã tách theo chặng Lần 1/2/3 (xem
+ * journalProgress.ts) — thay cho getWrongAnswerJournalCount ở trang chủ học
+ * sinh, vì thẻ ưu tiên cần biết CHI TIẾT từng chặng chứ không chỉ tổng số.
+ *
+ * Chỉ kéo đúng 2 cột cần cho phép tính (correct_streak, last_wrong_at) thay
+ * vì select("*") — nhật ký có thể lên tới vài trăm dòng/học sinh, không cần
+ * kéo cả nội dung câu hỏi về chỉ để đếm.
+ */
+export async function getWrongAnswerJournalSummary(studentId: string): Promise<JournalSummary> {
+  const { data, error } = await supabase
+    .from("wrong_answer_journal")
+    .select("correct_streak, last_wrong_at")
+    .eq("student_id", studentId)
+    .is("retired_at", null);
+  if (error) throw error;
+  return summarizeJournal((data ?? []) as JournalProgressInput[]);
+}
+
+/** Mốc bắt đầu buổi ôn tập GẦN NHẤT của 1 học sinh — null nếu chưa ôn buổi
+ * nào. Dùng cho mức nhắc nhở (computeNudge) ở cả trang HS lẫn giao diện GV. */
+export async function getLastReviewSessionAt(studentId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("review_sessions")
+    .select("started_at")
+    .eq("student_id", studentId)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.started_at ?? null;
+}
+
+/**
+ * (GIÁO VIÊN) Tiến độ xử lý câu sai của TOÀN BỘ học sinh trong 1 TRUY VẤN
+ * DUY NHẤT — cố ý không lặp getWrongAnswerJournalSummary cho từng học sinh
+ * (kiểu N+1 mà TeacherDashboard đang mắc ở chỗ khác), vì lớp có bao nhiêu
+ * học sinh thì cũng chỉ là bấy nhiêu dòng trong cùng 1 bảng.
+ *
+ * RLS: policy "wrong_journal_select" đã cho phép is_teacher() đọc mọi dòng —
+ * học sinh gọi hàm này sẽ chỉ nhận về nhật ký của chính mình, không rò rỉ.
+ */
+export async function listActiveJournalProgressByStudent(): Promise<Map<string, JournalSummary>> {
+  const { data, error } = await supabase
+    .from("wrong_answer_journal")
+    .select("student_id, correct_streak, last_wrong_at")
+    .is("retired_at", null);
+  if (error) throw error;
+  return summarizeJournalByStudent(
+    (data ?? []) as (JournalProgressInput & { student_id: string })[],
+  );
+}
+
+/**
+ * (GIÁO VIÊN) Mốc buổi ôn tập gần nhất của MỌI học sinh, cũng chỉ 1 truy vấn.
+ * Supabase/PostgREST không có "group by + max" trực tiếp qua REST nên lấy về
+ * danh sách đã sắp xếp giảm dần rồi giữ lại dòng ĐẦU TIÊN gặp của mỗi học
+ * sinh — đúng bằng max(started_at) mà không cần thêm RPC/view mới.
+ */
+export async function listLastReviewSessionByStudent(): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from("review_sessions")
+    .select("student_id, started_at")
+    .order("started_at", { ascending: false });
+  if (error) throw error;
+  const map = new Map<string, string>();
+  for (const row of (data ?? []) as { student_id: string; started_at: string }[]) {
+    if (!map.has(row.student_id)) map.set(row.student_id, row.started_at);
+  }
+  return map;
 }
 
 export async function startReviewSession(studentId: string): Promise<ReviewSessionRow> {
