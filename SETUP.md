@@ -28,9 +28,13 @@ nhiều lần, không xoá dữ liệu):**
 7. `supabase/migration_015_xoa_ket_qua_thi.sql`
 8. `supabase/migration_016_lop_chuong_bai.sql` (xem chi tiết ở mục ngay bên
    dưới — Giai đoạn 1)
+9. `supabase/migration_017_chi_muc_on_tap_cau_sai.sql` — **KHÔNG bắt buộc.**
+   File này chỉ thêm chỉ mục (index) cho màn hình "Xử lý câu sai" (14/09/2026).
+   Không chạy thì web vẫn chạy đúng y hệt, chỉ chậm dần khi nhật ký câu sai và
+   số buổi ôn tập nhiều lên. Không thêm/sửa/xoá bảng hay cột nào.
 
 Nếu bạn nhớ chắc đã chạy 1 vài file nào rồi thì vẫn cứ chạy lại bình thường,
-không ảnh hưởng gì. Chạy đủ 8 file trên là chắc chắn CSDL khớp hoàn toàn với
+không ảnh hưởng gì. Chạy đủ 8 file đầu là chắc chắn CSDL khớp hoàn toàn với
 code hiện tại, không còn lỗi "thiếu cột"/"thiếu bảng" nào nữa.
 
 **Nếu bạn đang chạy LẠI TỪ ĐẦU (từ `migration_002` trở đi, không chỉ 8 file

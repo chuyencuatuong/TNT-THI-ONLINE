@@ -110,6 +110,7 @@ duy nhất).
 - `src/lib/chunk.ts` — chia mảng thành nhiều đợt (dùng để gửi ảnh trang PDF theo batch cho AI), 5 unit test.
 - `src/lib/concurrency.ts` — chạy nhiều lệnh gọi bất đồng bộ ĐỒNG THỜI có giới hạn số lượng cùng lúc (worker pool, giữ đúng thứ tự kết quả) — dùng để gọi các đợt AI song song khi tạo đề từ PDF thay vì tuần tự từng đợt một (thêm 31/08/2026), 5 unit test.
 - `src/lib/leitner.ts` — logic thuần cho nhật ký câu sai kiểu Leitner (đếm streak theo buổi ôn tập riêng biệt, chọn ngẫu nhiên), 10 unit test.
+- `src/lib/journalProgress.ts` — diễn dịch `correct_streak` của nhật ký thành chặng **Lần 1 / Lần 2 / Lần 3** (còn bao nhiêu câu ở mỗi chặng, % chặng đường đã đi) + mức nhắc nhở "cần xử lý" theo số ngày chưa ôn và số câu tồn đọng — dùng chung cho thẻ ưu tiên ở trang chủ HS, màn hình ôn tập và 2 màn hình giáo viên (thêm 14/09/2026), 22 unit test.
 - `src/lib/examLibrary.ts` — logic thuần cho Kho đề (nhóm theo thư mục, lọc theo Khối → Chương trình → Chương), 9 unit test.
 - `src/lib/reviewBatching.ts` — chia 1 buổi ôn tập thành nhiều đợt tối đa 10 câu/đợt khi nhật ký nhiều câu (dồn phần dư vào đợt sau), 10 unit test.
 - `src/lib/reviewShuffle.ts` — xáo ngẫu nhiên vị trí đáp án 1 câu cho màn hình ôn tập (chỉ ôn tập, không đụng đề thi thật), 5 unit test.
@@ -120,7 +121,7 @@ duy nhất).
 - `src/pages/` — các trang giao diện (giáo viên, học sinh, báo cáo công khai).
 - `src/components/` — các thành phần dùng chung (câu hỏi 3 phần, form nhập đề, TagPicker chọn thư mục/chương trình...).
 - `supabase/schema.sql` — toàn bộ database schema + phân quyền (RLS) cho cài đặt mới.
-- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql`, `migration_008_kho_de_va_on_tap_leitner.sql`, ..., `migration_016_lop_chuong_bai.sql` (Lớp → Chương → Bài + tiến độ bài dạy, 31/08/2026) — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
+- `supabase/migration_002_import_and_tracking.sql`, `migration_003_question_images_storage.sql`, `migration_004_giam_sat_thi.sql`, `migration_005_chuong_toan12.sql`, `migration_006_loi_giai.sql`, `migration_007_chuong_thu_muc_drive.sql`, `migration_008_kho_de_va_on_tap_leitner.sql`, ..., `migration_016_lop_chuong_bai.sql` (Lớp → Chương → Bài + tiến độ bài dạy, 31/08/2026), `migration_017_chi_muc_on_tap_cau_sai.sql` (chỉ mục cho màn hình theo dõi xử lý câu sai, 14/09/2026 — chỉ tăng tốc, không bắt buộc) — cập nhật thêm cho DB đã tồn tại (xem `SETUP.md`).
 - `.github/workflows/deploy.yml` — tự động build & deploy lên GitHub Pages.
 
 ## Chạy thử ở máy (không bắt buộc)
