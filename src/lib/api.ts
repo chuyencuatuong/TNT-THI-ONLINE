@@ -247,21 +247,41 @@ export async function upsertOptionRationale(
   if (error) throw error;
 }
 
-/** Danh sách pattern_label đã dùng cho các câu THUỘC CÙNG 1 Bài — đưa vào
- * prompt AI (suggestOptionRationale trong ai.ts) để ưu tiên tái dùng nhãn cũ
- * thay vì tạo nhãn mới gần giống. */
-export async function listPatternLabelsForLesson(lessonId: string): Promise<string[]> {
+export interface PatternLabelStat {
+  pattern_label: string;
+  error_type: DistractorErrorType;
+  count: number;
+}
+
+/** Thống kê tần suất pattern_label đã dùng cho các câu THUỘC CÙNG 1 Bài, xếp
+ * hạng theo số lần dùng nhiều nhất trước. Đây là nền của "Gợi ý nhanh" trong
+ * DistractorRationaleEditor.tsx (điền sẵn nhãn phổ biến nhất cho Bài này,
+ * KHÔNG gọi AI, không giới hạn số lần dùng — thêm 22/09/2026 theo phản hồi
+ * Thầy Tường: trước đó bắt buộc gọi AI mới vào được chế độ sửa, và không có
+ * menu chọn nhãn có sẵn nên dễ gõ lệch chính tả, làm gãy đếm theo
+ * pattern_label ở "Progress Story" sau này). Cũng thay cho
+ * listPatternLabelsForLesson cũ khi cần danh sách nhãn đưa vào prompt AI. */
+export async function listPatternLabelStatsForLesson(lessonId: string): Promise<PatternLabelStat[]> {
   const { data, error } = await supabase
     .from("question_option_rationale")
-    .select("pattern_label, questions!inner(lesson_id)")
+    .select("pattern_label, error_type, questions!inner(lesson_id)")
     .eq("questions.lesson_id", lessonId)
     .not("pattern_label", "is", null);
   if (error) throw error;
-  const labels = new Set<string>();
-  for (const row of data as Array<{ pattern_label: string | null }>) {
-    if (row.pattern_label) labels.add(row.pattern_label);
+  const counts = new Map<string, PatternLabelStat>();
+  for (const row of data as Array<{ pattern_label: string | null; error_type: DistractorErrorType }>) {
+    if (!row.pattern_label) continue;
+    const key = `${row.pattern_label}::${row.error_type}`;
+    const found = counts.get(key);
+    if (found) {
+      found.count += 1;
+    } else {
+      counts.set(key, { pattern_label: row.pattern_label, error_type: row.error_type, count: 1 });
+    }
   }
-  return Array.from(labels).sort();
+  return Array.from(counts.values()).sort(
+    (a, b) => b.count - a.count || a.pattern_label.localeCompare(b.pattern_label),
+  );
 }
 
 // ---------------------------------------------------------------------------

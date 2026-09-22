@@ -22,13 +22,23 @@ interface DraftRow {
 }
 
 /**
- * Gắn nhãn lỗi cho từng phương án nhiễu của 1 câu Phần 1 — AI soạn nháp từ
- * solution_latex, giáo viên sửa/xác nhận (migration_019, Đợt 1). Chỉ hiện cho
- * câu Phần 1 (Phần 2/3 không có phương án nhiễu rời rạc, xem tài liệu kiến
- * trúc v2 mục 2.5).
+ * Gắn nhãn lỗi cho từng phương án nhiễu của 1 câu Phần 1 (migration_019,
+ * Đợt 1). Đường vào chính là "Gợi ý nhanh" — điền sẵn nhãn dùng nhiều nhất
+ * cho Bài này từ dữ liệu đã có, KHÔNG gọi AI, không giới hạn số lần dùng.
+ * "Gợi ý bằng AI" là tuỳ chọn thêm (soạn mô tả chi tiết hơn dựa vào
+ * solution_latex) nhưng dùng CHUNG hạn mức Gemini free tier (20 lượt/ngày)
+ * với các tính năng AI khác trong hệ thống — xem ghi chú model trong ai.ts.
+ *
+ * Sửa 22/09/2026 theo phản hồi thực tế của Thầy Tường: trước đó (1) bắt
+ * buộc gọi AI thành công mới vào được chế độ sửa — hạn mức AI hết là không
+ * gắn nhãn được luôn; (2) pattern_label chỉ có ô gõ tay tự do, không có menu
+ * chọn nhãn có sẵn, dễ gõ lệch chính tả cùng 1 lỗi (vd "Quên đổi cận" vs
+ * "quên đổi cận") — làm gãy việc đếm theo pattern_label ở "Progress Story"
+ * (Đợt 5) vì đó là đếm CHUỖI CHÍNH XÁC, không gộp mờ theo AI.
  */
 export function DistractorRationaleEditor({ question }: { question: QuestionRow }) {
   const [existing, setExisting] = useState<QuestionOptionRationaleRow[] | null>(null);
+  const [labelStats, setLabelStats] = useState<api.PatternLabelStat[]>([]);
   const [drafts, setDrafts] = useState<DraftRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -38,8 +48,14 @@ export function DistractorRationaleEditor({ question }: { question: QuestionRow 
   async function load() {
     setLoading(true);
     try {
-      const rows = await api.listOptionRationale(question.id);
+      const [rows, stats] = await Promise.all([
+        api.listOptionRationale(question.id),
+        question.lesson_id
+          ? api.listPatternLabelStatsForLesson(question.lesson_id)
+          : Promise.resolve([] as api.PatternLabelStat[]),
+      ]);
       setExisting(rows);
+      setLabelStats(stats);
       if (rows.length > 0) {
         setDrafts(
           rows
@@ -58,13 +74,46 @@ export function DistractorRationaleEditor({ question }: { question: QuestionRow 
     }
   }
 
+  // Nhãn duy nhất, xếp theo số lần dùng nhiều nhất trước — nguồn cho dropdown
+  // "chọn nhãn có sẵn" và cho "Gợi ý nhanh" bên dưới.
+  const uniqueLabels: { label: string; error_type: DistractorErrorType; count: number }[] = [];
+  {
+    const seen = new Set<string>();
+    for (const s of labelStats) {
+      if (seen.has(s.pattern_label)) continue;
+      seen.add(s.pattern_label);
+      uniqueLabels.push({ label: s.pattern_label, error_type: s.error_type, count: s.count });
+    }
+  }
+
+  function nonCorrectKeys(): string[] {
+    const correctChoice = (question.correct_answer as Part1Answer).choice;
+    return ALL_OPTION_KEYS.filter((k) => k !== correctChoice);
+  }
+
+  /** Điền sẵn nháp từ nhãn dùng NHIỀU NHẤT cho Bài này — thuần dữ liệu đã
+   * tải sẵn ở load(), không gọi AI, không tốn hạn mức, dùng bao nhiêu lần
+   * cũng được. Nếu Bài chưa có nhãn nào trước đó, vẫn tạo 3 dòng trống để
+   * giáo viên gõ tay/chọn từ dropdown — quan trọng là LUÔN vào được chế độ
+   * sửa mà không cần chờ AI. */
+  function handleQuickStart() {
+    const top = labelStats[0];
+    setDrafts(
+      nonCorrectKeys().map((key) => ({
+        option_key: key,
+        error_type: top?.error_type ?? "conceptual",
+        pattern_label: top?.pattern_label ?? "",
+        rationale_text: "",
+        ai_suggested: false,
+      })),
+    );
+  }
+
   async function handleAiSuggest() {
     setAiLoading(true);
     setAiError(null);
     try {
-      const existingLabels = question.lesson_id
-        ? await api.listPatternLabelsForLesson(question.lesson_id)
-        : [];
+      const existingLabels = uniqueLabels.map((u) => u.label);
       const { suggestions, errorMessage } = await suggestOptionRationale(question, existingLabels);
       if (errorMessage) {
         setAiError(errorMessage);
@@ -134,18 +183,31 @@ export function DistractorRationaleEditor({ question }: { question: QuestionRow 
         </button>
       ) : (
         <div className="inline-create-box">
-          <div className="option-row">
-            <button type="button" className="btn-secondary" onClick={handleAiSuggest} disabled={aiLoading}>
-              {aiLoading ? "Đang hỏi AI..." : "Gợi ý bằng AI"}
-            </button>
-            {existing.length > 0 && (
-              <span className="tag tag--muted">
-                {existing.every((r) => r.verified_by_teacher) ? "Đã xác nhận" : "Có nháp chưa xác nhận"}
-              </span>
-            )}
-          </div>
+          {drafts === null && (
+            <>
+              <div className="option-row">
+                <button type="button" className="btn-primary" onClick={handleQuickStart}>
+                  Gợi ý nhanh (không cần AI)
+                </button>
+                <button type="button" className="btn-secondary" onClick={handleAiSuggest} disabled={aiLoading}>
+                  {aiLoading ? "Đang hỏi AI..." : "Gợi ý bằng AI"}
+                </button>
+                {existing.length > 0 && (
+                  <span className="tag tag--muted">
+                    {existing.every((r) => r.verified_by_teacher) ? "Đã xác nhận" : "Có nháp chưa xác nhận"}
+                  </span>
+                )}
+              </div>
+              <p className="ai-hint">
+                &quot;Gợi ý nhanh&quot; điền sẵn nhãn dùng nhiều nhất cho Bài này (dựa vào các câu đã gắn nhãn
+                trước đó), dùng bao nhiêu lần cũng được. &quot;Gợi ý bằng AI&quot; soạn mô tả chi tiết hơn nhưng
+                dùng chung hạn mức Gemini miễn phí (20 lượt/ngày) với các tính năng AI khác — nên để dành, không
+                dùng cho gắn nhãn hàng loạt.
+              </p>
+            </>
+          )}
           {aiError && <p className="ai-hint">{aiError}</p>}
-          {drafts && drafts.length > 0 ? (
+          {drafts && drafts.length > 0 && (
             <>
               {drafts.map((d) => (
                 <div key={d.option_key} className="option-row">
@@ -160,6 +222,26 @@ export function DistractorRationaleEditor({ question }: { question: QuestionRow 
                     {ERROR_TYPES.map((t) => (
                       <option key={t} value={t}>
                         {DISTRACTOR_ERROR_TYPE_LABELS[t]}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const label = e.target.value;
+                      if (!label) return;
+                      const stat = uniqueLabels.find((u) => u.label === label);
+                      updateDraft(d.option_key, {
+                        pattern_label: label,
+                        error_type: stat?.error_type ?? d.error_type,
+                      });
+                    }}
+                    style={{ minWidth: 130 }}
+                  >
+                    <option value="">-- Nhãn có sẵn --</option>
+                    {uniqueLabels.map((u) => (
+                      <option key={u.label} value={u.label}>
+                        {u.label} ({u.count})
                       </option>
                     ))}
                   </select>
@@ -184,8 +266,6 @@ export function DistractorRationaleEditor({ question }: { question: QuestionRow 
                 {saving ? "Đang lưu..." : "Xác nhận"}
               </button>
             </>
-          ) : (
-            !aiLoading && <p className="empty-hint">Chưa có nhãn nào — bấm &quot;Gợi ý bằng AI&quot; để bắt đầu.</p>
           )}
         </div>
       )}
