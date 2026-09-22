@@ -87,16 +87,11 @@ export function Layout() {
                     <NavLink to="/giao-vien/de-thi" className={navLinkClass}>
                       Đề thi
                     </NavLink>
-                    {/* Tạm ẩn 31/08/2026 theo yêu cầu Thầy Tường — luồng tạo đề
-                        chính giờ là AI import (Nạp đề từ PDF/Word), ngân hàng
-                        câu hỏi thủ công để dành làm hạ tầng cho "tạo đề tự
-                        động theo ma trận" sau này. Bật lại: bỏ comment khối
-                        NavLink dưới đây (route vẫn còn nguyên ở App.tsx,
-                        cũng đang comment cùng lý do).
+                    {/* Bật lại 22/09/2026 — Đợt 1 (Error Rationale & Engine)
+                        cần trang này để gắn nhãn lỗi phương án nhiễu. */}
                     <NavLink to="/giao-vien/ngan-hang-cau-hoi" className={navLinkClass}>
                       Ngân hàng câu hỏi
                     </NavLink>
-                    */}
                     <NavLink to="/giao-vien/nap-dang-bai" className={navLinkClass}>
                       Nạp Bài
                     </NavLink>
