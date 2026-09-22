@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Đang chuyển hướng...</title>
+    <!--
+      Kỹ thuật SPA fallback cho GitHub Pages (spa-github-pages).
+      GitHub Pages không hỗ trợ server-side rewrite, nên khi người dùng mở
+      thẳng 1 đường dẫn con (vd link báo cáo gửi phụ huynh) hoặc bấm F5,
+      GitHub trả về trang 404 này. Script dưới đây chuyển path đó thành
+      query string rồi redirect về index.html, nơi script trong index.html
+      sẽ khôi phục lại đúng path ban đầu.
+    -->
+    <script>
+      var segmentCount = 1; // số phần path của tên repo (vd "/tnt-thi-online") cần giữ nguyên
+      var l = window.location;
+      l.replace(
+        l.protocol + "//" + l.hostname + (l.port ? ":" + l.port : "") +
+        l.pathname.split("/").slice(0, 1 + segmentCount).join("/") + "/?/" +
+        l.pathname.slice(1).split("/").slice(segmentCount).join("/").replace(/&/g, "~and~") +
+        (l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "") +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
