@@ -79,7 +79,7 @@ const MIN_SAMPLE_SIZE = 2;
 const SOLID_SCORE_RATIO = 0.8;
 const GAP_SCORE_RATIO = 0.4;
 const SLOW_TIME_RATIO = 1.3;
-const RUSHED_TIME_RATIO = 0.5;
+export const RUSHED_TIME_RATIO = 0.5;
 const HESITANT_CHANGE_COUNT = 1.5;
 
 export interface TopicDiagnosis {

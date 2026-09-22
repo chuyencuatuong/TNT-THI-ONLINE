@@ -3,6 +3,7 @@ import * as api from "../lib/api";
 import { suggestQuestionTopic } from "../lib/ai";
 import { MathText } from "../components/MathText";
 import { QuestionEditorForm } from "../components/QuestionEditorForm";
+import { DistractorRationaleEditor } from "../components/DistractorRationaleEditor";
 import { DIFFICULTY_LABELS } from "../lib/types";
 import type { Lesson, QuestionRow, Topic } from "../lib/types";
 
@@ -208,6 +209,7 @@ export function TeacherQuestionBank() {
                     </button>
                   </p>
                 )}
+                {q.part === 1 && <DistractorRationaleEditor question={q} />}
                 <button className="btn-link btn-danger" onClick={() => handleDelete(q.id)}>
                   Xoá
                 </button>

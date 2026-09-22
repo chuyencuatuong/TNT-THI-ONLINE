@@ -158,6 +158,57 @@ export interface QuestionRow {
   created_at: string;
 }
 
+/** 4 loại lỗi cốt lõi + 'n_a' (dành cho phương án ĐÚNG, không phải lỗi) --
+ * dùng cho question_option_rationale.error_type (migration_019). Nhãn/màu ở
+ * errorIntelligence.ts (giống cách MasteryLabel/MASTERY_COLOR tách khỏi
+ * types.ts trong diagnosis.ts). */
+export type DistractorErrorType =
+  | "procedural"
+  | "conceptual"
+  | "calculation"
+  | "careless"
+  | "n_a";
+
+export interface QuestionOptionRationaleRow {
+  id: string;
+  question_id: string;
+  option_key: string | null;
+  is_correct: boolean;
+  error_type: DistractorErrorType;
+  pattern_label: string | null;
+  rationale_text: string | null;
+  ai_suggested: boolean;
+  verified_by_teacher: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Kết quả classifyError() (errorIntelligence.ts), ghi vào student_error_instances
+ * lúc chấm bài (migration_019). 'unclassified' khác 'n_a': 'n_a' là phương án
+ * ĐÚNG (không cần phân loại), 'unclassified' là phương án SAI nhưng chưa đủ
+ * căn cứ để xác định loại lỗi cụ thể. */
+export type ErrorInstanceType =
+  | "procedural"
+  | "conceptual"
+  | "calculation"
+  | "careless"
+  | "unclassified";
+
+export type ErrorConfidence = "high" | "medium" | "low";
+
+export interface StudentErrorInstanceRow {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  student_id: string;
+  lesson_id: string | null;
+  error_type: ErrorInstanceType;
+  pattern_label: string | null;
+  confidence: ErrorConfidence;
+  signals: Record<string, unknown>;
+  created_at: string;
+}
+
 /** Thư mục/tuyển tập ('folder') và chương trình/kỳ thi ('term') — 2 danh sách
  * do giáo viên tự quản lý (thêm/sửa tên), dùng chung 1 bảng vì cùng cấu trúc.
  */

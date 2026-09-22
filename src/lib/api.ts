@@ -39,6 +39,7 @@ import type {
   ClassRow,
   ClassSessionRow,
   Difficulty,
+  DistractorErrorType,
   ExamAttemptRow,
   ExamQuestionRow,
   ExamRow,
@@ -54,6 +55,7 @@ import type {
   Lesson,
   LessonProgressRow,
   QuestionRow,
+  QuestionOptionRationaleRow,
   QuestionViewEventRow,
   ReviewSessionRow,
   StudentPlaylistRow,
@@ -201,6 +203,65 @@ export async function updateQuestion(
 export async function deleteQuestion(id: string): Promise<void> {
   const { error } = await supabase.from("questions").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Nhãn lỗi phương án nhiễu (Error Intelligence, Đợt 1 — migration_019)
+// ---------------------------------------------------------------------------
+
+export async function listOptionRationale(
+  questionId: string,
+): Promise<QuestionOptionRationaleRow[]> {
+  const { data, error } = await supabase
+    .from("question_option_rationale")
+    .select("*")
+    .eq("question_id", questionId);
+  if (error) throw error;
+  return data as QuestionOptionRationaleRow[];
+}
+
+/** Lưu nhãn lỗi cho tất cả phương án của 1 câu hỏi cùng lúc — chỉ gọi khi
+ * giáo viên đã bấm "Xác nhận" (DistractorRationaleEditor.tsx), nên luôn set
+ * verified_by_teacher=true; bản nháp AI chưa xác nhận chỉ giữ ở state React,
+ * chưa ghi DB. */
+export async function upsertOptionRationale(
+  questionId: string,
+  rows: Array<{
+    option_key: string;
+    is_correct: boolean;
+    error_type: DistractorErrorType;
+    pattern_label: string | null;
+    rationale_text: string | null;
+    ai_suggested: boolean;
+  }>,
+): Promise<void> {
+  const { error } = await supabase.from("question_option_rationale").upsert(
+    rows.map((r) => ({
+      question_id: questionId,
+      ...r,
+      verified_by_teacher: true,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: "question_id,option_key" },
+  );
+  if (error) throw error;
+}
+
+/** Danh sách pattern_label đã dùng cho các câu THUỘC CÙNG 1 Bài — đưa vào
+ * prompt AI (suggestOptionRationale trong ai.ts) để ưu tiên tái dùng nhãn cũ
+ * thay vì tạo nhãn mới gần giống. */
+export async function listPatternLabelsForLesson(lessonId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("question_option_rationale")
+    .select("pattern_label, questions!inner(lesson_id)")
+    .eq("questions.lesson_id", lessonId)
+    .not("pattern_label", "is", null);
+  if (error) throw error;
+  const labels = new Set<string>();
+  for (const row of data as Array<{ pattern_label: string | null }>) {
+    if (row.pattern_label) labels.add(row.pattern_label);
+  }
+  return Array.from(labels).sort();
 }
 
 // ---------------------------------------------------------------------------
