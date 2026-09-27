@@ -1,0 +1,2233 @@
+/* ==========================================================================
+   STUDENT INTELLIGENCE — Hồ sơ đo lường kết quả (ResultPage, Giai đoạn 1)
+   --------------------------------------------------------------------------
+   - Toàn bộ class đều mang tiền tố .student-intelligence-* để không va chạm
+     ~4000 dòng CSS toàn cục trong src/styles.css.
+   - Token màu KHÔNG khai báo mã hex mới: mọi biến --si-* chỉ là bí danh trỏ
+     về token gốc của styles.css (:root / :root[data-theme="dark"]). Nhờ vậy
+     đổi Sáng (Warm Ivory) <-> Tối (Obsidian) tự đồng bộ, không cần khối dark
+     mode riêng ở đây.
+   - Chỉ 2 gam màu dữ liệu: "vững" (xanh thông) và "hổng" (đất nung).
+   - Không emoji; biểu tượng (nếu có) là SVG nét 1.5px trong component.
+   - 1 họ chữ duy nhất (Be Vietnam Pro của toàn site); con số dùng
+     tabular-nums, không nạp thêm font nào (chốt 27/09/2026).
+   ========================================================================== */
+
+.student-intelligence-root {
+  /* --- Bề mặt & đường kẻ --- */
+  --si-canvas: var(--color-bg);
+  --si-surface: var(--color-card);
+  --si-surface-subtle: var(--color-subtle-bg);
+  --si-hairline: var(--color-border);
+  --si-hairline-soft: color-mix(in srgb, var(--color-border) 55%, transparent);
+
+  /* --- Chữ --- */
+  --si-ink: var(--color-text);
+  --si-ink-muted: var(--color-text-muted);
+  --si-ink-faint: color-mix(in srgb, var(--color-text-muted) 65%, var(--color-bg));
+
+  /* --- Nhận diện --- */
+  --si-brand: var(--color-primary);
+  --si-brand-soft: color-mix(in srgb, var(--color-primary) 9%, transparent);
+  --si-accent: var(--color-accent);
+  --si-accent-ink: var(--color-accent-dark);
+  --si-accent-surface: var(--color-accent-light);
+
+  /* --- 2 gam màu dữ liệu --- */
+  --si-solid: var(--color-success);
+  --si-solid-surface: var(--color-pine-light);
+  --si-solid-ink: var(--color-pine-text);
+  --si-gap: var(--color-clay);
+  --si-gap-surface: var(--color-clay-light);
+  --si-gap-ink: var(--color-clay-text);
+
+  /* --- Typography: dùng đúng 1 họ chữ của toàn site (Be Vietnam Pro, khai
+     báo ở styles.css/index.html). Con số dùng tabular-nums để các chữ số
+     rộng bằng nhau — không nạp thêm font serif/mono nào. --- */
+
+  /* --- Chuyển động --- */
+  --si-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --si-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --si-dur-fast: 180ms;
+  --si-dur-base: 280ms;
+  --si-dur-reveal: 700ms;
+  --si-dur-fill: 900ms;
+
+  /* --- Hình khối & kích thước --- */
+  --si-radius-sm: 6px;
+  --si-radius-md: 10px;
+  --si-radius-lg: 14px;
+  --si-radius-pill: 9999px;
+  --si-nav-width: 248px;
+  --si-column-gap: 56px;
+  --si-sticky-top: 24px;
+  --si-actionbar-height: 64px;
+
+  color: var(--si-ink);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+.student-intelligence-root *:focus-visible {
+  outline: 2px solid var(--si-brand);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY
+   ========================================================================== */
+.student-intelligence-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--si-brand);
+}
+
+.student-intelligence-title {
+  margin: 4px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--si-ink);
+}
+
+.student-intelligence-lede {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  font-size: 14px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-numeral {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.student-intelligence-muted {
+  color: var(--si-ink-muted);
+}
+
+/* ==========================================================================
+   BỐ CỤC 2 CỘT BẤT ĐỐI XỨNG
+   ========================================================================== */
+.student-intelligence-layout {
+  display: grid;
+  grid-template-columns: var(--si-nav-width) minmax(0, 1fr);
+  gap: var(--si-column-gap);
+  align-items: start;
+}
+
+.student-intelligence-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 72px;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   STICKY MINI-NAV + SCROLLSPY (cột trái)
+   ========================================================================== */
+.student-intelligence-nav {
+  position: sticky;
+  top: var(--si-sticky-top);
+  max-height: calc(100vh - 2 * var(--si-sticky-top));
+  overflow-y: auto;
+  padding-top: 6px;
+  scrollbar-width: thin;
+}
+
+.student-intelligence-nav-caption {
+  margin: 0 0 12px;
+  padding-left: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-nav-track {
+  position: relative;
+  border-left: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Vạch chỉ báo trượt theo mục đang đọc — dịch chuyển bằng transform (GPU),
+   vị trí do biến --si-active-index đặt từ component. */
+.student-intelligence-nav-indicator {
+  position: absolute;
+  left: -1px;
+  top: 0;
+  width: 2px;
+  height: var(--si-nav-item-height, 40px);
+  z-index: 1;
+  background: var(--si-brand);
+  border-radius: 2px;
+  transform: translateY(calc(var(--si-active-index, 0) * var(--si-nav-item-height, 40px)));
+  transition: transform var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: var(--si-nav-item-height, 40px);
+  padding: 0 14px 0 16px;
+  border: 0;
+  border-radius: 0 var(--si-radius-sm) var(--si-radius-sm) 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--si-ink-muted);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition:
+    color var(--si-dur-base) var(--si-ease-out),
+    background-color var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-nav-link:hover {
+  color: var(--si-ink);
+  background: var(--si-surface-subtle);
+}
+
+.student-intelligence-nav-link.is-active {
+  color: var(--si-brand);
+  font-weight: 600;
+  background: var(--si-brand-soft);
+}
+
+.student-intelligence-nav-index {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.student-intelligence-nav-meta {
+  margin-top: 32px;
+  padding: 18px 0 0 16px;
+  border-top: 1px solid var(--si-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.student-intelligence-nav-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-nav-meta-row strong {
+  color: var(--si-ink);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ==========================================================================
+   PHÂN MỤC (section) + hiệu ứng hiện dần
+   ========================================================================== */
+.student-intelligence-section {
+  scroll-margin-top: var(--si-sticky-top);
+  min-width: 0;
+}
+
+.student-intelligence-section:focus {
+  outline: none;
+}
+
+.student-intelligence-section-head {
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-section-body {
+  min-width: 0;
+}
+
+/* Chỉ ẩn nội dung chờ hiện dần khi JS đã sẵn sàng quan sát (motion-ready) —
+   nếu IntersectionObserver không có, nội dung vẫn hiện bình thường. */
+.student-intelligence-motion-ready .student-intelligence-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--si-dur-reveal) var(--si-ease-out),
+    transform var(--si-dur-reveal) var(--si-ease-out);
+}
+
+.student-intelligence-motion-ready .student-intelligence-reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* Nhấn nhẹ mục vừa được điều hướng tới (deep-link tới 1 câu ở phân mục 08). */
+.student-intelligence-highlight {
+  animation: student-intelligence-flash 2s var(--si-ease-out);
+}
+
+@keyframes student-intelligence-flash {
+  0% { box-shadow: 0 0 0 0 var(--si-brand-soft); background-color: var(--si-brand-soft); }
+  100% { box-shadow: 0 0 0 12px transparent; background-color: transparent; }
+}
+
+/* ==========================================================================
+   BỀ MẶT NỘI DUNG
+   ========================================================================== */
+.student-intelligence-panel {
+  background: var(--si-surface);
+  border: 1px solid var(--si-hairline);
+  border-radius: var(--si-radius-lg);
+  padding: 28px;
+}
+
+.student-intelligence-placeholder {
+  border: 1px dashed var(--si-hairline);
+  border-radius: var(--si-radius-md);
+  padding: 28px;
+  color: var(--si-ink-muted);
+  font-size: 14px;
+}
+
+.student-intelligence-divider {
+  height: 1px;
+  border: 0;
+  margin: 24px 0;
+  background: var(--si-hairline-soft);
+}
+
+/* ==========================================================================
+   PHÂN MỤC 01 — KHUNG HERO
+   ========================================================================== */
+.student-intelligence-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--si-hairline-soft);
+  font-size: 13px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-exam-name {
+  margin: 0 0 18px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--si-ink);
+}
+
+.student-intelligence-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 28px;
+}
+
+.student-intelligence-score-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 68px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--si-brand);
+}
+
+.student-intelligence-score-scale {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-parts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--si-hairline-soft);
+}
+
+.student-intelligence-part {
+  padding: 16px 20px 4px;
+  border-left: 1px solid var(--si-hairline-soft);
+}
+
+.student-intelligence-part:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.student-intelligence-part-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-part-points {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--si-ink);
+}
+
+.student-intelligence-part-points small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-part-detail {
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* ==========================================================================
+   GHI CHÚ / CẢNH BÁO (bài bị huỷ, điểm được điều chỉnh)
+   ========================================================================== */
+.student-intelligence-notice {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--si-accent);
+  border-radius: 0 var(--si-radius-sm) var(--si-radius-sm) 0;
+  background: var(--si-accent-surface);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--si-ink);
+}
+
+.student-intelligence-notice--alert {
+  border-left-color: var(--si-gap);
+  background: var(--si-gap-surface);
+  color: var(--si-gap-ink);
+  font-weight: 600;
+}
+
+.student-intelligence-notice-title {
+  font-weight: 600;
+}
+
+.student-intelligence-notice-meta {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+/* ==========================================================================
+   NÚT
+   ========================================================================== */
+.student-intelligence-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--si-hairline);
+  border-radius: var(--si-radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--si-ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--si-dur-base) var(--si-ease-out),
+    border-color var(--si-dur-base) var(--si-ease-out),
+    transform var(--si-dur-fast) var(--si-ease-out);
+}
+
+.student-intelligence-button:hover {
+  background: var(--si-surface-subtle);
+  border-color: var(--si-ink-muted);
+}
+
+.student-intelligence-button--primary {
+  border-color: var(--si-brand);
+  background: var(--si-brand);
+  color: #fff;
+}
+
+.student-intelligence-button--primary:hover {
+  background: var(--si-brand);
+  border-color: var(--si-brand);
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.student-intelligence-button svg {
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   MOBILE STICKY ACTION BAR
+   ========================================================================== */
+.student-intelligence-actionbar {
+  display: none;
+}
+
+/* ==========================================================================
+   GIAI ĐOẠN 2 — THÀNH PHẦN DÙNG CHUNG
+   ========================================================================== */
+.student-intelligence-tone--solid { color: var(--si-solid); }
+.student-intelligence-tone--gap { color: var(--si-gap); }
+.student-intelligence-tone--accent { color: var(--si-accent-ink); }
+.student-intelligence-tone--ink { color: var(--si-ink); }
+.student-intelligence-tone--faint { color: var(--si-ink-faint); }
+
+/* Câu dẫn — 1 kết luận ngắn đặt đầu mỗi phân mục phân tích. */
+.student-intelligence-callout {
+  margin: 0 0 28px;
+  padding: 2px 0 2px 16px;
+  border-left: 2px solid var(--si-accent);
+  max-width: 68ch;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--si-ink);
+}
+
+.student-intelligence-callout--solid {
+  border-left-color: var(--si-solid);
+}
+
+.student-intelligence-subhead {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--si-ink);
+}
+
+.student-intelligence-footnote {
+  margin: 14px 0 0;
+  max-width: 72ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-skeleton {
+  position: relative;
+  overflow: hidden;
+  padding: 28px;
+  border-radius: var(--si-radius-md);
+  background: var(--si-surface-subtle);
+  font-size: 13.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--si-surface) 55%, transparent),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: student-intelligence-shimmer 1.6s var(--si-ease-in-out) infinite;
+}
+
+@keyframes student-intelligence-shimmer {
+  to { transform: translateX(100%); }
+}
+
+.student-intelligence-button--quiet {
+  margin-top: 12px;
+  border-color: transparent;
+  color: var(--si-brand);
+  padding: 0 4px;
+}
+
+.student-intelligence-button--quiet:hover {
+  background: transparent;
+  border-color: transparent;
+  text-decoration: underline;
+}
+
+.student-intelligence-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.student-intelligence-swatch--solid { background: var(--si-solid); }
+.student-intelligence-swatch--gap { background: var(--si-gap); }
+.student-intelligence-swatch--blank,
+.student-intelligence-density-cell.is-blank {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--si-gap) 55%, transparent) 0 2px,
+    var(--si-gap-surface) 2px 5px
+  );
+}
+
+/* ==========================================================================
+   01 — HERO: điểm cuộn số, lời nhận định, thanh đo 3 phần thi
+   ========================================================================== */
+.student-intelligence-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.student-intelligence-verdict {
+  display: flex;
+  flex: 1 1 280px;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 48ch;
+  padding-left: 16px;
+  border-left: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-verdict-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.student-intelligence-verdict--solid .student-intelligence-verdict-title { color: var(--si-solid); }
+.student-intelligence-verdict--neutral .student-intelligence-verdict-title { color: var(--si-ink); }
+.student-intelligence-verdict--gap .student-intelligence-verdict-title { color: var(--si-gap); }
+
+.student-intelligence-verdict-detail {
+  font-size: 13px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-meter {
+  height: 4px;
+  margin: 10px 0 8px;
+  border-radius: var(--si-radius-pill);
+  background: var(--si-gap-surface);
+  overflow: hidden;
+}
+
+.student-intelligence-meter-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--si-solid);
+  transition: width var(--si-dur-fill) var(--si-ease-out) var(--si-delay, 0ms);
+}
+
+.is-inview .student-intelligence-meter-fill {
+  width: calc(var(--si-fill) * 100%);
+}
+
+/* Dải 4 chỉ số — không đóng hộp, chỉ kẻ hairline. */
+.student-intelligence-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 20px 0 0;
+  border-top: 1px solid var(--si-hairline);
+  border-bottom: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-metric {
+  min-width: 0;
+  padding: 16px 18px 18px;
+  border-left: 1px solid var(--si-hairline-soft);
+}
+
+.student-intelligence-metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.student-intelligence-metric dd {
+  margin: 0;
+}
+
+.student-intelligence-metric-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-metric-value {
+  margin-top: 4px !important;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.student-intelligence-metric-sub {
+  margin-top: 4px !important;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--si-ink-muted);
+}
+
+/* ==========================================================================
+   02 — BẢN ĐỒ ĐIỂM HAO HỤT
+   ========================================================================== */
+.student-intelligence-cascade {
+  margin: 0 0 28px;
+}
+
+.student-intelligence-cascade-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-cascade-caption strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.student-intelligence-cascade-track {
+  display: flex;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--si-surface-subtle);
+}
+
+.student-intelligence-cascade-seg {
+  flex: none;
+  width: 0;
+  height: 100%;
+  transition:
+    width var(--si-dur-fill) var(--si-ease-out) var(--si-delay, 0ms),
+    opacity var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-cascade-seg--kept {
+  background: var(--si-solid);
+}
+
+.student-intelligence-cascade-seg--lost {
+  background: var(--si-gap);
+  /* vạch ngăn 2px giữa các khúc — vẽ bằng bóng trong để không làm lệch tổng độ dài */
+  box-shadow: inset 2px 0 0 var(--si-canvas);
+}
+
+.student-intelligence-cascade-seg.is-dimmed {
+  opacity: 0.35;
+}
+
+.is-inview .student-intelligence-cascade-seg {
+  width: calc(var(--si-fill) * 100%);
+}
+
+.student-intelligence-cascade-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-lossrows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.student-intelligence-lossrow {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 0 14px;
+  border-top: 1px solid var(--si-hairline-soft);
+  outline: none;
+}
+
+.student-intelligence-lossrow:last-child {
+  border-bottom: 1px solid var(--si-hairline-soft);
+}
+
+.student-intelligence-lossrow:focus-visible .student-intelligence-lossrow-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.student-intelligence-lossrow-rank {
+  padding-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--si-ink-faint);
+  transition: color var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-lossrow.is-active .student-intelligence-lossrow-rank,
+.student-intelligence-lossrow.is-active .student-intelligence-lossrow-name {
+  color: var(--si-brand);
+}
+
+.student-intelligence-lossrow-main {
+  min-width: 0;
+}
+
+.student-intelligence-lossrow-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+
+.student-intelligence-lossrow-name {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--si-ink);
+  transition: color var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-lossrow-figure {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.student-intelligence-lossrow-figure strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.student-intelligence-lossrow-figure small {
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-density {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 10px 0 8px;
+}
+
+.student-intelligence-density-cell {
+  position: relative;
+  flex-basis: 0;
+  min-width: 6px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--si-surface-subtle);
+  transition: background-color var(--si-dur-base) var(--si-ease-out) var(--si-delay, 0ms);
+}
+
+.is-inview .student-intelligence-density-cell:not(.is-blank) {
+  background: var(--si-gap);
+}
+
+.student-intelligence-density-kept {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--si-solid);
+  transition: width var(--si-dur-fill) var(--si-ease-out) var(--si-delay, 0ms);
+}
+
+.is-inview .student-intelligence-density-kept {
+  width: calc(var(--si-fill) * 100%);
+}
+
+.student-intelligence-lossrow-meta {
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-kept {
+  margin: 16px 0 0;
+  font-size: 13.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-kept strong {
+  color: var(--si-solid);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   03 — BẢN CHẤT SAI LỆCH TƯ DUY (Error DNA)
+   Độ đậm đất nung theo loại lỗi truyền qua --si-weight (100/76/55/36%).
+   ========================================================================== */
+.student-intelligence-dna-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+}
+
+.student-intelligence-dna-bar {
+  display: flex;
+  height: 12px;
+  margin-bottom: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--si-surface-subtle);
+}
+
+.student-intelligence-dna-seg {
+  flex: none;
+  width: 0;
+  height: 100%;
+  background: color-mix(in oklab, var(--si-gap) var(--si-weight), var(--si-surface));
+  transition: width var(--si-dur-fill) var(--si-ease-out) var(--si-delay, 0ms);
+}
+
+.student-intelligence-dna-seg + .student-intelligence-dna-seg {
+  box-shadow: inset 2px 0 0 var(--si-canvas);
+}
+
+.student-intelligence-dna-seg.is-unlocated {
+  background: repeating-linear-gradient(135deg, var(--si-hairline) 0 2px, var(--si-surface-subtle) 2px 5px);
+}
+
+.is-inview .student-intelligence-dna-seg {
+  width: calc(var(--si-fill) * 100%);
+}
+
+.student-intelligence-dna-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 36px;
+}
+
+.student-intelligence-dna-card {
+  min-width: 0;
+  padding: 18px 0 22px;
+  border-top: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-dna-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+}
+
+.student-intelligence-dna-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--si-ink);
+}
+
+.student-intelligence-dna-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--si-gap) var(--si-weight), var(--si-surface));
+}
+
+.student-intelligence-dna-card.is-unlocated .student-intelligence-dna-dot,
+.student-intelligence-dna-card.is-empty .student-intelligence-dna-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--si-ink-faint);
+}
+
+.student-intelligence-dna-card-share {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-dna-card.is-empty .student-intelligence-dna-card-title {
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-dna-card.is-empty .student-intelligence-dna-card-share {
+  color: var(--si-solid);
+}
+
+.student-intelligence-dna-card-desc {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-dna-card.is-empty .student-intelligence-dna-card-desc {
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-intelligence-tag {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--si-radius-pill);
+  background: var(--si-gap-surface);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--si-gap-ink);
+}
+
+.student-intelligence-tag.is-recurring {
+  border-color: color-mix(in srgb, var(--si-gap) 60%, transparent);
+}
+
+.student-intelligence-tag-count {
+  opacity: 0.75;
+}
+
+.student-intelligence-tag-note {
+  margin-left: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.student-intelligence-dna-card-action {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--si-ink);
+}
+
+.student-intelligence-dna-card-action span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--si-accent-ink);
+}
+
+.student-intelligence-qrefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.student-intelligence-qref {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--si-hairline);
+  border-radius: var(--si-radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--si-ink);
+  cursor: pointer;
+  transition:
+    color var(--si-dur-base) var(--si-ease-out),
+    border-color var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-qref:hover {
+  color: var(--si-brand);
+  border-color: var(--si-brand);
+}
+
+.student-intelligence-explain {
+  margin-top: 32px;
+}
+
+.student-intelligence-explain-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.student-intelligence-explain-row {
+  padding: 14px 0;
+  border-top: 1px solid var(--si-hairline-soft);
+}
+
+.student-intelligence-explain-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.student-intelligence-explain-q {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--si-ink);
+  cursor: pointer;
+}
+
+.student-intelligence-explain-q:hover {
+  color: var(--si-brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.student-intelligence-type-chip {
+  padding: 1px 9px;
+  border: 1px solid color-mix(in oklab, var(--si-gap) var(--si-weight), var(--si-surface));
+  border-radius: var(--si-radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--si-gap-ink);
+}
+
+.student-intelligence-type-chip.is-unlocated {
+  border-style: dashed;
+  border-color: var(--si-ink-faint);
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-explain-loss {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--si-gap);
+}
+
+.student-intelligence-explain-lesson {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-explain-choice {
+  margin-top: 6px;
+  font-size: 13.5px;
+}
+
+.student-intelligence-explain-rationale {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.student-intelligence-explain-recurring {
+  font-weight: 600;
+  color: var(--si-gap-ink);
+}
+
+.student-intelligence-explain-basis {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+/* ==========================================================================
+   04 — THÁP NHẬN THỨC 4 BẬC + ĐỘ DỐC NĂNG LỰC
+   ========================================================================== */
+.student-intelligence-pyramid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.student-intelligence-tier {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr) 196px;
+  grid-template-areas: "label stage readout";
+  align-items: center;
+  gap: 18px;
+}
+
+.student-intelligence-tier-label {
+  grid-area: label;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.student-intelligence-tier-step {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-tier-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--si-ink);
+}
+
+.student-intelligence-tier-stage {
+  grid-area: stage;
+  display: flex;
+  justify-content: center;
+}
+
+.student-intelligence-tier-shell {
+  display: flex;
+  justify-content: center;
+  width: calc(var(--si-tier-width) * 100%);
+  height: 36px;
+  padding: 3px;
+  border: 1px solid var(--si-hairline);
+  border-radius: 6px;
+  background: var(--si-surface);
+}
+
+.student-intelligence-tier-core {
+  display: block;
+  width: 0;
+  border-radius: 3px;
+  background: var(--si-tier-color);
+  transition: width var(--si-dur-fill) var(--si-ease-out) var(--si-delay, 0ms);
+}
+
+.is-inview .student-intelligence-tier-core {
+  width: calc(var(--si-fill) * 100%);
+}
+
+.student-intelligence-tier.is-empty .student-intelligence-tier-shell {
+  border-style: dashed;
+  background: transparent;
+}
+
+.student-intelligence-tier.is-thin .student-intelligence-tier-core {
+  opacity: 0.5;
+}
+
+.student-intelligence-tier-readout {
+  grid-area: readout;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.student-intelligence-tier-percent {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.student-intelligence-tier-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--si-ink);
+}
+
+.student-intelligence-tier.is-empty .student-intelligence-tier-status {
+  font-weight: 500;
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-tier-meta {
+  font-size: 12px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-slope {
+  display: grid;
+  grid-template-columns: max-content minmax(96px, 180px) max-content;
+  align-items: center;
+  column-gap: 18px;
+  margin-top: 28px;
+  padding: 18px 0;
+  border-top: 1px solid var(--si-hairline-soft);
+  border-bottom: 1px solid var(--si-hairline-soft);
+}
+
+.student-intelligence-slope-end {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.student-intelligence-slope-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-slope-label small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-slope-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.student-intelligence-slope-glyph {
+  width: 100%;
+  height: 48px;
+  overflow: visible;
+}
+
+.student-intelligence-slope-base {
+  stroke: var(--si-hairline);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.student-intelligence-slope-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--si-dur-fill) var(--si-ease-out) 520ms;
+}
+
+.is-inview .student-intelligence-slope-line {
+  stroke-dashoffset: 0;
+}
+
+.student-intelligence-slope-text {
+  grid-column: 1 / -1;
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  color: var(--si-ink);
+}
+
+.student-intelligence-commentary {
+  margin: 28px 0 0;
+  padding: 18px 22px;
+  border-left: 2px solid var(--si-accent);
+  border-radius: 0 var(--si-radius-md) var(--si-radius-md) 0;
+  background: color-mix(in srgb, var(--si-accent-surface) 70%, transparent);
+}
+
+.student-intelligence-commentary-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--si-accent-ink);
+}
+
+.student-intelligence-commentary p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--si-ink);
+}
+
+/* --- Responsive cho Giai đoạn 2 ------------------------------------------ */
+@media (min-width: 960px) and (max-width: 1180px) {
+  .student-intelligence-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .student-intelligence-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Lưới 2 cột của dải chỉ số: kẻ lại đường ngăn cho hàng thứ 2. */
+@media (min-width: 960px) and (max-width: 1180px), (max-width: 720px) {
+  .student-intelligence-metric:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .student-intelligence-metric:nth-child(n + 3) {
+    border-top: 1px solid var(--si-hairline-soft);
+  }
+}
+
+@media (max-width: 760px) {
+  .student-intelligence-dna-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-intelligence-tier {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label readout"
+      "stage stage";
+    gap: 6px 12px;
+    padding-bottom: 6px;
+  }
+
+  .student-intelligence-tier-readout {
+    align-items: flex-end;
+    text-align: right;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-intelligence-score-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .student-intelligence-verdict {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .student-intelligence-metric {
+    padding: 14px 12px 14px 14px;
+  }
+
+  .student-intelligence-metric-value {
+    font-size: 22px;
+  }
+
+  .student-intelligence-callout {
+    font-size: 15px;
+  }
+
+  .student-intelligence-lossrow {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .student-intelligence-lossrow-head {
+    flex-wrap: wrap;
+  }
+
+  .student-intelligence-slope {
+    grid-template-columns: minmax(0, 1fr) minmax(64px, 1fr) minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .student-intelligence-slope-end--right {
+    text-align: right;
+  }
+
+  .student-intelligence-slope-value {
+    font-size: 20px;
+  }
+
+  .student-intelligence-commentary {
+    padding: 16px 18px;
+  }
+}
+
+/* ==========================================================================
+   GIAI ĐOẠN 3 — THÀNH PHẦN DÙNG CHUNG
+   ========================================================================== */
+.student-intelligence-quiet {
+  margin: 0;
+  font-size: 14px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-subhead--spaced {
+  margin-top: 40px;
+  margin-bottom: 12px;
+}
+
+.student-intelligence-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 36px;
+  margin-top: 8px;
+}
+
+.student-intelligence-insight-grid--spaced {
+  margin-top: 28px;
+}
+
+.student-intelligence-insight {
+  min-width: 0;
+  padding: 18px 0 20px;
+  border-top: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-insight-kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--si-accent-ink);
+}
+
+.student-intelligence-insight-title {
+  margin: 4px 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--si-ink);
+}
+
+.student-intelligence-insight-body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--si-ink);
+}
+
+.student-intelligence-blank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-blank-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   05 — DẢI NHỊP ĐỘ
+   Cột cao 100px = 3 lần định mức; vạch đứt ở 1/3 = đúng định mức.
+   ========================================================================== */
+.student-intelligence-pace {
+  margin: 0;
+}
+
+.student-intelligence-pace-chart {
+  --si-pace-height: 100px;
+  --si-pace-label: 22px;
+  position: relative;
+  display: flex;
+  gap: 12px;
+}
+
+.student-intelligence-pace-norm {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--si-pace-label) + var(--si-pace-height) / 3);
+  z-index: 1;
+  border-top: 1px dashed var(--si-ink-faint);
+  pointer-events: none;
+}
+
+.student-intelligence-pace-norm span {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  padding: 0 4px;
+  font-size: 10.5px;
+  color: var(--si-ink-muted);
+  background: var(--si-canvas);
+}
+
+.student-intelligence-pace-group {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.student-intelligence-pace-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: var(--si-pace-height);
+}
+
+.student-intelligence-pace-bar {
+  flex: 1 1 0;
+  min-width: 3px;
+  height: calc(var(--si-fill) * 100%);
+  padding: 0;
+  border: 0;
+  border-radius: 2px 2px 0 0;
+  cursor: pointer;
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition:
+    transform var(--si-dur-fill) var(--si-ease-out) var(--si-delay, 0ms),
+    opacity var(--si-dur-fast) var(--si-ease-out);
+}
+
+.is-inview .student-intelligence-pace-bar {
+  transform: scaleY(1);
+}
+
+.student-intelligence-pace-bar.is-solid { background: var(--si-solid); }
+.student-intelligence-pace-bar.is-gap { background: var(--si-gap); }
+.student-intelligence-pace-bar.is-blank {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--si-gap) 55%, transparent) 0 2px,
+    var(--si-gap-surface) 2px 5px
+  );
+}
+.student-intelligence-pace-bar.is-nodata { opacity: 0.35; }
+
+.student-intelligence-pace-bar:hover {
+  opacity: 0.75;
+}
+
+.student-intelligence-pace-bar:focus-visible {
+  outline-offset: 1px;
+}
+
+.student-intelligence-pace-part {
+  height: var(--si-pace-label);
+  padding-top: 4px;
+  border-top: 1px solid var(--si-hairline);
+  font-size: 11px;
+  color: var(--si-ink-faint);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   06 — CHUỖI MẮT XÍCH TIÊN QUYẾT
+   ========================================================================== */
+.student-intelligence-chains {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-intelligence-chain {
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-chain:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.student-intelligence-chain-flow {
+  display: flex;
+  align-items: stretch;
+  margin-top: 12px;
+}
+
+.student-intelligence-chain-step {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.student-intelligence-chain-arrow {
+  flex: none;
+  display: inline-flex;
+  padding: 0 12px;
+  color: var(--si-accent-ink);
+}
+
+.student-intelligence-chain-node {
+  flex: 1 1 auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--si-hairline);
+  border-radius: var(--si-radius-md);
+  background: var(--si-surface);
+}
+
+.student-intelligence-chain-node.is-origin {
+  border-color: color-mix(in srgb, var(--si-gap) 40%, var(--si-hairline));
+  background: color-mix(in srgb, var(--si-gap-surface) 55%, var(--si-surface));
+}
+
+.student-intelligence-chain-node.is-target {
+  border-left: 2px solid var(--si-brand);
+}
+
+.student-intelligence-chain-role {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-chain-name {
+  margin: 3px 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--si-ink);
+}
+
+.student-intelligence-chain-evidence {
+  margin-top: auto;
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+}
+
+.is-origin .student-intelligence-chain-evidence { color: var(--si-gap-ink); font-weight: 600; }
+.is-target .student-intelligence-chain-evidence { color: var(--si-brand); font-weight: 600; }
+
+.student-intelligence-chain-explain {
+  margin: 14px 0 0;
+  max-width: 76ch;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--si-ink);
+}
+
+.student-intelligence-notes {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-intelligence-notes li {
+  position: relative;
+  padding: 5px 0 5px 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-notes li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 13px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--si-ink-faint);
+}
+
+.student-intelligence-disclaimer {
+  margin: 20px 0 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--si-hairline);
+  border-radius: var(--si-radius-sm);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--si-ink-muted);
+}
+
+/* ==========================================================================
+   07 — KẾ HOẠCH 3 BƯỚC
+   ========================================================================== */
+.student-intelligence-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-intelligence-step {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 16px;
+  padding: 22px 0 24px;
+  border-top: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-step:first-child {
+  border-top: 2px solid var(--si-brand);
+}
+
+.student-intelligence-step-index {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-step:first-child .student-intelligence-step-index {
+  color: var(--si-brand);
+}
+
+.student-intelligence-step-title {
+  margin: 2px 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--si-ink);
+}
+
+.student-intelligence-step-text {
+  margin: 0 0 14px;
+  max-width: 68ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-step-text:last-child {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   08 — BẢN KIỂM TRA CHI TIẾT (Progressive Disclosure)
+   ========================================================================== */
+.student-intelligence-review-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+}
+
+.student-intelligence-review-toolbar .student-intelligence-button--quiet {
+  margin-top: 0;
+}
+
+.student-intelligence-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.student-intelligence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--si-hairline);
+  border-radius: var(--si-radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--si-ink-muted);
+  cursor: pointer;
+  transition:
+    color var(--si-dur-base) var(--si-ease-out),
+    background-color var(--si-dur-base) var(--si-ease-out),
+    border-color var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-chip:hover:not(:disabled) {
+  color: var(--si-ink);
+  border-color: var(--si-ink-muted);
+}
+
+.student-intelligence-chip.is-active {
+  color: var(--si-brand);
+  border-color: var(--si-brand);
+  background: var(--si-brand-soft);
+}
+
+.student-intelligence-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.student-intelligence-chip-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--si-ink-faint);
+}
+
+.student-intelligence-chip.is-active .student-intelligence-chip-count {
+  color: inherit;
+}
+
+.student-intelligence-qlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--si-hairline);
+}
+
+.student-intelligence-qrow {
+  border-bottom: 1px solid var(--si-hairline-soft);
+  border-radius: var(--si-radius-sm);
+  scroll-margin-top: 24px;
+}
+
+.student-intelligence-qrow-toggle {
+  display: grid;
+  grid-template-columns: 8px 60px minmax(0, 1fr) auto 108px 96px 16px;
+  grid-template-areas: "mark num meta tags status score chev";
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 6px;
+  border: 0;
+  border-radius: var(--si-radius-sm);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--si-ink);
+  cursor: pointer;
+  transition: background-color var(--si-dur-base) var(--si-ease-out);
+}
+
+.student-intelligence-qrow-toggle:hover {
+  background: var(--si-surface-subtle);
+}
+
+.student-intelligence-qrow-mark {
+  grid-area: mark;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.is-full .student-intelligence-qrow-mark { background: var(--si-solid); }
+.is-partial .student-intelligence-qrow-mark { background: color-mix(in oklab, var(--si-gap) 55%, var(--si-surface)); }
+.is-wrong .student-intelligence-qrow-mark { background: var(--si-gap); }
+.is-blank .student-intelligence-qrow-mark { box-shadow: inset 0 0 0 1.5px var(--si-ink-faint); }
+
+.student-intelligence-qrow-num {
+  grid-area: num;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.student-intelligence-qrow-meta {
+  grid-area: meta;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--si-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-intelligence-qrow-tags {
+  grid-area: tags;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.student-intelligence-qrow-flag {
+  padding: 1px 8px;
+  border: 1px solid var(--si-accent);
+  border-radius: var(--si-radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--si-accent-ink);
+}
+
+.student-intelligence-qrow-status {
+  grid-area: status;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.is-full .student-intelligence-qrow-status { color: var(--si-solid); }
+.is-partial .student-intelligence-qrow-status { color: var(--si-gap-ink); }
+.is-wrong .student-intelligence-qrow-status { color: var(--si-gap); }
+.is-blank .student-intelligence-qrow-status { color: var(--si-ink-muted); }
+
+.student-intelligence-qrow-score {
+  grid-area: score;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.student-intelligence-qrow-score small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--si-ink-muted);
+}
+
+.student-intelligence-chevron {
+  grid-area: chev;
+  color: var(--si-ink-muted);
+  transition: transform var(--si-dur-base) var(--si-ease-out);
+}
+
+.is-open .student-intelligence-chevron {
+  transform: rotate(180deg);
+}
+
+.student-intelligence-qrow-panel {
+  padding: 2px 0 18px;
+  animation: student-intelligence-unfold var(--si-dur-reveal) var(--si-ease-out);
+}
+
+@keyframes student-intelligence-unfold {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Responsive cho Giai đoạn 3 ------------------------------------------ */
+@media (max-width: 760px) {
+  .student-intelligence-insight-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-intelligence-chain-flow,
+  .student-intelligence-chain-step {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .student-intelligence-chain-arrow {
+    justify-content: center;
+    padding: 6px 0;
+    transform: rotate(90deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .student-intelligence-pace-chart {
+    --si-pace-height: 84px;
+    gap: 6px;
+  }
+
+  .student-intelligence-pace-bars {
+    gap: 1px;
+  }
+
+  .student-intelligence-pace-bar {
+    min-width: 2px;
+  }
+
+  .student-intelligence-step {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .student-intelligence-step-index {
+    font-size: 22px;
+  }
+
+  .student-intelligence-step .student-intelligence-button {
+    width: 100%;
+  }
+
+  /* Chip lọc cuộn ngang thay vì xuống 3 dòng. */
+  .student-intelligence-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+
+  .student-intelligence-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .student-intelligence-qrow-toggle {
+    grid-template-columns: 8px minmax(0, 1fr) auto 16px;
+    grid-template-areas:
+      "mark num score chev"
+      ". meta status ."
+      ". tags tags .";
+    gap: 2px 10px;
+    padding: 12px 4px;
+  }
+
+  .student-intelligence-qrow-status {
+    text-align: right;
+  }
+
+  .student-intelligence-qrow-tags:empty {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media (max-width: 1100px) {
+  .student-intelligence-root {
+    --si-nav-width: 220px;
+    --si-column-gap: 40px;
+  }
+}
+
+@media (max-width: 959.98px) {
+  .student-intelligence-root {
+    --si-sticky-top: 16px;
+    padding-bottom: calc(var(--si-actionbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  }
+
+  .student-intelligence-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .student-intelligence-nav {
+    display: none;
+  }
+
+  .student-intelligence-stream {
+    gap: 56px;
+  }
+
+  .student-intelligence-actionbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: var(--si-actionbar-height);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--si-surface) 92%, transparent);
+    backdrop-filter: saturate(1.4) blur(10px);
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+    border-top: 1px solid var(--si-hairline);
+    transform: translateY(0);
+    transition: transform var(--si-dur-base) var(--si-ease-out);
+  }
+
+  .student-intelligence-actionbar-score {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    min-width: 0;
+  }
+
+  .student-intelligence-actionbar-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--si-ink-muted);
+  }
+
+  .student-intelligence-actionbar-value {
+    font-variant-numeric: tabular-nums;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--si-ink);
+  }
+
+  .student-intelligence-actionbar .student-intelligence-button {
+    min-height: 42px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-intelligence-panel,
+  .student-intelligence-placeholder {
+    padding: 20px;
+  }
+
+  .student-intelligence-title {
+    font-size: 22px;
+  }
+
+  .student-intelligence-exam-name {
+    font-size: 22px;
+  }
+
+  .student-intelligence-score-value {
+    font-size: 52px;
+  }
+
+  .student-intelligence-score-scale {
+    font-size: 18px;
+  }
+
+  .student-intelligence-parts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-intelligence-part,
+  .student-intelligence-part:first-child {
+    padding: 12px 0;
+    border-left: 0;
+    border-top: 1px solid var(--si-hairline-soft);
+  }
+
+  .student-intelligence-part:first-child {
+    border-top: 0;
+  }
+
+  .student-intelligence-hero-actions .student-intelligence-button {
+    flex: 1 1 auto;
+  }
+}
+
+/* ==========================================================================
+   TÔN TRỌNG "GIẢM CHUYỂN ĐỘNG" CỦA HỆ ĐIỀU HÀNH
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .student-intelligence-root *,
+  .student-intelligence-root *::before,
+  .student-intelligence-root *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+
+  .student-intelligence-motion-ready .student-intelligence-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   IN ẤN — phiếu ResultSlip do khối @media print toàn cục trong styles.css
+   đảm nhiệm; ở đây chỉ gỡ hẳn các phần cố định/dính khỏi luồng in.
+   ========================================================================== */
+@media print {
+  /* Khối print toàn cục chỉ ẩn bằng visibility — nội dung vẫn chiếm chỗ nên
+     trang cuộn dài 8 phân mục sinh thêm nhiều trang giấy trắng. Gỡ hẳn khỏi
+     luồng in; ResultSlip nằm NGOÀI .student-intelligence-layout nên không bị
+     ảnh hưởng. */
+  .student-intelligence-layout,
+  .student-intelligence-nav,
+  .student-intelligence-actionbar {
+    display: none !important;
+  }
+
+  .student-intelligence-root {
+    padding-bottom: 0;
+  }
+}
