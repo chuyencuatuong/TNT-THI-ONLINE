@@ -19,6 +19,9 @@ import { TeacherClassList } from "./pages/TeacherClassList";
 import { TeacherLessonProgress } from "./pages/TeacherLessonProgress";
 import { TeacherSchedule } from "./pages/TeacherSchedule";
 import { StudentSchedule } from "./pages/StudentSchedule";
+import { StudentLearningProfile } from "./pages/StudentLearningProfile";
+import { TeacherRationaleQueue } from "./pages/TeacherRationaleQueue";
+import { TeacherKnowledgeMap } from "./pages/TeacherKnowledgeMap";
 
 // Tách riêng (lazy load) vì trang này kéo theo thư viện đọc file .docx khá nặng
 // (mammoth.js) — chỉ giáo viên mới cần, không nên bắt học sinh tải về mỗi lần vào web.
@@ -98,6 +101,14 @@ export default function App() {
           }
         />
         <Route
+          path="/hoc-sinh/ho-so-nang-luc"
+          element={
+            <RequireRole role="student">
+              <StudentLearningProfile />
+            </RequireRole>
+          }
+        />
+        <Route
           path="/hoc-sinh/lich-hoc"
           element={
             <RequireRole role="student">
@@ -138,6 +149,23 @@ export default function App() {
           element={
             <RequireRole role="teacher">
               <TeacherQuestionBank />
+            </RequireRole>
+          }
+        />
+        {/* Learning Intelligence (27/09/2026): gắn nhãn lỗi nhanh + bản đồ kiến thức */}
+        <Route
+          path="/giao-vien/gan-nhan-loi"
+          element={
+            <RequireRole role="teacher">
+              <TeacherRationaleQueue />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/giao-vien/ban-do-kien-thuc"
+          element={
+            <RequireRole role="teacher">
+              <TeacherKnowledgeMap />
             </RequireRole>
           }
         />

@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { ExamAutopsyPanel } from "../components/ExamAutopsyPanel";
+import { LearningProfile } from "../components/LearningProfile";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import {
@@ -553,6 +555,14 @@ export function TeacherStudentDetail() {
         )}
       </section>
 
+      {/* Hồ sơ năng lực giải trình được (Module 2 + gốc rễ khả dĩ Module 3, 27/09/2026) */}
+      {studentId && (
+        <section>
+          <h3>Hồ sơ năng lực</h3>
+          <LearningProfile studentId={studentId} audience="teacher" />
+        </section>
+      )}
+
       <section>
         <h3>Xu hướng điểm số</h3>
         {trendData.length === 0 ? (
@@ -858,6 +868,17 @@ export function TeacherStudentDetail() {
                                   }));
                                   return (
                                     <div className="attempt-diagnosis-panel">
+                                      {/* Mổ xẻ bài thi (Module 1, 27/09/2026) */}
+                                      {studentId && (
+                                        <div style={{ marginBottom: 16 }}>
+                                          <ExamAutopsyPanel
+                                            studentId={studentId}
+                                            attemptId={a.id}
+                                            audience="teacher"
+                                            questionNumbers={new Map(d.perQuestion.map((q, i) => [q.question_id, i + 1]))}
+                                          />
+                                        </div>
+                                      )}
                                       {d.byTopic.length > 0 && (
                                         <div>
                                           <h4 style={{ margin: "0 0 6px" }}>Theo chương</h4>

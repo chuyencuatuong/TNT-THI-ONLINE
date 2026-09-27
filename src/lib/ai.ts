@@ -610,13 +610,97 @@ const ALLOWED_ERROR_TYPES: DistractorErrorType[] = [
   "n_a",
 ];
 
+/** Câu hỏi tối thiểu cần để AI soạn nháp nhãn lỗi. */
+export type RationaleQuestionInput = Pick<
+  QuestionRow,
+  "id" | "part" | "content_latex" | "options" | "correct_answer" | "solution_latex" | "lesson_id"
+>;
+
+const RATIONALE_TAXONOMY = `Với MỖI phương án SAI, suy luận vì sao một học sinh có thể chọn nhầm phương án đó (đối chiếu với lời giải nếu có), rồi phân loại vào ĐÚNG MỘT trong 4 loại lỗi:
+- "procedural": đúng công thức/hướng đi nhưng thiếu bước hoặc sai thứ tự bước.
+- "conceptual": nhầm bản chất định lý/điều kiện áp dụng/điều kiện xác định.
+- "calculation": hướng giải đúng, chỉ sai ở bước tính toán/rút gọn/đại số.
+- "careless": đáp án nhiễu "hiển nhiên" (vd sai dấu đơn giản, nhầm số liệu đề bài) mà học sinh đã hiểu bài vẫn có thể bấm nhầm nếu vội.
+Nếu không đủ căn cứ, chọn loại GẦN ĐÚNG NHẤT, không bịa.
+"pattern_label": nhãn NGẮN 2-6 chữ, tái dùng được cho nhiều câu cùng bản chất lỗi (vd "Quên đổi cận", "Nhầm dấu đạo hàm", "Quên điều kiện xác định"). ƯU TIÊN dùng lại đúng nguyên văn 1 nhãn trong danh sách nhãn đã có nếu cùng bản chất.
+"rationale_text": 1 câu ngắn (tối đa 25 chữ) mô tả học sinh đã làm sai bước nào. Viết công thức bằng chữ/ký hiệu đơn giản, KHÔNG dùng dấu gạch chéo ngược (\\) để JSON không bị lỗi.
+"ai_confidence": "high" nếu có lời giải để đối chiếu và suy luận chắc chắn, ngược lại "low".`;
+
+function describeRationaleQuestion(q: RationaleQuestionInput): string {
+  const choices = (q.options as Part1Options).choices;
+  const correctChoice = (q.correct_answer as Part1Answer).choice;
+  const optionsList = (Object.keys(choices) as Array<keyof typeof choices>)
+    .map((key) => `${key}${key === correctChoice ? " (ĐÁP ÁN ĐÚNG)" : ""}: ${choices[key]}`)
+    .join("\n");
+  return `Nội dung (LaTeX): ${q.content_latex}
+Các phương án:
+${optionsList}
+Lời giải: ${q.solution_latex?.trim() || "KHÔNG CÓ — chỉ dựa vào nội dung câu hỏi và đáp án đúng"}`;
+}
+
+/** Chuẩn hoá danh sách phương án AI trả về cho 1 câu — hàm thuần, test được.
+ * is_correct LUÔN suy từ correct_answer thật, không tin AI tự nhận (cùng
+ * nguyên tắc matchTopicByName/matchLessonByName); chỉ giữ A-D; bỏ trùng. */
+export function normalizeRationaleOptions(
+  rawOptions: unknown,
+  correctChoice: string,
+): AiRationaleSuggestion[] {
+  if (!Array.isArray(rawOptions)) return [];
+  const seen = new Set<string>();
+  const out: AiRationaleSuggestion[] = [];
+  for (const item of rawOptions) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const optionKey = typeof o.option_key === "string" ? o.option_key.trim().toUpperCase() : "";
+    if (!["A", "B", "C", "D"].includes(optionKey) || seen.has(optionKey)) continue;
+    seen.add(optionKey);
+    const isCorrect = optionKey === correctChoice;
+    // Loại lỗi không hợp lệ -> "n_a" = CHƯA XÁC ĐỊNH, giao diện buộc thầy tự chọn
+    // (không tự đoán "Lỗi khái niệm" thay AI).
+    const errorType = ALLOWED_ERROR_TYPES.includes(o.error_type as DistractorErrorType)
+      ? (o.error_type as DistractorErrorType)
+      : "n_a";
+    out.push({
+      option_key: optionKey,
+      is_correct: isCorrect,
+      error_type: isCorrect ? "n_a" : errorType,
+      pattern_label:
+        typeof o.pattern_label === "string" && o.pattern_label.trim() ? o.pattern_label.trim() : null,
+      rationale_text: typeof o.rationale_text === "string" ? o.rationale_text.trim() : "",
+      ai_confidence: o.ai_confidence === "high" ? "high" : "low",
+    });
+  }
+  return out;
+}
+
+/** Tách kết quả AI theo lô (nhiều câu 1 lần gọi) — hàm thuần, test được.
+ * Câu nào AI bỏ sót/không đọc được thì không có trong Map (nơi gọi báo lại). */
+export function parseRationaleBatchResponse(
+  raw: string,
+  questions: RationaleQuestionInput[],
+): Map<string, AiRationaleSuggestion[]> {
+  const result = new Map<string, AiRationaleSuggestion[]>();
+  const parsed = extractJsonBlock(raw) as { questions?: Array<Record<string, unknown>> };
+  for (const entry of parsed.questions ?? []) {
+    const ref = typeof entry.ref === "string" ? entry.ref.trim().toUpperCase() : "";
+    const match = /^Q(\d+)$/.exec(ref);
+    if (!match) continue;
+    const q = questions[Number(match[1]) - 1];
+    if (!q || q.part !== 1) continue;
+    const correctChoice = (q.correct_answer as Part1Answer).choice;
+    const options = normalizeRationaleOptions(entry.options, correctChoice).filter((o) => !o.is_correct);
+    if (options.length > 0) result.set(q.id, options);
+  }
+  return result;
+}
+
 /**
- * Soạn nháp nhãn lỗi cho từng phương án SAI của 1 câu Phần 1, dựa vào
- * solution_latex (nếu có) — giáo viên luôn là người duyệt cuối cùng
- * (verified_by_teacher, xem migration_019/DistractorRationaleEditor.tsx), AI
- * không tự ý ghi vào ngân hàng câu hỏi. Chỉ hỗ trợ Phần 1 ở Đợt 1 (Phần 2/3
- * không có phương án nhiễu rời rạc để gắn nhãn, xem tài liệu kiến trúc v2
- * mục 2.5).
+ * Soạn nháp nhãn lỗi cho từng phương án SAI của 1 câu Phần 1 — giáo viên luôn
+ * là người duyệt cuối (verified_by_teacher). Sửa 27/09/2026: trước đây gọi
+ * qua callGemini() với giới hạn 500 token đầu ra — model có "thinking" dùng
+ * phần lớn số token đó để suy nghĩ nên JSON 3 phương án thường bị CẮT CỤT,
+ * báo "không đọc được" dù API vẫn chạy. Nay dùng 4096 token và trả đúng thông
+ * báo lỗi chi tiết (hết hạn mức, thiếu key, bị cắt...).
  */
 export async function suggestOptionRationale(
   question: Pick<QuestionRow, "part" | "content_latex" | "options" | "correct_answer" | "solution_latex">,
@@ -625,74 +709,97 @@ export async function suggestOptionRationale(
   if (question.part !== 1) {
     return {
       suggestions: [],
-      errorMessage: "Chỉ hỗ trợ gợi ý nhãn lỗi cho câu Phần 1 (trắc nghiệm 4 phương án) ở Đợt 1.",
+      errorMessage: "Chỉ hỗ trợ gợi ý nhãn lỗi cho câu Phần 1 (trắc nghiệm 4 phương án).",
     };
   }
-
-  const choices = (question.options as Part1Options).choices;
   const correctChoice = (question.correct_answer as Part1Answer).choice;
-  const optionsList = (Object.keys(choices) as Array<keyof typeof choices>)
-    .map((key) => `${key}${key === correctChoice ? " (ĐÁP ÁN ĐÚNG)" : ""}: ${choices[key]}`)
-    .join("\n");
   const labelsList =
-    existingPatternLabels.length > 0
-      ? existingPatternLabels.map((l) => `- ${l}`).join("\n")
-      : "Chưa có nhãn nào";
+    existingPatternLabels.length > 0 ? existingPatternLabels.map((l) => `- ${l}`).join("\n") : "Chưa có nhãn nào";
 
-  const prompt = `Bạn là trợ lý phân tích lỗi sai cho giáo viên Toán THPT (Việt Nam). Với MỖI phương án SAI trong câu hỏi trắc nghiệm dưới đây, hãy suy luận vì sao một học sinh có thể chọn nhầm phương án đó, rồi phân loại vào ĐÚNG MỘT trong 4 loại lỗi:
-- "procedural": đúng công thức/hướng đi nhưng thiếu bước hoặc sai thứ tự bước.
-- "conceptual": nhầm bản chất định lý/điều kiện áp dụng/điều kiện xác định.
-- "calculation": hướng giải đúng hoàn toàn, chỉ sai ở bước tính toán/rút gọn/đại số.
-- "careless": đáp án nhiễu "hiển nhiên" (vd sai dấu đơn giản, nhầm số liệu đề bài) mà một học sinh đã hiểu bài vẫn có thể bấm nhầm nếu vội.
-Nếu không đủ căn cứ để phân biệt chắc chắn, chọn loại GẦN ĐÚNG NHẤT, không bịa.
+  const prompt = `Bạn là trợ lý phân tích lỗi sai cho giáo viên Toán THPT (Việt Nam).
+${RATIONALE_TAXONOMY}
 
 --- CÂU HỎI ---
-Nội dung (LaTeX): ${question.content_latex}
-Các phương án:
-${optionsList}
-Lời giải (nếu có): ${question.solution_latex?.trim() || "KHÔNG CÓ — chỉ dựa vào nội dung câu hỏi và đáp án đúng"}
+${describeRationaleQuestion({ ...question, id: "", lesson_id: null } as RationaleQuestionInput)}
 
---- NHÃN LỖI NGẮN ĐÃ DÙNG CHO BÀI NÀY (ưu tiên tái dùng nếu đúng bản chất, không tạo nhãn mới gần giống) ---
+--- NHÃN LỖI NGẮN ĐÃ DÙNG CHO BÀI NÀY ---
 ${labelsList}
 
 --- YÊU CẦU ĐẦU RA ---
-Trả về ĐÚNG định dạng JSON sau cho TẤT CẢ phương án SAI (bỏ qua đáp án đúng), không thêm chữ nào khác:
-{"options":[{"option_key":"A","error_type":"conceptual","pattern_label":"Quên đổi cận","rationale_text":"...","ai_confidence":"high"}]}
-ai_confidence = "low" nếu không có lời giải chi tiết để đối chiếu.`;
+Trả về ĐÚNG JSON sau cho TẤT CẢ phương án SAI (bỏ qua đáp án đúng), không thêm chữ nào khác:
+{"options":[{"option_key":"B","error_type":"conceptual","pattern_label":"Quên điều kiện xác định","rationale_text":"...","ai_confidence":"high"}]}`;
 
-  const raw = await callGemini(prompt);
-  if (!raw) {
-    return {
-      suggestions: [],
-      errorMessage: "Không gọi được AI (kiểm tra API key hoặc kết nối mạng).",
-    };
+  const { text, errorMessage, truncated } = await callGeminiPartsDetailed([{ text: prompt }], 4096);
+  if (!text) {
+    return { suggestions: [], errorMessage: errorMessage ?? "Không gọi được AI." };
   }
-
   try {
-    const parsed = extractJsonBlock(raw) as { options?: Array<Record<string, unknown>> };
-    const cleaned: AiRationaleSuggestion[] = (parsed.options ?? [])
-      .filter((o) => typeof o.option_key === "string")
-      .map((o) => {
-        const optionKey = o.option_key as string;
-        const errorType = ALLOWED_ERROR_TYPES.includes(o.error_type as DistractorErrorType)
-          ? (o.error_type as DistractorErrorType)
-          : "n_a";
-        return {
-          option_key: optionKey,
-          // is_correct luôn suy từ correct_answer thật, KHÔNG tin theo lời AI tự nhận —
-          // cùng nguyên tắc "không tin blind AI" đã áp dụng cho matchTopicByName/matchLessonByName.
-          is_correct: optionKey === correctChoice,
-          error_type: optionKey === correctChoice ? "n_a" : errorType,
-          pattern_label: typeof o.pattern_label === "string" && o.pattern_label.trim() ? o.pattern_label.trim() : null,
-          rationale_text: typeof o.rationale_text === "string" ? o.rationale_text : "",
-          ai_confidence: o.ai_confidence === "high" ? "high" : "low",
-        };
-      });
-    return { suggestions: cleaned, errorMessage: null };
+    const parsed = extractJsonBlock(text) as { options?: unknown };
+    const suggestions = normalizeRationaleOptions(parsed.options, correctChoice);
+    if (suggestions.filter((s) => !s.is_correct).length === 0) {
+      return { suggestions: [], errorMessage: "AI không trả về phương án sai nào đọc được — thử lại hoặc dùng Gợi ý nhanh." };
+    }
+    return { suggestions, errorMessage: null };
   } catch {
     return {
       suggestions: [],
-      errorMessage: "AI trả về định dạng không đọc được, cần nhập tay.",
+      errorMessage: truncated
+        ? "Câu trả lời của AI bị cắt ngang (quá dài) — thử lại."
+        : "AI trả về định dạng không đọc được — thử lại hoặc dùng Gợi ý nhanh.",
+    };
+  }
+}
+
+/** Số câu tối đa trong 1 lần gọi AI theo lô — đủ nhỏ để không bị cắt cụt, đủ
+ * lớn để 20 lượt/ngày của gói miễn phí soạn được ~100 câu. */
+export const RATIONALE_BATCH_SIZE = 5;
+
+/**
+ * Soạn nháp nhãn lỗi cho NHIỀU câu Phần 1 trong 1 lần gọi AI (thêm
+ * 27/09/2026) — tiết kiệm hạn mức (gói miễn phí ~20 lượt/ngày): 1 lượt gọi
+ * cho tối đa RATIONALE_BATCH_SIZE câu thay vì 1 câu/lượt. Chỉ trả về nháp,
+ * KHÔNG ghi DB — nơi gọi lưu dạng nháp (verified_by_teacher=false) để giáo
+ * viên duyệt.
+ */
+export async function suggestOptionRationaleBatch(
+  questions: RationaleQuestionInput[],
+  labelsByLesson: Map<string, string[]>,
+): Promise<{ byQuestionId: Map<string, AiRationaleSuggestion[]>; errorMessage: string | null }> {
+  const part1 = questions.filter((q) => q.part === 1);
+  if (part1.length === 0) return { byQuestionId: new Map(), errorMessage: null };
+
+  const allLabels = Array.from(
+    new Set(part1.flatMap((q) => (q.lesson_id ? labelsByLesson.get(q.lesson_id) ?? [] : []))),
+  ).sort();
+  const labelsList = allLabels.length > 0 ? allLabels.map((l) => `- ${l}`).join("\n") : "Chưa có nhãn nào";
+  const blocks = part1
+    .map((q, i) => `=== Q${i + 1} ===\n${describeRationaleQuestion(q)}`)
+    .join("\n\n");
+
+  const prompt = `Bạn là trợ lý phân tích lỗi sai cho giáo viên Toán THPT (Việt Nam). Dưới đây có ${part1.length} câu trắc nghiệm, đánh số Q1..Q${part1.length}.
+${RATIONALE_TAXONOMY}
+
+${blocks}
+
+--- NHÃN LỖI NGẮN ĐÃ DÙNG (ưu tiên tái dùng nguyên văn) ---
+${labelsList}
+
+--- YÊU CẦU ĐẦU RA ---
+Trả về ĐÚNG JSON sau, đủ ${part1.length} câu, mỗi câu chỉ liệt kê các phương án SAI, không thêm chữ nào khác:
+{"questions":[{"ref":"Q1","options":[{"option_key":"B","error_type":"conceptual","pattern_label":"Quên điều kiện xác định","rationale_text":"...","ai_confidence":"high"}]}]}`;
+
+  const { text, errorMessage, truncated } = await callGeminiPartsDetailed([{ text: prompt }], 8192);
+  if (!text) {
+    return { byQuestionId: new Map(), errorMessage: errorMessage ?? "Không gọi được AI." };
+  }
+  try {
+    return { byQuestionId: parseRationaleBatchResponse(text, part1), errorMessage: null };
+  } catch {
+    return {
+      byQuestionId: new Map(),
+      errorMessage: truncated
+        ? "Câu trả lời của AI bị cắt ngang (lô quá dài) — thử lại."
+        : "AI trả về định dạng không đọc được cho lô này — thử lại.",
     };
   }
 }

@@ -24,6 +24,7 @@ import {
 } from "../lib/diagnosis";
 import { QuestionReview } from "../components/QuestionReview";
 import { ResultSlip } from "../components/ResultSlip";
+import { ExamAutopsyPanel } from "../components/ExamAutopsyPanel";
 import { useAuth } from "../lib/auth";
 import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
 import { DIFFICULTY_LABELS } from "../lib/types";
@@ -39,10 +40,13 @@ const PART_LABELS: Record<1 | 2 | 3, string> = {
 // trống, xem lại từng câu) chồng liên tục — rất dài và rối, đặc biệt khi đề
 // có nhiều câu. Chia thành 3 tab để HS xem theo nhu cầu; MỌI điều kiện hiện/
 // ẩn (.length > 0 &&...) giữ NGUYÊN Y HỆT như trước, chỉ dời vào từng tab.
-type ResultTab = "tong-quan" | "chan-doan" | "xem-lai";
+// THÊM 27/09/2026: tab "Mổ xẻ bài thi" (Module 1 — Exam Autopsy & Error
+// Intelligence) — điểm mất theo Bài, Error DNA, từng câu sai kèm loại lỗi.
+type ResultTab = "tong-quan" | "mo-xe" | "chan-doan" | "xem-lai";
 
 const TAB_LABELS: Record<ResultTab, string> = {
   "tong-quan": "Tổng quan",
+  "mo-xe": "Mổ xẻ bài thi",
   "chan-doan": "Chẩn đoán",
   "xem-lai": "Xem lại bài làm",
 };
@@ -294,6 +298,22 @@ export function ResultPage() {
               </ResponsiveContainer>
             </section>
           )}
+        </div>
+      )}
+
+      {tab === "mo-xe" && attempt && (
+        <div className="result-tab-panel">
+          <ExamAutopsyPanel
+            studentId={attempt.student_id}
+            attemptId={attempt.id}
+            audience="student"
+            questionNumbers={
+              new Map((diagnostics?.perQuestion ?? []).map((q, i) => [q.question_id, i + 1]))
+            }
+          />
+          <p className="empty-hint" style={{ marginTop: 12 }}>
+            Xem toàn bộ tiến trình qua nhiều đề ở trang <Link to="/hoc-sinh/ho-so-nang-luc">Hồ sơ năng lực</Link>.
+          </p>
         </div>
       )}
 

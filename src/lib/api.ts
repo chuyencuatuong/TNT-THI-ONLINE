@@ -32,6 +32,16 @@ import {
 } from "./journalProgress";
 import { mergeChapterStats, type ChapterStat } from "./chapterStats";
 import { mergeLessonStats, type LessonStat } from "./lessonStats";
+import {
+  buildErrorInstances,
+  rationaleKey,
+  responseRowToFact,
+  type ErrorInstance,
+  type ResponseFactRow,
+  type RationaleEntry,
+  type StudentResponseFact,
+} from "./errorIntelligence";
+import type { PrereqEdge } from "./knowledgeGraph";
 import type {
   AttemptScoreRow,
   AttendanceRow,
@@ -220,10 +230,12 @@ export async function listOptionRationale(
   return data as QuestionOptionRationaleRow[];
 }
 
-/** Lưu nhãn lỗi cho tất cả phương án của 1 câu hỏi cùng lúc — chỉ gọi khi
- * giáo viên đã bấm "Xác nhận" (DistractorRationaleEditor.tsx), nên luôn set
- * verified_by_teacher=true; bản nháp AI chưa xác nhận chỉ giữ ở state React,
- * chưa ghi DB. */
+/** Lưu nhãn lỗi cho tất cả phương án của 1 câu hỏi cùng lúc.
+ * - Giáo viên bấm "Xác nhận" -> verified=true (mặc định): từ lúc này nhãn mới
+ *   được dùng để tra Error DNA cho học sinh.
+ * - AI soạn nháp theo lô (trang Gắn nhãn lỗi, 27/09/2026) -> verified=false:
+ *   lưu lại để giáo viên duyệt sau, CHƯA ảnh hưởng gì tới chẩn đoán học sinh
+ *   (classifyError chỉ tin nhãn verified). */
 export async function upsertOptionRationale(
   questionId: string,
   rows: Array<{
@@ -234,17 +246,62 @@ export async function upsertOptionRationale(
     rationale_text: string | null;
     ai_suggested: boolean;
   }>,
+  options: { verified?: boolean; onlyIfAbsent?: boolean } = {},
 ): Promise<void> {
+  const verified = options.verified ?? true;
   const { error } = await supabase.from("question_option_rationale").upsert(
     rows.map((r) => ({
       question_id: questionId,
       ...r,
-      verified_by_teacher: true,
+      verified_by_teacher: verified,
       updated_at: new Date().toISOString(),
     })),
-    { onConflict: "question_id,option_key" },
+    // onlyIfAbsent: nháp AI KHÔNG BAO GIỜ ghi đè nhãn đã có (kể cả nhãn thầy
+    // vừa xác nhận trong lúc lô AI đang chạy) — ON CONFLICT DO NOTHING.
+    { onConflict: "question_id,option_key", ignoreDuplicates: options.onlyIfAbsent ?? false },
   );
   if (error) throw error;
+}
+
+/** Trạng thái nhãn lỗi theo câu: "verified" (đã xác nhận), "draft" (có nháp
+ * AI chờ duyệt). Câu không có trong Map = chưa có gì. */
+export async function listRationaleStatus(
+  questionIds: string[],
+): Promise<Map<string, "verified" | "draft">> {
+  const result = new Map<string, "verified" | "draft">();
+  for (const chunk of chunkIds(questionIds)) {
+    const { data, error } = await supabase
+      .from("question_option_rationale")
+      .select("question_id, verified_by_teacher")
+      .in("question_id", chunk);
+    if (error) throw error;
+    const byQ = new Map<string, boolean[]>();
+    for (const r of data as Array<{ question_id: string; verified_by_teacher: boolean }>) {
+      const list = byQ.get(r.question_id) ?? [];
+      list.push(r.verified_by_teacher);
+      byQ.set(r.question_id, list);
+    }
+    for (const [qid, flags] of byQ) result.set(qid, flags.every(Boolean) ? "verified" : "draft");
+  }
+  return result;
+}
+
+/** Tập question_id (trong danh sách truyền vào) ĐÃ được giáo viên xác nhận
+ * nhãn lỗi ít nhất 1 lần (mọi lần "Xác nhận" ở DistractorRationaleEditor.tsx
+ * ghi cả 4 phương án cùng lúc với verified_by_teacher=true, nên chỉ cần kiểm
+ * tra có tồn tại 1 dòng là đủ biết câu đó đã gắn nhãn xong). Dùng để hiện
+ * trạng thái "Đã gắn nhãn"/"Chưa gắn nhãn" ngay trên danh sách Ngân hàng câu
+ * hỏi — thêm 22/09/2026 theo phản hồi Thầy Tường: cần thấy trạng thái mà
+ * không phải mở từng câu để kiểm tra. */
+export async function listLabeledQuestionIds(questionIds: string[]): Promise<Set<string>> {
+  if (questionIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("question_option_rationale")
+    .select("question_id")
+    .in("question_id", questionIds)
+    .eq("verified_by_teacher", true);
+  if (error) throw error;
+  return new Set((data as Array<{ question_id: string }>).map((r) => r.question_id));
 }
 
 export interface PatternLabelStat {
@@ -266,6 +323,7 @@ export async function listPatternLabelStatsForLesson(lessonId: string): Promise<
     .from("question_option_rationale")
     .select("pattern_label, error_type, questions!inner(lesson_id)")
     .eq("questions.lesson_id", lessonId)
+    .eq("verified_by_teacher", true)
     .not("pattern_label", "is", null);
   if (error) throw error;
   const counts = new Map<string, PatternLabelStat>();
@@ -2391,4 +2449,254 @@ export async function getStudentActivityDates(studentId: string): Promise<string
     ...(attempts ?? []).map((r) => r.started_at as string),
     ...(sessions ?? []).map((r) => r.started_at as string),
   ];
+}
+
+
+// ===========================================================================
+// Learning Intelligence Platform — củng cố 27/09/2026 (Module 1/2/3)
+// ===========================================================================
+
+const PAGE_SIZE = 1000;
+const ID_CHUNK = 100;
+
+/** Chia danh sách id thành từng nhóm nhỏ — tránh URL quá dài khi lọc `.in()`. */
+function chunkIds(ids: string[], size = ID_CHUNK): string[][] {
+  const unique = Array.from(new Set(ids));
+  const out: string[][] = [];
+  for (let i = 0; i < unique.length; i += size) out.push(unique.slice(i, i + size));
+  return out;
+}
+
+/** Supabase mặc định chỉ trả tối đa 1000 dòng/lần — đọc hết theo trang để
+ * học sinh làm nhiều đề không bị mất dữ liệu cũ một cách âm thầm. Truy vấn
+ * truyền vào PHẢI có .order() cố định để phân trang không trùng/sót. */
+async function fetchAllRows<T>(
+  makeQuery: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  // Đọc tới khi gặp trang RỖNG (không dừng ở trang "thiếu") — vẫn đúng nếu
+  // dự án Supabase đặt giới hạn max-rows nhỏ hơn PAGE_SIZE.
+  for (let from = 0; ; ) {
+    const { data, error } = await makeQuery(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    if (rows.length === 0) break;
+    out.push(...rows);
+    from += rows.length;
+  }
+  return out;
+}
+
+/** Lỗi do bảng chưa tồn tại (chưa chạy migration) — để UI báo đúng việc cần làm. */
+export function isMissingTableError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return (
+    !!e &&
+    (e.code === "42P01" ||
+      e.code === "PGRST205" ||
+      /does not exist|could not find the table/i.test(e.message ?? ""))
+  );
+}
+
+/** Toàn bộ câu trả lời của 1 học sinh (mọi lượt làm bài), dạng phẳng. */
+export async function getStudentResponseFacts(studentId: string): Promise<StudentResponseFact[]> {
+  const rows = await fetchAllRows<ResponseFactRow>((from, to) =>
+    supabase
+      .from("question_responses")
+      .select(
+        "id, question_id, final_answer, teacher_answer, score, sub_correct_count, time_spent_seconds, change_count, " +
+          "question:questions(part, difficulty, default_points, correct_answer, " +
+          "topic:topics!questions_topic_id_fkey(id, name, order_index), " +
+          "lesson:lessons!questions_lesson_id_fkey(id, name, order_index)), " +
+          "attempt:exam_attempts!inner(id, exam_id, started_at, student_id, exam:exams(title))",
+      )
+      .eq("attempt.student_id", studentId)
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(responseRowToFact).filter((f): f is StudentResponseFact => f !== null);
+}
+
+/** Nhãn lỗi ĐÃ XÁC NHẬN cho các câu Phần 1 — nháp AI chưa duyệt bị bỏ qua. */
+export async function getVerifiedRationaleMap(questionIds: string[]): Promise<Map<string, RationaleEntry>> {
+  const map = new Map<string, RationaleEntry>();
+  for (const chunk of chunkIds(questionIds)) {
+    const { data, error } = await supabase
+      .from("question_option_rationale")
+      .select("question_id, option_key, error_type, pattern_label, rationale_text, verified_by_teacher")
+      .in("question_id", chunk)
+      .eq("verified_by_teacher", true);
+    if (error) throw error;
+    for (const r of data as Array<{
+      question_id: string;
+      option_key: string | null;
+      error_type: DistractorErrorType;
+      pattern_label: string | null;
+      rationale_text: string | null;
+      verified_by_teacher: boolean;
+    }>) {
+      if (!r.option_key) continue;
+      map.set(rationaleKey(r.question_id, r.option_key), {
+        errorType: r.error_type,
+        patternLabel: r.pattern_label,
+        rationaleText: r.rationale_text,
+        verifiedByTeacher: r.verified_by_teacher,
+      });
+    }
+  }
+  return map;
+}
+
+export interface StudentLearningBundle {
+  facts: StudentResponseFact[];
+  instances: ErrorInstance[];
+  /** pattern_label -> các câu Phần 1 có ÍT NHẤT 1 phương án mang nhãn đó (đã xác nhận)
+   * = những câu "có thể làm lộ" lỗi này — mẫu số của Progress Story. */
+  patternQuestions: Map<string, Set<string>>;
+  /** false nếu chưa chạy migration_019 — Error DNA khi đó chỉ có careless/chưa phân loại. */
+  rationaleAvailable: boolean;
+}
+
+/** Nguồn dữ liệu CHUNG cho Mổ xẻ bài thi (Module 1), Hồ sơ năng lực
+ * (Module 2) và Gốc rễ khả dĩ (Module 3) — 1 lần đọc, tính mọi thứ on-demand. */
+export async function getStudentLearningBundle(studentId: string): Promise<StudentLearningBundle> {
+  const facts = await getStudentResponseFacts(studentId);
+  const part1Ids = facts.filter((f) => f.part === 1).map((f) => f.questionId);
+  let rationale = new Map<string, RationaleEntry>();
+  let rationaleAvailable = true;
+  try {
+    rationale = await getVerifiedRationaleMap(part1Ids);
+  } catch (err) {
+    if (!isMissingTableError(err)) throw err;
+    rationaleAvailable = false;
+  }
+  const patternQuestions = new Map<string, Set<string>>();
+  for (const [key, entry] of rationale) {
+    if (!entry.patternLabel || entry.errorType === "n_a") continue;
+    const questionId = key.split("::")[0];
+    const set = patternQuestions.get(entry.patternLabel) ?? new Set<string>();
+    set.add(questionId);
+    patternQuestions.set(entry.patternLabel, set);
+  }
+  return { facts, instances: buildErrorInstances(facts, rationale), patternQuestions, rationaleAvailable };
+}
+
+// --- Hàng đợi gắn nhãn lỗi (trang /giao-vien/gan-nhan-loi) -------------------
+
+export interface RationaleQueueQuestion {
+  question: QuestionRow;
+  lessonName: string | null;
+  /** Số lượt học sinh chọn từng phương án A-D (mọi lượt làm bài). */
+  choiceCounts: Record<string, number>;
+  rationale: QuestionOptionRationaleRow[];
+  status: "verified" | "draft" | "none";
+}
+
+/** Toàn bộ câu Phần 1 (lọc theo Chương nếu có) + số lượt chọn từng phương án +
+ * nhãn hiện có. Xếp hạng/lọc làm ở rankLabelingQueue (hàm thuần). */
+export async function getRationaleQueue(topicId: string | null): Promise<RationaleQueueQuestion[]> {
+  const questions = await fetchAllRows<QuestionRow & { lesson: { name: string } | null }>((from, to) => {
+    let q = supabase
+      .from("questions")
+      .select("*, lesson:lessons!questions_lesson_id_fkey(name)")
+      .eq("part", 1);
+    if (topicId) q = q.eq("topic_id", topicId);
+    return q.order("id").range(from, to);
+  });
+  const ids = questions.map((q) => q.id);
+
+  const counts = new Map<string, Record<string, number>>();
+  for (const chunk of chunkIds(ids)) {
+    const rows = await fetchAllRows<{ question_id: string; final_answer: unknown }>((from, to) =>
+      supabase
+        .from("question_responses")
+        .select("id, question_id, final_answer")
+        .in("question_id", chunk)
+        .order("id")
+        .range(from, to),
+    );
+    for (const r of rows) {
+      const choice = (r.final_answer as Partial<Part1Answer> | null)?.choice;
+      if (!choice) continue;
+      const c = counts.get(r.question_id) ?? {};
+      c[choice] = (c[choice] ?? 0) + 1;
+      counts.set(r.question_id, c);
+    }
+  }
+
+  const rationaleByQ = new Map<string, QuestionOptionRationaleRow[]>();
+  for (const chunk of chunkIds(ids)) {
+    const { data, error } = await supabase
+      .from("question_option_rationale")
+      .select("*")
+      .in("question_id", chunk);
+    if (error) throw error;
+    for (const r of data as QuestionOptionRationaleRow[]) {
+      const list = rationaleByQ.get(r.question_id) ?? [];
+      list.push(r);
+      rationaleByQ.set(r.question_id, list);
+    }
+  }
+
+  return questions.map(({ lesson, ...question }) => {
+    const rationale = rationaleByQ.get(question.id) ?? [];
+    return {
+      question: question as QuestionRow,
+      lessonName: lesson?.name ?? null,
+      choiceCounts: counts.get(question.id) ?? {},
+      rationale,
+      status:
+        rationale.length === 0 ? "none" : rationale.every((r) => r.verified_by_teacher) ? "verified" : "draft",
+    };
+  });
+}
+
+// --- Knowledge Graph (skill_prerequisites, migration_020) --------------------
+
+export async function listSkillPrerequisites(): Promise<{ edges: PrereqEdge[]; tableMissing: boolean }> {
+  const { data, error } = await supabase
+    .from("skill_prerequisites")
+    .select("id, lesson_id, prerequisite_lesson_id, weight, source");
+  if (error) {
+    if (isMissingTableError(error)) return { edges: [], tableMissing: true };
+    throw error;
+  }
+  return {
+    edges: (data as Array<{
+      id: string;
+      lesson_id: string;
+      prerequisite_lesson_id: string;
+      weight: number;
+      source: "curated" | "ppct_order";
+    }>).map((r) => ({
+      id: r.id,
+      lessonId: r.lesson_id,
+      prerequisiteLessonId: r.prerequisite_lesson_id,
+      weight: Number(r.weight),
+      source: r.source,
+    })),
+    tableMissing: false,
+  };
+}
+
+export async function upsertSkillPrerequisite(input: {
+  lessonId: string;
+  prerequisiteLessonId: string;
+  weight: number;
+}): Promise<void> {
+  const { error } = await supabase.from("skill_prerequisites").upsert(
+    {
+      lesson_id: input.lessonId,
+      prerequisite_lesson_id: input.prerequisiteLessonId,
+      weight: input.weight,
+      source: "curated",
+    },
+    { onConflict: "lesson_id,prerequisite_lesson_id" },
+  );
+  if (error) throw error;
+}
+
+export async function deleteSkillPrerequisite(id: string): Promise<void> {
+  const { error } = await supabase.from("skill_prerequisites").delete().eq("id", id);
+  if (error) throw error;
 }

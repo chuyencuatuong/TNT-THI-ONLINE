@@ -3,7 +3,11 @@ import * as api from "../lib/api";
 import { suggestQuestionTopic } from "../lib/ai";
 import { MathText } from "../components/MathText";
 import { QuestionEditorForm } from "../components/QuestionEditorForm";
-import { DistractorRationaleEditor } from "../components/DistractorRationaleEditor";
+import { Link } from "react-router-dom";
+import {
+  DistractorRationaleEditor,
+  RATIONALE_STATUS_LABEL,
+} from "../components/DistractorRationaleEditor";
 import { DIFFICULTY_LABELS } from "../lib/types";
 import type { Lesson, QuestionRow, Topic } from "../lib/types";
 
@@ -18,12 +22,26 @@ export function TeacherQuestionBank() {
   const [loading, setLoading] = useState(true);
   const [reclassifying, setReclassifying] = useState(false);
   const [reclassifyProgress, setReclassifyProgress] = useState("");
+  // Thêm 22/09/2026 — trạng thái "đã gắn nhãn lỗi phương án nhiễu" theo
+  // question_id, hiện ngay trên danh sách (không cần mở từng câu để kiểm
+  // tra) + bộ lọc "chỉ hiện câu chưa gắn nhãn" để làm nhanh, không lặp lại
+  // câu đã xong.
+  const [rationaleStatus, setRationaleStatus] = useState<Map<string, "verified" | "draft">>(new Map());
+  const [onlyUnlabeled, setOnlyUnlabeled] = useState(false);
 
   async function reloadQuestions() {
     const data = await api.listQuestions(
       filterPart ? { part: filterPart as 1 | 2 | 3 } : undefined,
     );
     setQuestions(data);
+    const part1Ids = data.filter((q) => q.part === 1).map((q) => q.id);
+    try {
+      setRationaleStatus(await api.listRationaleStatus(part1Ids));
+    } catch (err) {
+      // Chưa chạy migration_019 -> coi như chưa câu nào có nhãn, không chặn cả trang.
+      if (!api.isMissingTableError(err)) throw err;
+      setRationaleStatus(new Map());
+    }
   }
 
   async function reloadTopics() {
@@ -101,6 +119,7 @@ export function TeacherQuestionBank() {
     if (filterTopic && q.topic_id !== filterTopic) return false;
     if (search.trim() && !q.content_latex.toLowerCase().includes(search.trim().toLowerCase()))
       return false;
+    if (onlyUnlabeled && q.part === 1 && rationaleStatus.get(q.id) === "verified") return false;
     return true;
   });
 
@@ -158,7 +177,20 @@ export function TeacherQuestionBank() {
         >
           {reclassifying ? reclassifyProgress || "Đang xử lý..." : "Phân loại lại chương bằng AI"}
         </button>
+        <label>
+          <input
+            type="checkbox"
+            checked={onlyUnlabeled}
+            onChange={(e) => setOnlyUnlabeled(e.target.checked)}
+          />{" "}
+          Chỉ hiện câu Phần 1 chưa xác nhận nhãn lỗi
+        </label>
       </div>
+      <p className="empty-hint">
+        Cần gắn nhãn lỗi cho nhiều câu? Dùng trang{" "}
+        <Link to="/giao-vien/gan-nhan-loi">Gắn nhãn lỗi nhanh</Link> — ưu tiên câu học sinh chọn sai
+        nhiều nhất, AI soạn nháp theo lô, thầy chỉ duyệt.
+      </p>
 
       {loading ? (
         <div className="page-loading">Đang tải...</div>
@@ -188,6 +220,11 @@ export function TeacherQuestionBank() {
                   {q.source === "word_import" && (
                     <span className="tag tag--muted">Từ file Word</span>
                   )}
+                  {q.part === 1 && (
+                    <span className={`li-status li-status--${rationaleStatus.get(q.id) ?? "none"}`}>
+                      {RATIONALE_STATUS_LABEL[rationaleStatus.get(q.id) ?? "none"]}
+                    </span>
+                  )}
                 </div>
                 <MathText text={q.content_latex} />
                 {showSuggestion && (
@@ -209,7 +246,19 @@ export function TeacherQuestionBank() {
                     </button>
                   </p>
                 )}
-                {q.part === 1 && <DistractorRationaleEditor question={q} />}
+                {q.part === 1 && (
+                  <DistractorRationaleEditor
+                    question={q}
+                    onStatusChange={(st) =>
+                      setRationaleStatus((prev) => {
+                        const next = new Map(prev);
+                        if (st === "none") next.delete(q.id);
+                        else next.set(q.id, st);
+                        return next;
+                      })
+                    }
+                  />
+                )}
                 <button className="btn-link btn-danger" onClick={() => handleDelete(q.id)}>
                   Xoá
                 </button>
