@@ -1284,6 +1284,31 @@ export async function getAttemptScore(
   return data as AttemptScoreRow | null;
 }
 
+/** Phân bố điểm ẩn danh của 1 đề (migration_021). `n` = số lượt làm lần đầu
+ * hợp lệ; `scores` chỉ có khi n >= 20 (quy tắc riêng tư nằm ở phía SQL).
+ * Trả `null` nếu chưa chạy migration_021 — trang kết quả khi đó dùng nhóm năng
+ * lực theo thang điểm cố định, không báo lỗi cho học sinh. */
+export interface ExamScoreDistribution {
+  n: number;
+  scores: number[] | null;
+}
+
+export async function getExamScoreDistribution(examId: string): Promise<ExamScoreDistribution | null> {
+  const { data, error } = await supabase.rpc("get_exam_score_distribution", { p_exam_id: examId });
+  if (error) {
+    const e = error as { code?: string; message?: string };
+    const missing =
+      e.code === "PGRST202" || e.code === "42883" || /could not find the function|does not exist/i.test(e.message ?? "");
+    if (missing) return null;
+    throw error;
+  }
+  const raw = (data ?? {}) as { n?: number; scores?: (number | string)[] | null };
+  return {
+    n: Number(raw.n ?? 0),
+    scores: Array.isArray(raw.scores) ? raw.scores.map((s) => Number(s)) : null,
+  };
+}
+
 export async function listStudentAttempts(
   studentId: string,
 ): Promise<(ExamAttemptRow & { exam: ExamRow; score: AttemptScoreRow | null })[]> {
