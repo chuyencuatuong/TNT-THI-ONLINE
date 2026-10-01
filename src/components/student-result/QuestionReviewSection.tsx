@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AttemptReviewItem } from "../../lib/api";
 import type { ErrorInstance } from "../../lib/errorIntelligence";
 import { DIFFICULTY_LABELS } from "../../lib/types";
@@ -26,6 +26,8 @@ export type ReviewFilter = "all" | "wrong" | "blank" | "part1" | "part2" | "part
 
 export type ReviewCommand =
   | { kind: "open"; questionId: string; nonce: number }
+  /** Mở sẵn nhiều câu cùng lúc (việc số 1 ở Kế hoạch), cuộn tới câu đầu tiên. */
+  | { kind: "open-many"; questionIds: string[]; nonce: number }
   | { kind: "filter"; filter: ReviewFilter; nonce: number };
 
 const FULL_EPS = 0.005;
@@ -129,13 +131,23 @@ export function QuestionReviewSection({
       setFilter(command.filter);
       return;
     }
-    const row = rows.find((x) => x.r.question_id === command.questionId);
-    if (!row) return;
-    setFilter((f) => (matches(f, row.r, row.s) ? f : "all"));
-    setOpen((prev) => new Set(prev).add(command.questionId));
-    setPendingFocus(command.questionId);
+    const ids = command.kind === "open" ? [command.questionId] : command.questionIds;
+    const targets = rows.filter((x) => ids.includes(x.r.question_id));
+    if (targets.length === 0) return;
+    setFilter((f) => (targets.every((t) => matches(f, t.r, t.s)) ? f : "all"));
+    setOpen((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+    setPendingFocus(targets[0].r.question_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [command?.nonce]);
+
+  const focusTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (focusTimerRef.current) window.clearTimeout(focusTimerRef.current);
+  }, []);
 
   // Cuộn tới câu SAU khi câu đã được mở và render (đo đúng vị trí cuối cùng).
   useEffect(() => {
@@ -144,12 +156,21 @@ export function QuestionReviewSection({
     const raf = requestAnimationFrame(() => {
       const el = document.getElementById(`review-q-${id}`);
       if (el) {
-        el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
-        el.querySelector<HTMLButtonElement>(".student-intelligence-qrow-toggle")?.focus({ preventScroll: true });
-        el.classList.remove(HIGHLIGHT_CLASS);
-        void el.offsetWidth; // khởi động lại animation khi bấm liên tiếp
-        el.classList.add(HIGHLIGHT_CLASS);
-        window.setTimeout(() => el.classList.remove(HIGHLIGHT_CLASS), 2100);
+        const run = () => {
+          el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+          el.querySelector<HTMLButtonElement>(".student-intelligence-qrow-toggle")?.focus({ preventScroll: true });
+          el.classList.remove(HIGHLIGHT_CLASS);
+          void el.offsetWidth; // khởi động lại animation khi bấm liên tiếp
+          el.classList.add(HIGHLIGHT_CLASS);
+          window.setTimeout(() => el.classList.remove(HIGHLIGHT_CLASS), 2100);
+        };
+        // Ngăn kéo Phụ lục chứa danh sách vừa được mở và còn đang bung ra: đợi bung xong
+        // rồi mới cuộn, nếu không trang chưa đủ cao và câu dừng lệch khỏi mép trên.
+        const inner = el.closest<HTMLElement>(".student-intelligence-acc-inner");
+        if (inner && inner.scrollHeight > inner.clientHeight + 1) {
+          if (focusTimerRef.current) window.clearTimeout(focusTimerRef.current);
+          focusTimerRef.current = window.setTimeout(run, 360);
+        } else run();
       }
       setPendingFocus(null);
     });
