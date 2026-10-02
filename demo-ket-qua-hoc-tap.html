@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Năng Lực Học Tập — TNT Educational Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       HỆ THỐNG BIẾN MÀU & ĐỊNH DẠNG BIÊN TẬP KHOA HỌC (SCIENTIFIC EDITORIAL)
+       ========================================================================== */
+    :root {
+      /* Bảng màu chính */
+      --color-primary: #9c1420;          /* Burgundy TNT */
+      --color-primary-dark: #660a12;
+      --color-accent: #c9973f;           /* Vàng kim Ochre */
+      --color-accent-light: #f7eedb;
+      --color-accent-dark: #825e21;
+
+      /* Nền và bề mặt */
+      --color-bg: #faf7f2;               /* Warm Ivory */
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f5ede1;
+      --color-surface-hover: #f0e6d6;
+      --color-border: #e6dcce;          /* Hairline mỏng */
+      --color-border-subtle: #eee5d8;
+
+      /* Chữ */
+      --color-text: #1b242c;             /* Graphite đậm */
+      --color-text-muted: #5c6773;       /* Ghi trung tính */
+      --color-text-faint: #8a96a3;
+
+      /* Chỉ đúng 2 gam màu đo lường dữ liệu */
+      --color-pine: #2e7d32;             /* Xanh thông (Vững vàng / Làm chủ) */
+      --color-pine-surface: #eaf4eb;
+      --color-pine-text: #1e5c22;
+      --color-clay: #b5502f;             /* Đỏ đất nung (Hao hụt / Lỗ hổng) */
+      --color-clay-surface: #faece7;
+      --color-clay-text: #8c3619;
+
+      /* Phông chữ */
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+      --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+
+      /* Bo góc & Đổ bóng tinh tế */
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-pill: 9999px;
+
+      --shadow-hairline: 0 1px 2px rgba(27, 36, 44, 0.03);
+      --shadow-float: 0 8px 24px rgba(27, 36, 44, 0.04);
+      --transition-base: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    [data-theme="dark"] {
+      --color-primary: #e65560;
+      --color-primary-dark: #f89ca3;
+      --color-accent: #deb163;
+      --color-accent-light: #332615;
+      --color-accent-dark: #f0cb87;
+
+      --color-bg: #17130f;               /* Obsidian Warm */
+      --color-surface: #211a14;
+      --color-surface-subtle: #2b221a;
+      --color-surface-hover: #332920;
+      --color-border: #382c21;
+      --color-border-subtle: #2e2318;
+
+      --color-text: #ede5da;
+      --color-text-muted: #a39788;
+      --color-text-faint: #756a5c;
+
+      --color-pine: #4caf50;
+      --color-pine-surface: #19291b;
+      --color-pine-text: #b6e4b8;
+      --color-clay: #e06d48;
+      --color-clay-surface: #381f16;
+      --color-clay-text: #f5b9a4;
+
+      --shadow-hairline: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Thiết lập cơ bản */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* ==========================================================================
+       THANH ĐIỀU HƯỚNG TRÊN CÙNG (TOP UTILITY BAR)
+       ========================================================================== */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 12px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: var(--color-primary);
+      padding: 3px 8px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-xs);
+    }
+
+    .brand-caption {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--color-text);
+    }
+
+    .brand-subcaption {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      border-left: 1px solid var(--color-border);
+      padding-left: 12px;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-action-text {
+      font-family: var(--font-sans);
+      background: transparent;
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      padding: 7px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all var(--transition-base);
+    }
+
+    .btn-action-text:hover {
+      background: var(--color-surface-subtle);
+      border-color: var(--color-text-muted);
+    }
+
+    .btn-primary-action {
+      background: var(--color-primary);
+      border: 1px solid var(--color-primary);
+      color: #ffffff;
+      padding: 7px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all var(--transition-base);
+      text-decoration: none;
+    }
+
+    .btn-primary-action:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================================
+       BỐ CỤC 2 CỘT DESKTOP BẤT ĐỐI XỨNG
+       ========================================================================== */
+    .dashboard-container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 40px 32px 100px;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 60px;
+      align-items: start;
+    }
+
+    /* Cột trái: Sticky Mini-Navigation */
+    .nav-sidebar {
+      position: sticky;
+      top: 76px;
+      padding-top: 10px;
+    }
+
+    .nav-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--color-text-muted);
+      margin-bottom: 14px;
+      padding-left: 14px;
+    }
+
+    .editorial-nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--color-border);
+    }
+
+    .editorial-nav-item a {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      margin-left: -1.5px;
+      transition: all var(--transition-base);
+    }
+
+    .editorial-nav-item a:hover {
+      color: var(--color-text);
+      background: var(--color-surface-subtle);
+    }
+
+    .editorial-nav-item.active a {
+      color: var(--color-primary);
+      font-weight: 600;
+      border-left-color: var(--color-primary);
+      background: var(--color-surface-subtle);
+    }
+
+    .editorial-nav-item .index-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      opacity: 0.75;
+      font-weight: 500;
+    }
+
+    .sidebar-supplement {
+      margin-top: 36px;
+      padding: 18px 14px;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-meta-row {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ==========================================================================
+       DÒNG CHẢY BÁO CÁO (NARRATIVE STREAM) & BỀ MẶT THIẾT KẾ
+       ========================================================================== */
+    .narrative-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 56px;
+    }
+
+    .section-block {
+      scroll-margin-top: 86px;
+    }
+
+    /* Hiệu ứng trượt nhẹ Fade-in khi cuộn */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal-on-scroll.is-revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Tiêu đề phân mục học thuật */
+    .section-head {
+      margin-bottom: 22px;
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .section-num-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-primary);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .section-main-title {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: var(--color-text);
+      line-height: 1.25;
+    }
+
+    .section-subtext {
+      font-size: 13.5px;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+    }
+
+    /* Khối phân tích - Bề mặt Level 2 (Hairline border, không đổ bóng đậm) */
+    .editorial-block {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 28px;
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 01: ĐIỂM SỐ & HIỆU SUẤT TỔNG THỂ
+       ========================================================================== */
+    .hero-panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      position: relative;
+    }
+
+    .hero-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--color-border-subtle);
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: var(--color-text-muted);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .exam-paper-name {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--color-text);
+      line-height: 1.25;
+      margin-bottom: 20px;
+    }
+
+    .score-headline-row {
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .score-roll-display {
+      font-family: var(--font-mono);
+      font-size: 72px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--color-primary);
+      letter-spacing: -0.03em;
+    }
+
+    .score-scale {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    .performance-verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      background: var(--color-pine-surface);
+      color: var(--color-pine-text);
+      border: 1px solid rgba(46, 125, 50, 0.2);
+    }
+
+    /* 3 Phần thi chuẩn Bộ GD&ĐT */
+    .exam-parts-distribution {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      padding-top: 24px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .exam-part-cell {
+      padding: 14px 18px;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    .part-head {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .part-points {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 4px 0 2px;
+    }
+
+    .part-detail {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* Chỉ số nhịp độ & độ phủ (Metric Strip) */
+    .metric-strip-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .metric-tile {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      font-weight: 500;
+    }
+
+    .metric-stat {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 6px 0 4px;
+    }
+
+    .metric-sub {
+      font-size: 11.5px;
+      color: var(--color-text-faint);
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 02: BẢN ĐỒ ĐIỂM HAO HỤT THEO CHUYÊN ĐỀ
+       ========================================================================== */
+    .loss-map-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .loss-item-row {
+      display: grid;
+      grid-template-columns: 240px 1fr 140px 90px;
+      gap: 20px;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .loss-item-row:last-child {
+      border-bottom: none;
+    }
+
+    .loss-topic-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--color-text);
+    }
+
+    .loss-bar-container {
+      height: 8px;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loss-bar-fill {
+      height: 100%;
+      background: var(--color-clay);
+      border-radius: var(--radius-pill);
+      width: 0%;
+      transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .loss-bar-fill.solid {
+      background: var(--color-pine);
+    }
+
+    .loss-figure {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--color-clay-text);
+      text-align: right;
+    }
+
+    .loss-figure.zero {
+      color: var(--color-pine-text);
+    }
+
+    .loss-count-label {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 03: BẢN CHẤT SAI LỆCH TƯ DUY
+       ========================================================================== */
+    .error-distribution-bar {
+      display: flex;
+      height: 12px;
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin: 18px 0 24px;
+      background: var(--color-surface-subtle);
+    }
+
+    .error-segment {
+      height: 100%;
+      width: 0%;
+      transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .segment-conceptual { background: var(--color-clay); }
+    .segment-procedural { background: #7c5cbf; }
+    .segment-calculation { background: var(--color-accent); }
+    .segment-careless { background: var(--color-text-muted); }
+
+    .error-nature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .error-nature-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      background: var(--color-surface);
+      border-top: 3px solid transparent;
+    }
+
+    .error-nature-card.card-conceptual { border-top-color: var(--color-clay); }
+    .error-nature-card.card-procedural { border-top-color: #7c5cbf; }
+    .error-nature-card.card-calculation { border-top-color: var(--color-accent); }
+    .error-nature-card.card-careless { border-top-color: var(--color-text-muted); }
+
+    .nature-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .nature-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .nature-share {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+    }
+
+    .nature-desc {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .nature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .nature-tag-item {
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border-subtle);
+      color: var(--color-text);
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 04: HỒ SƠ NHẬN THỨC 4 CẤP ĐỘ (BLOOM)
+       ========================================================================== */
+    .bloom-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bloom-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 100px 110px;
+      gap: 20px;
+      align-items: center;
+      padding: 14px 18px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+    }
+
+    .bloom-level-label {
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--color-text);
+    }
+
+    .bloom-track {
+      height: 8px;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+
+    .bloom-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      width: 0%;
+      transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .bloom-fill.pine { background: var(--color-pine); }
+    .bloom-fill.clay { background: var(--color-clay); }
+
+    .bloom-percent {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .bloom-badge {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: var(--radius-xs);
+      text-align: center;
+    }
+
+    .bloom-badge.solid {
+      background: var(--color-pine-surface);
+      color: var(--color-pine-text);
+    }
+
+    .bloom-badge.warning {
+      background: var(--color-clay-surface);
+      color: var(--color-clay-text);
+    }
+
+    .expert-commentary {
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: var(--color-surface-subtle);
+      border-left: 3px solid var(--color-primary);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 13.5px;
+      color: var(--color-text);
+      line-height: 1.6;
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 05: QUY LUẬT SAI LỆCH & NHỊP ĐỘ LÀM BÀI
+       ========================================================================== */
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .pattern-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      background: var(--color-surface);
+    }
+
+    .pattern-tag-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+
+    .tag-recurrence {
+      background: var(--color-clay-surface);
+      color: var(--color-clay-text);
+      border: 1px solid rgba(181, 80, 47, 0.2);
+    }
+
+    .tag-pacing {
+      background: var(--color-accent-light);
+      color: var(--color-accent-dark);
+      border: 1px solid rgba(201, 151, 63, 0.25);
+    }
+
+    .pattern-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin-bottom: 8px;
+    }
+
+    .pattern-card-body {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      line-height: 1.6;
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 06: TRUY VẾT NGUYÊN NHÂN GỐC RỄ TRÊN ĐỒ THỊ TIÊN QUYẾT
+       ========================================================================== */
+    .prereq-tracing-box {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      background: var(--color-surface);
+    }
+
+    .prereq-flow {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 18px 0 22px;
+      flex-wrap: wrap;
+    }
+
+    .prereq-node {
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .prereq-node.origin {
+      border-left: 3px solid var(--color-clay);
+    }
+
+    .prereq-node.manifest {
+      border-left: 3px solid var(--color-primary);
+    }
+
+    .node-annotation {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .node-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 6px 0 4px;
+    }
+
+    .node-evidence {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--color-clay-text);
+      font-weight: 500;
+    }
+
+    .flow-connector {
+      color: var(--color-accent-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .academic-explanation {
+      padding: 16px 20px;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--color-accent);
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--color-text);
+    }
+
+    .disclaimer-statement {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--color-text-faint);
+      font-style: italic;
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 07: KẾ HOẠCH KHẮC PHỤC KIẾN THỨC
+       ========================================================================== */
+    .remedy-action-plan {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 28px;
+    }
+
+    .action-steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .action-step-item {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .action-step-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .step-serial {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-primary);
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-xs);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-heading {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .step-content {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      line-height: 1.55;
+      margin-top: 4px;
+    }
+
+    .action-cta-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* ==========================================================================
+       PHÂN MỤC 08: BẢN KIỂM TRA CHI TIẾT (PHÂN RÃ THEO NHU CẦU)
+       ========================================================================== */
+    .inspection-filter-strip {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .filter-tab-chip {
+      font-family: var(--font-sans);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+
+    .filter-tab-chip:hover {
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+    }
+
+    .filter-tab-chip.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: #ffffff;
+    }
+
+    .questions-inspection-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .question-accordion-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+      transition: border-color var(--transition-base);
+      overflow: hidden;
+    }
+
+    .question-accordion-card.is-open {
+      border-color: var(--color-text-muted);
+    }
+
+    .accordion-trigger {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      background: var(--color-surface);
+    }
+
+    .accordion-trigger:hover {
+      background: var(--color-surface-subtle);
+    }
+
+    .trigger-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .item-ordinal {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+      min-width: 60px;
+    }
+
+    .inspection-status-pill {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+    }
+
+    .inspection-status-pill.wrong {
+      background: var(--color-clay-surface);
+      color: var(--color-clay-text);
+    }
+
+    .inspection-status-pill.correct {
+      background: var(--color-pine-surface);
+      color: var(--color-pine-text);
+    }
+
+    .inspection-status-pill.blank {
+      background: var(--color-surface-subtle);
+      color: var(--color-text-muted);
+    }
+
+    .question-curriculum-path {
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    .trigger-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .item-score-fraction {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .accordion-indicator-arrow {
+      color: var(--color-text-muted);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .question-accordion-card.is-open .accordion-indicator-arrow {
+      transform: rotate(180deg);
+    }
+
+    .accordion-collapsible-body {
+      display: none;
+      padding: 20px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .question-accordion-card.is-open .accordion-collapsible-body {
+      display: block;
+    }
+
+    .question-statement-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .options-selection-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .option-cell {
+      padding: 10px 14px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xs);
+      font-size: 13px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .option-cell.selected-wrong {
+      border-color: var(--color-clay);
+      background: var(--color-clay-surface);
+      color: var(--color-clay-text);
+      font-weight: 600;
+    }
+
+    .option-cell.correct-answer {
+      border-color: var(--color-pine);
+      background: var(--color-pine-surface);
+      color: var(--color-pine-text);
+      font-weight: 600;
+    }
+
+    .error-nature-callout {
+      background: var(--color-surface-subtle);
+      border-left: 3px solid var(--color-clay);
+      padding: 12px 16px;
+      border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+      font-size: 13px;
+      margin: 14px 0;
+      line-height: 1.55;
+    }
+
+    .solution-explanation-text {
+      padding: 14px 16px;
+      border: 1px solid var(--color-border-subtle);
+      background: var(--color-surface);
+      border-radius: var(--radius-xs);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--color-text);
+    }
+
+    /* ==========================================================================
+       MOBILE STICKY ACTION BAR
+       ========================================================================== */
+    .mobile-sticky-action-bar {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      padding: 12px 20px;
+      z-index: 100;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-score-quick {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+
+    .mobile-score-sub {
+      font-size: 11.5px;
+      color: var(--color-clay-text);
+    }
+
+    /* Responsive */
+    @media (max-width: 960px) {
+      .dashboard-container {
+        grid-template-columns: 1fr;
+        padding: 24px 20px 90px;
+        gap: 40px;
+      }
+
+      .nav-sidebar {
+        display: none;
+      }
+
+      .metric-strip-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .exam-parts-distribution {
+        grid-template-columns: 1fr;
+      }
+
+      .loss-item-row {
+        grid-template-columns: 1fr 110px;
+        gap: 10px;
+      }
+
+      .loss-item-row .loss-bar-container,
+      .loss-item-row .loss-count-label {
+        display: none;
+      }
+
+      .bloom-row {
+        grid-template-columns: 140px 1fr 70px;
+      }
+
+      .bloom-row .bloom-badge {
+        display: none;
+      }
+
+      .error-nature-grid,
+      .pattern-grid,
+      .options-selection-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mobile-sticky-action-bar {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Thanh tiêu đề trên cùng (Site Header) -->
+  <header class="site-header">
+    <div class="brand-group">
+      <span class="brand-mark">TNT</span>
+      <span class="brand-caption">Báo Cáo Năng Lực Học Tập</span>
+      <span class="brand-subcaption">Hồ Sơ Đo Lường Kết Quả</span>
+    </div>
+
+    <div class="header-controls">
+      <!-- Nút đổi theme thuần SVG nét mảnh 16x16 -->
+      <button class="btn-action-text" id="themeSwitchBtn" onclick="toggleTheme()" title="Chuyển chế độ hiển thị">
+        <svg id="themeIcon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 9.5A6.5 6.5 0 1 1 6.5 2 5.5 5.5 0 0 0 14 9.5z"/>
+        </svg>
+        <span id="themeText">Giao diện tối</span>
+      </button>
+
+      <button class="btn-action-text" onclick="window.print()" title="In báo cáo">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 6V2h8v4"/>
+          <path d="M4 12H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1"/>
+          <rect x="4" y="9" width="8" height="5"/>
+        </svg>
+        Xuất PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Khung bố cục chính 2 cột -->
+  <div class="dashboard-container">
+
+    <!-- Cột trái: Sticky Mini-Navigation -->
+    <aside class="nav-sidebar">
+      <div class="nav-section-title">Mục Lục Phân Tích</div>
+      <ul class="editorial-nav-list" id="miniNavSpy">
+        <li class="editorial-nav-item active"><a href="#sec-01"><span class="index-num">01</span> Điểm số & Hiệu suất</a></li>
+        <li class="editorial-nav-item"><a href="#sec-02"><span class="index-num">02</span> Điểm hao hụt chuyên đề</a></li>
+        <li class="editorial-nav-item"><a href="#sec-03"><span class="index-num">03</span> Bản chất sai lệch tư duy</a></li>
+        <li class="editorial-nav-item"><a href="#sec-04"><span class="index-num">04</span> Hồ sơ nhận thức 4 cấp độ</a></li>
+        <li class="editorial-nav-item"><a href="#sec-05"><span class="index-num">05</span> Quy luật & Nhịp độ</a></li>
+        <li class="editorial-nav-item"><a href="#sec-06"><span class="index-num">06</span> Truy vết nguyên nhân</a></li>
+        <li class="editorial-nav-item"><a href="#sec-07"><span class="index-num">07</span> Kế hoạch khắc phục</a></li>
+        <li class="editorial-nav-item"><a href="#sec-08"><span class="index-num">08</span> Bản kiểm tra chi tiết</a></li>
+      </ul>
+
+      <div class="sidebar-supplement">
+        <div class="sidebar-meta-row">
+          <span>Học sinh:</span>
+          <strong>Nguyễn Văn An</strong>
+        </div>
+        <div class="sidebar-meta-row">
+          <span>Lớp:</span>
+          <strong>12A1 — Toán học</strong>
+        </div>
+        <div class="sidebar-meta-row">
+          <span>Thời điểm:</span>
+          <span>27/09/2026 15:45</span>
+        </div>
+        <div style="margin-top: 8px;">
+          <a href="#sec-08" class="btn-primary-action" style="width: 100%; justify-content: center;">
+            Ôn 7 câu sai
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 8h10M9 4l4 4-4 4"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Cột phải: Dòng chảy 8 phân mục -->
+    <main class="narrative-stream">
+
+      <!-- PHÂN MỤC 01: ĐIỂM SỐ & CHỈ SỐ HIỆU SUẤT TỔNG THỂ -->
+      <section id="sec-01" class="section-block reveal-on-scroll">
+        <div class="hero-panel">
+          <div class="hero-meta-bar">
+            <span>Khảo sát Toán học Lớp 12 — Định kỳ Giữa Học kỳ 1</span>
+            <span>Chuẩn cấu trúc Bộ GD&ĐT 2025</span>
+          </div>
+
+          <h1 class="exam-paper-name">Hàm Số & Ứng Dụng Đạo Hàm Trong Khảo Sát Đồ Thị</h1>
+
+          <div class="score-headline-row">
+            <div>
+              <span class="score-roll-display" id="mainScoreCounter">0.00</span>
+              <span class="score-scale">/ 10.00</span>
+            </div>
+            <div class="performance-verdict">
+              Đạt mức Tốt — Vững kiến thức nền tảng, hao hụt ở tầng Vận dụng
+            </div>
+          </div>
+
+          <!-- Phân bổ 3 phần thi -->
+          <div class="exam-parts-distribution">
+            <div class="exam-part-cell">
+              <div class="part-head">Phần I: Nhiều lựa chọn</div>
+              <div class="part-points">2.75 <span style="font-size: 14px; font-weight: normal; color: var(--color-text-muted);">/ 3.00</span></div>
+              <div class="part-detail">Đạt 11 / 12 câu trọn vẹn</div>
+            </div>
+
+            <div class="exam-part-cell">
+              <div class="part-head">Phần II: Đúng / Sai nhiều ý</div>
+              <div class="part-points">3.00 <span style="font-size: 14px; font-weight: normal; color: var(--color-text-muted);">/ 4.00</span></div>
+              <div class="part-detail">Đạt 12 / 16 mệnh đề logic</div>
+            </div>
+
+            <div class="exam-part-cell">
+              <div class="part-head">Phần III: Trả lời ngắn</div>
+              <div class="part-points">1.50 <span style="font-size: 14px; font-weight: normal; color: var(--color-text-muted);">/ 3.00</span></div>
+              <div class="part-detail">Đạt 3 / 6 giá trị số chuẩn xác</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Strip -->
+        <div class="metric-strip-grid">
+          <div class="metric-tile">
+            <div class="metric-label">Độ chính xác chuẩn hóa</div>
+            <div class="metric-stat" style="color: var(--color-pine);">78%</div>
+            <div class="metric-sub">26 / 34 mục đo lường trọn điểm</div>
+          </div>
+
+          <div class="metric-tile">
+            <div class="metric-label">Tổng lượng điểm hao hụt</div>
+            <div class="metric-stat" style="color: var(--color-clay);">-2.75</div>
+            <div class="metric-sub">7 câu sai • 1 câu chưa hoàn tất</div>
+          </div>
+
+          <div class="metric-tile">
+            <div class="metric-label">Nhịp độ làm bài</div>
+            <div class="metric-stat">68 phút</div>
+            <div class="metric-sub">Bình quân 2.0 phút / câu hỏi</div>
+          </div>
+
+          <div class="metric-tile">
+            <div class="metric-label">Tỉ lệ chuẩn hóa nhãn lỗi</div>
+            <div class="metric-stat" style="color: var(--color-accent-dark);">86%</div>
+            <div class="metric-sub">6 / 7 câu có nhãn đối soát từ thầy</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 02: BẢN ĐỒ ĐIỂM HAO HỤT THEO CHUYÊN ĐỀ -->
+      <section id="sec-02" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 02</span>
+            <h2 class="section-main-title">Bản Đồ Điểm Hao Hụt Theo Chuyên Đề</h2>
+          </div>
+          <span class="section-subtext">Xếp theo mức độ rơi rụng điểm số giảm dần</span>
+        </div>
+
+        <div class="editorial-block">
+          <div class="loss-map-list">
+            <div class="loss-item-row">
+              <div class="loss-topic-name">Cực trị của hàm số</div>
+              <div class="loss-bar-container">
+                <div class="loss-bar-fill" data-progress="60%"></div>
+              </div>
+              <div class="loss-figure">Mất 1.50 / 2.50 đ</div>
+              <div class="loss-count-label">3 câu sai</div>
+            </div>
+
+            <div class="loss-item-row">
+              <div class="loss-topic-name">Tính đơn điệu của hàm số</div>
+              <div class="loss-bar-container">
+                <div class="loss-bar-fill" data-progress="25%"></div>
+              </div>
+              <div class="loss-figure">Mất 0.75 / 3.00 đ</div>
+              <div class="loss-count-label">2 câu sai</div>
+            </div>
+
+            <div class="loss-item-row">
+              <div class="loss-topic-name">Đồ thị & Đường tiệm cận</div>
+              <div class="loss-bar-container">
+                <div class="loss-bar-fill" data-progress="20%"></div>
+              </div>
+              <div class="loss-figure">Mất 0.50 / 2.50 đ</div>
+              <div class="loss-count-label">1 sai, 1 trống</div>
+            </div>
+
+            <div class="loss-item-row">
+              <div class="loss-topic-name">Giá trị lớn nhất & Giá trị nhỏ nhất</div>
+              <div class="loss-bar-container">
+                <div class="loss-bar-fill solid" data-progress="100%"></div>
+              </div>
+              <div class="loss-figure zero">Trọn vẹn 2.0 / 2.0 đ</div>
+              <div class="loss-count-label">0 sai sót</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 03: BẢN CHẤT SAI LỆCH TƯ DUY -->
+      <section id="sec-03" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 03</span>
+            <h2 class="section-main-title">Bản Chất Sai Lệch Tư Duy</h2>
+          </div>
+          <span class="section-subtext">Phân loại lỗi dựa trên căn cứ sư phạm đối soát từ giáo viên</span>
+        </div>
+
+        <div class="editorial-block">
+          <!-- Thanh phân bổ tỷ lệ -->
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
+            <span>Phân rã 7 câu phát sinh sai lệch:</span>
+            <span style="color: var(--color-text-muted);">6/7 câu đã định vị bản chất</span>
+          </div>
+
+          <div class="error-distribution-bar">
+            <div class="error-segment segment-conceptual" data-progress="43%" title="Khái niệm: 43%"></div>
+            <div class="error-segment segment-procedural" data-progress="29%" title="Quy trình biến đổi: 29%"></div>
+            <div class="error-segment segment-calculation" data-progress="14%" title="Tính toán: 14%"></div>
+            <div class="error-segment segment-careless" data-progress="14%" title="Nhịp độ / Bất cẩn: 14%"></div>
+          </div>
+
+          <div class="error-nature-grid">
+            <div class="error-nature-card card-conceptual">
+              <div class="nature-header">
+                <div class="nature-title">Sai lệch Khái niệm</div>
+                <div class="nature-share">3 câu (43%)</div>
+              </div>
+              <div class="nature-desc">Nhầm lẫn điều kiện cần và đủ của điểm cực trị; thiếu kiểm tra tập xác định khi xét dấu đạo hàm.</div>
+              <div class="nature-tags">
+                <span class="nature-tag-item">Quên tập xác định mẫu số</span>
+                <span class="nature-tag-item">Nhầm cực đại ↔ cực tiểu</span>
+              </div>
+            </div>
+
+            <div class="error-nature-card card-procedural">
+              <div class="nature-header">
+                <div class="nature-title">Sai lệch Quy trình biến đổi</div>
+                <div class="nature-share">2 câu (29%)</div>
+              </div>
+              <div class="nature-desc">Bỏ qua bước xác định nghiệm bội chẵn khi giải phương trình đạo hàm triệt tiêu, dẫn tới đếm dư điểm cực trị.</div>
+              <div class="nature-tags">
+                <span class="nature-tag-item">Bỏ qua nghiệm kép f'(x)=0</span>
+              </div>
+            </div>
+
+            <div class="error-nature-card card-calculation">
+              <div class="nature-header">
+                <div class="nature-title">Sai lệch Kỹ năng tính toán</div>
+                <div class="nature-share">1 câu (14%)</div>
+              </div>
+              <div class="nature-desc">Thuật toán tư duy đúng hướng nhưng sai lệch ở bước rút gọn dấu của biểu thức biệt thức delta.</div>
+              <div class="nature-tags">
+                <span class="nature-tag-item">Nhầm dấu nghiệm tam thức</span>
+              </div>
+            </div>
+
+            <div class="error-nature-card card-careless">
+              <div class="nature-header">
+                <div class="nature-title">Sai lệch Nhịp độ thao tác</div>
+                <div class="nature-share">1 câu (14%)</div>
+              </div>
+              <div class="nature-desc">Thời gian làm quá ngắn (18 giây so với định mức 90 giây) dẫn đến việc đọc lướt qua từ khóa điều kiện.</div>
+              <div class="nature-tags">
+                <span class="nature-tag-item">Đọc lướt bỏ sót từ khóa</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 04: HỒ SƠ NHẬN THỨC 4 CẤP ĐỘ -->
+      <section id="sec-04" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 04</span>
+            <h2 class="section-main-title">Hồ Sơ Nhận Thức 4 Cấp Độ</h2>
+          </div>
+          <span class="section-subtext">Đo lường năng lực theo thang Bloom chuẩn hóa</span>
+        </div>
+
+        <div class="editorial-block">
+          <div class="bloom-stack">
+            <div class="bloom-row">
+              <div class="bloom-level-label">1. Nhận biết</div>
+              <div class="bloom-track">
+                <div class="bloom-fill pine" data-progress="100%"></div>
+              </div>
+              <div class="bloom-percent" style="color: var(--color-pine);">100%</div>
+              <div class="bloom-badge solid">Làm chủ hoàn toàn</div>
+            </div>
+
+            <div class="bloom-row">
+              <div class="bloom-level-label">2. Thông hiểu</div>
+              <div class="bloom-track">
+                <div class="bloom-fill pine" data-progress="85%"></div>
+              </div>
+              <div class="bloom-percent" style="color: var(--color-pine);">85%</div>
+              <div class="bloom-badge solid">Vững vàng</div>
+            </div>
+
+            <div class="bloom-row">
+              <div class="bloom-level-label">3. Vận dụng</div>
+              <div class="bloom-track">
+                <div class="bloom-fill clay" data-progress="50%"></div>
+              </div>
+              <div class="bloom-percent" style="color: var(--color-clay);">50%</div>
+              <div class="bloom-badge warning">Cần chú ý</div>
+            </div>
+
+            <div class="bloom-row">
+              <div class="bloom-level-label">4. Vận dụng nâng cao</div>
+              <div class="bloom-track">
+                <div class="bloom-fill clay" data-progress="25%"></div>
+              </div>
+              <div class="bloom-percent" style="color: var(--color-clay);">25%</div>
+              <div class="bloom-badge warning">Hao hụt trọng yếu</div>
+            </div>
+          </div>
+
+          <div class="expert-commentary">
+            <strong>Nhận định sư phạm:</strong> Em nắm vững công thức nền tảng và nhận diện dạng toán (NB + TH đạt mức trên 90%). Tuy nhiên, khi chuyển sang các bài toán liên kết đa bước có chứa tham số m hoặc cấu trúc hàm hợp f(u(x)), mạch tư duy biến đổi logic bị đứt đoạn ở khâu kết nối các điều kiện biên.
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 05: QUY LUẬT SAI LỆCH & NHỊP ĐỘ LÀM BÀI -->
+      <section id="sec-05" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 05</span>
+            <h2 class="section-main-title">Quy Luật Sai Lệch & Nhịp Độ Làm Bài</h2>
+          </div>
+          <span class="section-subtext">Nhận diện mẫu lặp lại qua lịch sử thi và biến động thời gian</span>
+        </div>
+
+        <div class="pattern-grid">
+          <div class="pattern-card">
+            <span class="pattern-tag-label tag-recurrence">Quy luật lặp lại qua nhiều đề</span>
+            <div class="pattern-card-title">Mẫu sai: "Bỏ qua nghiệm kép f'(x)=0"</div>
+            <div class="pattern-card-body">
+              Mẫu sai lệch này đã xuất hiện <strong>3 lần</strong> trên <strong>2 bài thi độc lập</strong> gần đây. Đây là một thói quen tư duy cần khắc phục dứt điểm khi giải bài toán tìm số điểm cực trị.
+            </div>
+          </div>
+
+          <div class="pattern-card">
+            <span class="pattern-tag-label tag-pacing">Cảnh báo nhịp độ thời gian</span>
+            <div class="pattern-card-title">Điểm nghẽn tại Câu 32 (Phần II)</div>
+            <div class="pattern-card-body">
+              Em đã tiêu tốn <strong>6 phút 40 giây</strong> cho câu 32 nhưng chưa đạt trọn điểm ý (c). Việc sa đà thời gian này làm giảm quỹ thời gian của 2 câu cuối ở Phần III, buộc phải bỏ trống Câu 34.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 06: TRUY VẾT NGUYÊN NHÂN GỐC RỄ TRÊN ĐỒ THỊ TIÊN QUYẾT -->
+      <section id="sec-06" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 06</span>
+            <h2 class="section-main-title">Truy Vết Nguyên Nhân Gốc Rễ Trên Đồ Thị Tiên Quyết</h2>
+          </div>
+          <span class="section-subtext">Định vị mắt xích kiến thức bị đứt đoạn theo chuẩn cấu trúc phân cấp</span>
+        </div>
+
+        <div class="prereq-tracing-box">
+          <div style="font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent-dark); font-weight: 600;">
+            Mắt xích liên kết phát hiện được
+          </div>
+
+          <div class="prereq-flow">
+            <div class="prereq-node origin">
+              <div class="node-annotation">Bài học nền tảng (Lớp 11)</div>
+              <div class="node-title">Đạo hàm & Quy tắc đạo hàm hàm hợp</div>
+              <div class="node-evidence">Độ chính xác lịch sử: 54% (14 câu)</div>
+            </div>
+
+            <div class="flow-connector">
+              <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 8h10M9 4l4 4-4 4"/>
+              </svg>
+            </div>
+
+            <div class="prereq-node manifest">
+              <div class="node-annotation">Bài thi hiện tại (Lớp 12)</div>
+              <div class="node-title">Cực trị của hàm số</div>
+              <div class="node-evidence" style="color: var(--color-primary);">Hao hụt cao nhất: -1.50 điểm</div>
+            </div>
+          </div>
+
+          <div class="academic-explanation">
+            <strong>Căn cứ đối soát dữ liệu:</strong> TNT nhận thấy khó khăn ở chuyên đề <em>Cực trị của hàm số</em> có thể liên quan đến bài nền tảng <em>Đạo hàm & Quy tắc đạo hàm hàm hợp (Lớp 11)</em> — Dựa trên: 14 câu đạo hàm trong lịch sử em đạt 54%, cùng 3 câu sai ở bài thi này bắt nguồn trực tiếp từ việc biến đổi sai đạo hàm của biểu thức u'(x).
+          </div>
+
+          <div class="disclaimer-statement">
+            * Lưu ý khoa học: Đây là giả thuyết suy luận dựa trên đồ thị tiên quyết và lịch sử làm bài, không phải kết luận tuyệt đối duy nhất.
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 07: KẾ HOẠCH KHẮC PHỤC KIẾN THỨC -->
+      <section id="sec-07" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 07</span>
+            <h2 class="section-main-title">Kế Hoạch Khắc Phục Kiến Thức</h2>
+          </div>
+          <span class="section-subtext">3 bước hành động cụ thể để hoàn thiện năng lực</span>
+        </div>
+
+        <div class="remedy-action-plan">
+          <div class="action-steps-list">
+            <div class="action-step-item">
+              <div class="step-serial">1</div>
+              <div>
+                <div class="step-heading">Hàn gắn mắt xích: Quy tắc tính đạo hàm hàm hợp (Lớp 11)</div>
+                <div class="step-content">Dành 20 phút ôn lại bảng đạo hàm căn thức và hàm phân thức trước khi bước vào các bài toán cực trị chứa tham số.</div>
+              </div>
+            </div>
+
+            <div class="action-step-item">
+              <div class="step-serial">2</div>
+              <div>
+                <div class="step-heading">Thiết lập phản xạ: Sàng lọc nghiệm bội chẵn của f'(x)</div>
+                <div class="step-content">Ghi nhớ nguyên lý bất biến: nghiệm bội chẵn không làm đạo hàm đổi dấu, tuyệt đối không tính vào số lượng điểm cực trị.</div>
+              </div>
+            </div>
+
+            <div class="action-step-item">
+              <div class="step-serial">3</div>
+              <div>
+                <div class="step-heading">Thực hành giải tỏa sai sót trên 7 câu hỏi bên dưới</div>
+                <div class="step-content">Đối chiếu lời giải chi tiết và làm lại ngay các câu chưa đạt điểm trọn vẹn để củng cố phản xạ.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-cta-row">
+            <a href="#sec-08" class="btn-primary-action">
+              Xem chi tiết 7 câu sai
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 8h10M9 4l4 4-4 4"/>
+              </svg>
+            </a>
+            <button class="btn-action-text" onclick="alert('Đang mở Hồ Sơ Năng Lực Học Tập Dài Hạn!')">
+              Mở Hồ Sơ Năng Lực Dài Hạn
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PHÂN MỤC 08: BẢN KIỂM TRA CHI TIẾT (PHÂN RÃ THEO NHU CẦU) -->
+      <section id="sec-08" class="section-block reveal-on-scroll">
+        <div class="section-head">
+          <div>
+            <span class="section-num-tag">Phân mục 08</span>
+            <h2 class="section-main-title">Bản Kiểm Tra Chi Tiết</h2>
+          </div>
+          <span class="section-subtext">Phân rã theo nhu cầu quan sát</span>
+        </div>
+
+        <!-- Filter Strip -->
+        <div class="inspection-filter-strip">
+          <button class="filter-tab-chip active" onclick="filterQuestions('all', this)">Toàn bộ bài làm (34 câu)</button>
+          <button class="filter-tab-chip" onclick="filterQuestions('wrong', this)">Chỉ các câu phát sinh sai lệch (7)</button>
+          <button class="filter-tab-chip" onclick="filterQuestions('blank', this)">Câu chưa điền đáp án (1)</button>
+          <button class="filter-tab-chip" onclick="filterQuestions('part1', this)">Phần I: Nhiều lựa chọn</button>
+          <button class="filter-tab-chip" onclick="filterQuestions('part2', this)">Phần II: Đúng / Sai</button>
+          <button class="filter-tab-chip" onclick="filterQuestions('part3', this)">Phần III: Trả lời ngắn</button>
+        </div>
+
+        <div class="questions-inspection-stack">
+
+          <!-- Câu 04: Sai -->
+          <div class="question-accordion-card is-open" data-category="wrong" data-part="part1">
+            <div class="accordion-trigger" onclick="toggleAccordion(this)">
+              <div class="trigger-left">
+                <span class="item-ordinal">Câu 04</span>
+                <span class="inspection-status-pill wrong">Chưa đúng • -0.25đ</span>
+                <span class="question-curriculum-path">Cực trị của hàm số • Nhận biết</span>
+              </div>
+              <div class="trigger-right">
+                <span class="item-score-fraction">0.00 / 0.25</span>
+                <svg class="accordion-indicator-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 6l4 4 4-4"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="accordion-collapsible-body">
+              <div class="question-statement-text">
+                Cho hàm số y = f(x) liên tục trên ℝ và có đạo hàm f'(x) = (x - 1)²(x + 2). Số điểm cực trị của hàm số đã cho là:
+              </div>
+
+              <div class="options-selection-grid">
+                <div class="option-cell">A. 0</div>
+                <div class="option-cell correct-answer">B. 1 (Đáp án chính xác)</div>
+                <div class="option-cell selected-wrong">C. 2 (Phương án em đã chọn)</div>
+                <div class="option-cell">D. 3</div>
+              </div>
+
+              <div class="error-nature-callout">
+                <strong>Bản chất sai lệch: Sai lệch Quy trình biến đổi</strong> — <em>Bỏ qua nghiệm kép f'(x)=0</em>.<br>
+                Em đã tính cả x = 1 (nghiệm bội 2) là điểm cực trị. Khi biến số đi qua nghiệm bội chẵn thì f'(x) không đổi dấu, do đó x = 1 không tạo ra điểm cực trị.
+              </div>
+
+              <div class="solution-explanation-text">
+                <strong>Phương pháp giải chuẩn tắc:</strong><br>
+                Phương trình f'(x) = 0 ⇔ (x - 1)²(x + 2) = 0 ⇔ x = 1 hoặc x = -2.<br>
+                Vì (x - 1)² ≥ 0 với mọi x ∈ ℝ nên dấu của f'(x) hoàn toàn phụ thuộc vào nhị thức bậc nhất (x + 2).<br>
+                Qua điểm x = -2, f'(x) đổi dấu từ âm sang dương (hàm số đạt cực tiểu). Qua điểm x = 1, f'(x) giữ nguyên dấu dương.<br>
+                Vậy hàm số có duy nhất 1 điểm cực trị. Lựa chọn chính xác: B.
+              </div>
+            </div>
+          </div>
+
+          <!-- Câu 05: Đúng -->
+          <div class="question-accordion-card" data-category="correct" data-part="part1">
+            <div class="accordion-trigger" onclick="toggleAccordion(this)">
+              <div class="trigger-left">
+                <span class="item-ordinal">Câu 05</span>
+                <span class="inspection-status-pill correct">Chính xác hoàn toàn</span>
+                <span class="question-curriculum-path">Tính đơn điệu của hàm số • Thông hiểu</span>
+              </div>
+              <div class="trigger-right">
+                <span class="item-score-fraction">0.25 / 0.25</span>
+                <svg class="accordion-indicator-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 6l4 4 4-4"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="accordion-collapsible-body">
+              <div class="question-statement-text">
+                Hàm số y = x³ - 3x² + 2 đồng biến trên khoảng nào dưới đây?
+              </div>
+
+              <div class="options-selection-grid">
+                <div class="option-cell correct-answer">A. (2; +∞) (Em chọn chính xác)</div>
+                <div class="option-cell">B. (0; 2)</div>
+                <div class="option-cell">C. (-∞; 2)</div>
+                <div class="option-cell">D. (0; +∞)</div>
+              </div>
+
+              <div class="solution-explanation-text">
+                y' = 3x² - 6x = 3x(x - 2). y' > 0 ⇔ x < 0 hoặc x > 2. Hàm số đồng biến trên (-∞; 0) và (2; +∞).
+              </div>
+            </div>
+          </div>
+
+          <!-- Câu 34: Bỏ trống -->
+          <div class="question-accordion-card" data-category="blank" data-part="part3">
+            <div class="accordion-trigger" onclick="toggleAccordion(this)">
+              <div class="trigger-left">
+                <span class="item-ordinal">Câu 34</span>
+                <span class="inspection-status-pill blank">Chưa điền đáp án</span>
+                <span class="question-curriculum-path">Đồ thị & Đường tiệm cận • Vận dụng nâng cao</span>
+              </div>
+              <div class="trigger-right">
+                <span class="item-score-fraction">0.00 / 0.50</span>
+                <svg class="accordion-indicator-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 6l4 4 4-4"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="accordion-collapsible-body">
+              <div class="question-statement-text">
+                Tìm tất cả các giá trị thực của tham số m để đồ thị hàm số y = (x - 1) / (x² - 2mx + m + 2) có đúng 3 đường tiệm cận.
+              </div>
+
+              <div class="error-nature-callout" style="border-left-color: var(--color-text-muted);">
+                <strong>Nhịp độ thao tác:</strong> Thời gian ghi nhận tại câu này chỉ đạt 8 giây trước khi kết thúc bài thi. Em cần đẩy nhanh tốc độ giải quyết Phần I để đảm bảo tối thiểu 15 phút cho các câu hỏi Phần III.
+              </div>
+
+              <div class="solution-explanation-text">
+                <strong>Kết quả chuẩn hóa:</strong> m ∈ (-1; 2) \ {1.5}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Mobile Sticky Bottom Bar -->
+  <div class="mobile-sticky-action-bar">
+    <div>
+      <div class="mobile-score-quick">Điểm: 7.25 / 10</div>
+      <div class="mobile-score-sub">7 câu cần đối soát</div>
+    </div>
+    <a href="#sec-08" class="btn-primary-action">
+      Ôn lại các câu sai
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 8h10M9 4l4 4-4 4"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- JavaScript Tương Tác Thuần -->
+  <script>
+    // 1. Chuyển đổi giao diện Sáng / Tối (Theme Switcher)
+    function toggleTheme() {
+      const htmlEl = document.documentElement;
+      const isDark = htmlEl.getAttribute('data-theme') === 'dark';
+      const targetTheme = isDark ? 'light' : 'dark';
+      htmlEl.setAttribute('data-theme', targetTheme);
+
+      const themeIcon = document.getElementById('themeIcon');
+      const themeText = document.getElementById('themeText');
+
+      if (targetTheme === 'dark') {
+        themeIcon.innerHTML = '<circle cx="8" cy="8" r="4"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/>';
+        themeText.textContent = 'Giao diện sáng';
+      } else {
+        themeIcon.innerHTML = '<path d="M14 9.5A6.5 6.5 0 1 1 6.5 2 5.5 5.5 0 0 0 14 9.5z"/>';
+        themeText.textContent = 'Giao diện tối';
+      }
+    }
+
+    // 2. Bộ đếm số điểm Counter Roll (0.00 -> 7.25 mượt mà)
+    function rollMainScore() {
+      const counterEl = document.getElementById('mainScoreCounter');
+      if (!counterEl) return;
+      const targetVal = 7.25;
+      const duration = 1200; // ms
+      const startTime = performance.now();
+
+      function updateCounter(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const currentScore = (targetVal * easeOut).toFixed(2);
+        counterEl.textContent = currentScore;
+
+        if (progress < 1) {
+          requestAnimationFrame(updateCounter);
+        } else {
+          counterEl.textContent = targetVal.toFixed(2);
+        }
+      }
+
+      requestAnimationFrame(updateCounter);
+    }
+
+    // 3. Hiệu ứng làm đầy thanh đo năng lực (Fluid Fill Track)
+    function animateFillBars() {
+      const fillElements = document.querySelectorAll('[data-progress]');
+      fillElements.forEach(el => {
+        const target = el.getAttribute('data-progress');
+        el.style.width = target;
+      });
+    }
+
+    // 4. Staggered Scroll Reveal & Intersection Observer cho các Section
+    function setupScrollReveal() {
+      const revealItems = document.querySelectorAll('.reveal-on-scroll');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+          }
+        });
+      }, {
+        threshold: 0.12,
+        rootMargin: '0px 0px -40px 0px'
+      });
+
+      revealItems.forEach(item => observer.observe(item));
+    }
+
+    // 5. Scrollspy cho Sticky Mini-Nav
+    function setupScrollspy() {
+      const sections = document.querySelectorAll('.section-block');
+      const navLinks = document.querySelectorAll('.editorial-nav-item');
+
+      window.addEventListener('scroll', () => {
+        let currentId = '';
+        const scrollPosition = window.scrollY + 120;
+
+        sections.forEach(sec => {
+          if (scrollPosition >= sec.offsetTop) {
+            currentId = sec.id;
+          }
+        });
+
+        if (currentId) {
+          navLinks.forEach(item => {
+            item.classList.remove('active');
+            const anchor = item.querySelector('a');
+            if (anchor && anchor.getAttribute('href') === '#' + currentId) {
+              item.classList.add('active');
+            }
+          });
+        }
+      }, { passive: true });
+    }
+
+    // 6. Accordion bung mở câu hỏi
+    function toggleAccordion(triggerEl) {
+      const card = triggerEl.closest('.question-accordion-card');
+      if (card) {
+        card.classList.toggle('is-open');
+      }
+    }
+
+    // 7. Lọc câu hỏi trong Bản kiểm tra chi tiết
+    function filterQuestions(filterType, buttonEl) {
+      document.querySelectorAll('.filter-tab-chip').forEach(btn => btn.classList.remove('active'));
+      buttonEl.classList.add('active');
+
+      const cards = document.querySelectorAll('.question-accordion-card');
+      cards.forEach(card => {
+        if (filterType === 'all') {
+          card.style.display = 'block';
+        } else if (filterType === 'wrong') {
+          card.style.display = card.dataset.category === 'wrong' ? 'block' : 'none';
+        } else if (filterType === 'blank') {
+          card.style.display = card.dataset.category === 'blank' ? 'block' : 'none';
+        } else if (filterType.startsWith('part')) {
+          card.style.display = card.dataset.part === filterType ? 'block' : 'none';
+        }
+      });
+    }
+
+    // Khởi chạy khi DOM sẵn sàng
+    document.addEventListener('DOMContentLoaded', () => {
+      rollMainScore();
+      setupScrollReveal();
+      setupScrollspy();
+
+      setTimeout(() => {
+        animateFillBars();
+      }, 200);
+    });
+  </script>
+</body>
+</html>

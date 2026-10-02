@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Phân Tích Kết Quả — TNT Learning Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #9c1420;
+      --color-primary-dark: #55060f;
+      --color-accent: #c9973f;
+      --color-accent-light: #f6ecd8;
+      --color-accent-dark: #8a6a25;
+      --color-bg: #faf7f2;
+      --color-card: #ffffff;
+      --color-card-elevated: #ffffff;
+      --color-border: #e8ddc9;
+      --color-border-subtle: #f0e6d6;
+      --color-text: #1f2a33;
+      --color-text-muted: #5e6b76;
+      --color-danger: #d6473a;
+      --color-success: #2e7d32;
+      --color-subtle-bg: #f3ece0;
+      --color-pine: #3e6259;
+      --color-pine-light: #e4ece9;
+      --color-pine-text: #2e4941;
+      --color-clay: #b5502f;
+      --color-clay-light: #f4e2da;
+      --color-clay-text: #8a3a22;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow-subtle: 0 1px 3px rgba(31, 42, 51, 0.04);
+      --shadow-card: 0 4px 16px rgba(85, 6, 15, 0.04), 0 1px 3px rgba(31, 42, 51, 0.03);
+      --shadow-elevated: 0 12px 32px rgba(85, 6, 15, 0.08), 0 2px 6px rgba(31, 42, 51, 0.04);
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Newsreader', Georgia, serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    [data-theme="dark"] {
+      --color-primary: #e2545e;
+      --color-primary-dark: #f4a1a8;
+      --color-accent: #d9ab5c;
+      --color-accent-light: #3a2f1f;
+      --color-accent-dark: #e0b56f;
+      --color-bg: #17130f;
+      --color-card: #221c17;
+      --color-card-elevated: #29221c;
+      --color-border: #383025;
+      --color-border-subtle: #2d261d;
+      --color-text: #ede7de;
+      --color-text-muted: #a89c8c;
+      --color-danger: #ef5c4e;
+      --color-success: #4caf50;
+      --color-subtle-bg: #2a221a;
+      --color-pine: #5b8c7f;
+      --color-pine-light: #202d29;
+      --color-pine-text: #cde5df;
+      --color-clay: #d97a52;
+      --color-clay-light: #3a251b;
+      --color-clay-text: #f0c4ac;
+      --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-elevated: 0 14px 36px rgba(0, 0, 0, 0.55);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-card);
+      border-bottom: 1px solid var(--color-border);
+      backdrop-filter: blur(12px);
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .top-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-badge {
+      background: var(--color-primary);
+      color: #fff;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-toggle-theme, .btn-secondary, .btn-primary {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-toggle-theme {
+      background: var(--color-subtle-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+
+    .btn-secondary {
+      background: var(--color-card);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--color-subtle-bg);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
+    .dashboard-layout {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 48px;
+      align-items: start;
+    }
+
+    .sticky-nav-column {
+      position: sticky;
+      top: 68px;
+      padding-top: 8px;
+    }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+      margin-bottom: 12px;
+      padding-left: 12px;
+    }
+
+    .sticky-nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border-left: 2px solid var(--color-border);
+      padding-left: 0;
+    }
+
+    .sticky-nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      margin-left: -2px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      transition: all 0.15s ease;
+    }
+
+    .sticky-nav-item a:hover {
+      color: var(--color-text);
+      background: var(--color-subtle-bg);
+    }
+
+    .sticky-nav-item.active a {
+      color: var(--color-primary);
+      font-weight: 700;
+      border-left-color: var(--color-primary);
+      background: rgba(156, 20, 32, 0.05);
+    }
+
+    .sticky-nav-item .nav-num {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      opacity: 0.7;
+    }
+
+    .sidebar-actions {
+      margin-top: 28px;
+      padding-left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-actions button {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .narrative-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 44px;
+    }
+
+    .section-block {
+      scroll-margin-top: 80px;
+    }
+
+    .section-header {
+      margin-bottom: 18px;
+    }
+
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-accent-dark);
+      background: var(--color-accent-light);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--color-text);
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+    }
+
+    .insight-card {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+    }
+
+    .hero-container {
+      background: linear-gradient(135deg, var(--color-card) 0%, var(--color-subtle-bg) 100%);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .hero-exam-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+    }
+
+    .hero-exam-title {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--color-text);
+      margin-bottom: 16px;
+    }
+
+    .hero-score-wrapper {
+      display: flex;
+      align-items: flex-end;
+      gap: 24px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .hero-score-num {
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1;
+      font-family: var(--font-sans);
+      color: var(--color-primary);
+      letter-spacing: -0.03em;
+    }
+
+    .hero-score-max {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      margin-bottom: 8px;
+    }
+
+    .hero-assessment-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--color-pine-light);
+      color: var(--color-pine-text);
+      margin-bottom: 10px;
+    }
+
+    .hero-parts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--color-border);
+    }
+
+    .hero-part-box {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+    }
+
+    .hero-part-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .hero-part-score {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin-top: 4px;
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .metric-cell {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .metric-title {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      font-weight: 500;
+    }
+
+    .metric-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 4px 0 2px;
+      font-family: var(--font-sans);
+    }
+
+    .metric-footnote {
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    .loss-row {
+      display: grid;
+      grid-template-columns: 200px 1fr 120px 80px;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .loss-row:last-child {
+      border-bottom: none;
+    }
+
+    .loss-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--color-text);
+    }
+
+    .loss-bar-track {
+      height: 8px;
+      background: var(--color-subtle-bg);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loss-bar-fill {
+      height: 100%;
+      background: var(--color-clay);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .loss-stat {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-clay-text);
+      text-align: right;
+    }
+
+    .loss-count {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      text-align: right;
+    }
+
+    .dna-summary-bar {
+      display: flex;
+      height: 14px;
+      border-radius: 7px;
+      overflow: hidden;
+      margin: 16px 0 24px;
+      background: var(--color-subtle-bg);
+    }
+
+    .dna-segment {
+      height: 100%;
+      position: relative;
+      transition: width 0.4s ease;
+    }
+
+    .dna-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .dna-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      background: var(--color-card);
+      position: relative;
+      border-top-width: 4px;
+    }
+
+    .dna-card--conceptual { border-top-color: var(--color-clay); }
+    .dna-card--procedural { border-top-color: #7c5cbf; }
+    .dna-card--calculation { border-top-color: var(--color-accent); }
+    .dna-card--careless { border-top-color: var(--color-text-muted); }
+
+    .dna-type-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dna-type-count {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--color-subtle-bg);
+    }
+
+    .dna-type-desc {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin: 8px 0 12px;
+      line-height: 1.4;
+    }
+
+    .dna-pattern-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--color-subtle-bg);
+      color: var(--color-text);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      margin-top: 4px;
+    }
+
+    .bloom-pyramid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .bloom-tier {
+      display: grid;
+      grid-template-columns: 160px 1fr 90px 90px;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      background: var(--color-card);
+    }
+
+    .bloom-tier-name {
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bloom-tier-bar {
+      height: 10px;
+      background: var(--color-subtle-bg);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .bloom-tier-fill {
+      height: 100%;
+      border-radius: 5px;
+    }
+
+    .bloom-tier-fill.pass { background: var(--color-pine); }
+    .bloom-tier-fill.warn { background: var(--color-clay); }
+
+    .bloom-tier-acc {
+      font-weight: 700;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .bloom-tier-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+    }
+
+    .badge-vung { background: var(--color-pine-light); color: var(--color-pine-text); }
+    .badge-lohong { background: var(--color-clay-light); color: var(--color-clay-text); }
+
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .insight-box {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      background: var(--color-card);
+    }
+
+    .insight-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+
+    .badge-alert { background: var(--color-clay-light); color: var(--color-clay-text); }
+    .badge-info { background: var(--color-accent-light); color: var(--color-accent-dark); }
+
+    .insight-box-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--color-text);
+    }
+
+    .insight-box-desc {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+    }
+
+    .root-cause-banner {
+      background: var(--color-subtle-bg);
+      border: 1px dashed var(--color-accent);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .root-cause-flow {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+
+    .flow-node {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .flow-node--prereq {
+      border-left: 4px solid var(--color-clay);
+    }
+
+    .flow-node--target {
+      border-left: 4px solid var(--color-primary);
+    }
+
+    .flow-node-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .flow-node-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 4px;
+      color: var(--color-text);
+    }
+
+    .flow-node-meta {
+      font-size: 12px;
+      color: var(--color-clay-text);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .flow-arrow {
+      font-size: 20px;
+      color: var(--color-accent-dark);
+      font-weight: 700;
+    }
+
+    .root-cause-explanation {
+      font-size: 13.5px;
+      color: var(--color-text);
+      line-height: 1.5;
+      background: var(--color-card);
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--color-accent);
+    }
+
+    .disclaimer-note {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      font-style: italic;
+      margin-top: 10px;
+    }
+
+    .next-step-card {
+      background: linear-gradient(135deg, var(--color-card) 0%, rgba(156,20,32,0.03) 100%);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 18px 0 24px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .step-desc {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    .review-filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .filter-chip.active {
+      background: var(--color-primary);
+      color: #fff;
+      border-color: var(--color-primary);
+    }
+
+    .question-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .question-item {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-card);
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .question-header {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      background: var(--color-card);
+    }
+
+    .question-header:hover {
+      background: var(--color-subtle-bg);
+    }
+
+    .q-left-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .q-num {
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--color-text);
+      min-width: 60px;
+    }
+
+    .q-status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    .status-correct { background: var(--color-pine-light); color: var(--color-pine-text); }
+    .status-wrong { background: var(--color-clay-light); color: var(--color-clay-text); }
+    .status-blank { background: var(--color-subtle-bg); color: var(--color-text-muted); }
+
+    .q-lesson-name {
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    .q-right-score {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .q-chevron {
+      transition: transform 0.25s ease;
+      color: var(--color-text-muted);
+    }
+
+    .question-item.open .q-chevron {
+      transform: rotate(180deg);
+    }
+
+    .question-body {
+      display: none;
+      padding: 18px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-card-elevated);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .question-item.open .question-body {
+      display: block;
+    }
+
+    .q-prompt {
+      margin-bottom: 14px;
+      font-weight: 500;
+    }
+
+    .q-options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 14px 0;
+    }
+
+    .q-opt {
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      font-size: 13px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .q-opt.selected-wrong {
+      border-color: var(--color-clay);
+      background: var(--color-clay-light);
+      color: var(--color-clay-text);
+      font-weight: 600;
+    }
+
+    .q-opt.is-correct {
+      border-color: var(--color-pine);
+      background: var(--color-pine-light);
+      color: var(--color-pine-text);
+      font-weight: 600;
+    }
+
+    .q-dna-note {
+      background: var(--color-subtle-bg);
+      border-left: 3px solid var(--color-clay);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      margin: 12px 0;
+    }
+
+    .q-explanation {
+      background: rgba(156,20,32,0.03);
+      border: 1px solid var(--color-border);
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+    }
+
+    .mobile-action-bar {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--color-card);
+      border-top: 1px solid var(--color-border);
+      padding: 12px 16px;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+      z-index: 100;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mobile-action-bar .summary-text {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 860px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+        padding-top: 16px;
+        gap: 32px;
+      }
+      .sticky-nav-column {
+        display: none;
+      }
+      .metric-strip {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .hero-parts-grid {
+        grid-template-columns: 1fr;
+      }
+      .loss-row {
+        grid-template-columns: 1fr 100px;
+        gap: 8px;
+      }
+      .loss-row .loss-bar-track, .loss-row .loss-count {
+        display: none;
+      }
+      .bloom-tier {
+        grid-template-columns: 130px 1fr 60px;
+      }
+      .bloom-tier-badge {
+        display: none;
+      }
+      .insights-grid {
+        grid-template-columns: 1fr;
+      }
+      .q-options-grid {
+        grid-template-columns: 1fr;
+      }
+      .mobile-action-bar {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="top-bar">
+    <a href="#" class="top-brand">
+      <span class="brand-badge">TNT</span>
+      <span class="brand-title">Scientific Editorial Intelligence</span>
+    </a>
+    <div class="top-actions">
+      <button class="btn-toggle-theme" id="themeToggle" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span> <span id="themeLabel">Chế độ tối</span>
+      </button>
+      <button class="btn-secondary" onclick="window.print()">
+        📄 In phiếu PDF
+      </button>
+    </div>
+  </header>
+
+  <div class="dashboard-layout">
+    <aside class="sticky-nav-column">
+      <div class="nav-label">Mục lục phân tích</div>
+      <ul class="sticky-nav-list" id="navSpy">
+        <li class="sticky-nav-item active"><a href="#score-hero"><span class="nav-num">01</span> Tổng quan kết quả</a></li>
+        <li class="sticky-nav-item"><a href="#point-loss"><span class="nav-num">02</span> Điểm mất theo Bài</a></li>
+        <li class="sticky-nav-item"><a href="#error-dna"><span class="nav-num">03</span> Bản chất lỗi (Error DNA)</a></li>
+        <li class="sticky-nav-item"><a href="#thinking-profile"><span class="nav-num">04</span> Tháp tư duy Bloom</a></li>
+        <li class="sticky-nav-item"><a href="#pattern-insights"><span class="nav-num">05</span> Nhận diện xu hướng</a></li>
+        <li class="sticky-nav-item"><a href="#root-cause"><span class="nav-num">06</span> Gốc rễ kiến thức</a></li>
+        <li class="sticky-nav-item"><a href="#next-steps"><span class="nav-num">07</span> Lộ trình tiếp theo</a></li>
+        <li class="sticky-nav-item"><a href="#question-review"><span class="nav-num">08</span> Soát lại bài làm</a></li>
+      </ul>
+
+      <div class="sidebar-actions">
+        <button class="btn-primary" onclick="scrollToSection('question-review')">
+          Ôn 7 câu sai →
+        </button>
+      </div>
+    </aside>
+
+    <main class="narrative-stream">
+      <section id="score-hero" class="section-block">
+        <div class="hero-container">
+          <div class="hero-meta-row">
+            <div class="hero-exam-badge">
+              <span>📚 Khảo sát Toán 12 — Giữa Học kỳ 1</span>
+              <span>•</span>
+              <span>Học sinh: Nguyễn Văn An (Lớp 12A1)</span>
+            </div>
+            <div style="font-size: 12px; color: var(--color-text-muted);">
+              Hoàn thành: 27/09/2026 15:45
+            </div>
+          </div>
+
+          <h1 class="hero-exam-title">Khảo sát Năng lực Hàm số & Ứng dụng Đạo hàm</h1>
+
+          <div class="hero-score-wrapper">
+            <div class="hero-score-num">7.25</div>
+            <div class="hero-score-max">/ 10.00 điểm</div>
+            <div class="hero-assessment-pill">
+              ✨ Khá tốt — Vững cơ bản, cần tối ưu thời gian Vận dụng
+            </div>
+          </div>
+
+          <div class="hero-parts-grid">
+            <div class="hero-part-box">
+              <div class="hero-part-label">Phần 1: Trắc nghiệm 4 phương án</div>
+              <div class="hero-part-score">2.75 / 3.00 điểm</div>
+              <div style="font-size: 11px; color: var(--color-text-muted);">Đúng 11/12 câu</div>
+            </div>
+            <div class="hero-part-box">
+              <div class="hero-part-label">Phần 2: Đúng / Sai nhiều ý</div>
+              <div class="hero-part-score">3.00 / 4.00 điểm</div>
+              <div style="font-size: 11px; color: var(--color-text-muted);">Đúng 12/16 ý</div>
+            </div>
+            <div class="hero-part-box">
+              <div class="hero-part-label">Phần 3: Trả lời ngắn</div>
+              <div class="hero-part-score">1.50 / 3.00 điểm</div>
+              <div style="font-size: 11px; color: var(--color-text-muted);">Đúng 3/6 câu</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-strip">
+          <div class="metric-cell">
+            <div class="metric-title">Tỉ lệ chính xác</div>
+            <div class="metric-value" style="color: var(--color-pine);">78%</div>
+            <div class="metric-footnote">26 / 34 mục trọn điểm</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-title">Điểm đã rơi rụng</div>
+            <div class="metric-value" style="color: var(--color-clay);">-2.75</div>
+            <div class="metric-footnote">7 câu sai • 1 câu bỏ trống</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-title">Thời gian làm bài</div>
+            <div class="metric-value">68 phút</div>
+            <div class="metric-footnote">Trung bình 1.9 phút/câu</div>
+          </div>
+          <div class="metric-cell">
+            <div class="metric-title">Tỉ lệ phủ lỗi đã duyệt</div>
+            <div class="metric-value" style="color: var(--color-accent-dark);">86%</div>
+            <div class="metric-footnote">6/7 câu có nhãn giáo viên</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="point-loss" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">02 • Phân bổ điểm rơi</span>
+          <h2 class="section-title">Điểm số bị mất nằm ở bài học nào?</h2>
+          <p class="section-subtitle">Xác định chính xác bài học gây hao hụt điểm nhiều nhất để khoanh vùng ôn tập.</p>
+        </div>
+
+        <div class="insight-card">
+          <div class="loss-row">
+            <div class="loss-name">Cực trị của hàm số</div>
+            <div class="loss-bar-track">
+              <div class="loss-bar-fill" style="width: 80%;"></div>
+            </div>
+            <div class="loss-stat">Mất 1.50 / 2.50 đ</div>
+            <div class="loss-count">3 câu sai</div>
+          </div>
+
+          <div class="loss-row">
+            <div class="loss-name">Tính đơn điệu của hàm số</div>
+            <div class="loss-bar-track">
+              <div class="loss-bar-fill" style="width: 45%;"></div>
+            </div>
+            <div class="loss-stat">Mất 0.75 / 3.00 đ</div>
+            <div class="loss-count">2 câu sai</div>
+          </div>
+
+          <div class="loss-row">
+            <div class="loss-name">Đồ thị hàm số & Tiệm cận</div>
+            <div class="loss-bar-track">
+              <div class="loss-bar-fill" style="width: 25%;"></div>
+            </div>
+            <div class="loss-stat">Mất 0.50 / 2.50 đ</div>
+            <div class="loss-count">1 sai, 1 trống</div>
+          </div>
+
+          <div class="loss-row">
+            <div class="loss-name">Giá trị lớn nhất, nhỏ nhất</div>
+            <div class="loss-bar-track">
+              <div class="loss-bar-fill" style="width: 0%; background: var(--color-pine);"></div>
+            </div>
+            <div class="loss-stat" style="color: var(--color-pine-text);">Trọn vẹn 2.0 / 2.0 đ</div>
+            <div class="loss-count">0 lỗi</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="error-dna" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">03 • Error DNA</span>
+          <h2 class="section-title">Bản chất các lỗi sai (Error DNA)</h2>
+          <p class="section-subtitle">Mỗi lỗi sai đều mang một mã nhận diện tư duy riêng biệt thay vì chỉ là con số trừ điểm.</p>
+        </div>
+
+        <div class="insight-card">
+          <div style="font-size: 13px; font-weight: 600; display: flex; justify-content: space-between;">
+            <span>Phân bổ 7 câu sai:</span>
+            <span style="color: var(--color-text-muted);">6/7 câu đã có nhãn chuẩn hóa từ thầy</span>
+          </div>
+
+          <div class="dna-summary-bar">
+            <div class="dna-segment" style="width: 43%; background: var(--color-clay);" title="Lỗi khái niệm: 43%"></div>
+            <div class="dna-segment" style="width: 29%; background: #7c5cbf;" title="Lỗi thủ tục: 29%"></div>
+            <div class="dna-segment" style="width: 14%; background: var(--color-accent);" title="Lỗi tính toán: 14%"></div>
+            <div class="dna-segment" style="width: 14%; background: var(--color-text-muted);" title="Lỗi bất cẩn: 14%"></div>
+          </div>
+
+          <div class="dna-grid">
+            <div class="dna-card dna-card--conceptual">
+              <div class="dna-type-title">
+                <span>Lỗi khái niệm</span>
+                <span class="dna-type-count">3 câu (43%)</span>
+              </div>
+              <p class="dna-type-desc">Nhầm lẫn bản chất điều kiện cần và đủ của cực trị, quên tập xác định khi xét dấu đạo hàm.</p>
+              <span class="dna-pattern-tag">Quên TXĐ mẫu số</span>
+              <span class="dna-pattern-tag">Nhầm cực đại ↔ cực tiểu</span>
+            </div>
+
+            <div class="dna-card dna-card--procedural">
+              <div class="dna-type-title">
+                <span>Lỗi thủ tục</span>
+                <span class="dna-type-count">2 câu (29%)</span>
+              </div>
+              <p class="dna-type-desc">Thiếu bước kiểm tra nghiệm bội chẵn của f'(x), dẫn đến đếm sai số điểm cực trị.</p>
+              <span class="dna-pattern-tag">Bỏ quên nghiệm kép f'(x)=0</span>
+            </div>
+
+            <div class="dna-card dna-card--calculation">
+              <div class="dna-type-title">
+                <span>Lỗi tính toán</span>
+                <span class="dna-type-count">1 câu (14%)</span>
+              </div>
+              <p class="dna-type-desc">Đúng toàn bộ phương pháp biến đổi nhưng tính nhầm dấu delta ở bước cuối.</p>
+              <span class="dna-pattern-tag">Nhầm dấu nghiệm tam thức</span>
+            </div>
+
+            <div class="dna-card dna-card--careless">
+              <div class="dna-type-title">
+                <span>Lỗi bất cẩn</span>
+                <span class="dna-type-count">1 câu (14%)</span>
+              </div>
+              <p class="dna-type-desc">Làm quá nhanh (18s trên mức kỳ vọng 90s) ở câu nhận biết dẫn tới đọc nhầm đề.</p>
+              <span class="dna-pattern-tag">Đọc lướt bỏ sót từ "nghịch biến"</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="thinking-profile" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">04 • Bậc nhận thức</span>
+          <h2 class="section-title">Tháp tư duy 4 mức Bloom</h2>
+          <p class="section-subtitle">Đánh giá khả năng hấp thụ kiến thức từ tầng ghi nhớ cơ bản đến vận dụng giải quyết bài toán phức hợp.</p>
+        </div>
+
+        <div class="insight-card">
+          <div class="bloom-pyramid">
+            <div class="bloom-tier">
+              <div class="bloom-tier-name">
+                <span>1. Nhận biết</span>
+              </div>
+              <div class="bloom-tier-bar">
+                <div class="bloom-tier-fill pass" style="width: 100%;"></div>
+              </div>
+              <div class="bloom-tier-acc" style="color: var(--color-pine);">100%</div>
+              <div class="bloom-tier-badge badge-vung">Vững vàng</div>
+            </div>
+
+            <div class="bloom-tier">
+              <div class="bloom-tier-name">
+                <span>2. Thông hiểu</span>
+              </div>
+              <div class="bloom-tier-bar">
+                <div class="bloom-tier-fill pass" style="width: 85%;"></div>
+              </div>
+              <div class="bloom-tier-acc" style="color: var(--color-pine);">85%</div>
+              <div class="bloom-tier-badge badge-vung">Khá tốt</div>
+            </div>
+
+            <div class="bloom-tier">
+              <div class="bloom-tier-name">
+                <span>3. Vận dụng</span>
+              </div>
+              <div class="bloom-tier-bar">
+                <div class="bloom-tier-fill warn" style="width: 50%;"></div>
+              </div>
+              <div class="bloom-tier-acc" style="color: var(--color-clay);">50%</div>
+              <div class="bloom-tier-badge badge-lohong">Cần chú ý</div>
+            </div>
+
+            <div class="bloom-tier">
+              <div class="bloom-tier-name">
+                <span>4. Vận dụng cao</span>
+              </div>
+              <div class="bloom-tier-bar">
+                <div class="bloom-tier-fill warn" style="width: 25%;"></div>
+              </div>
+              <div class="bloom-tier-acc" style="color: var(--color-clay);">25%</div>
+              <div class="bloom-tier-badge badge-lohong">Hổng nặng</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 18px; padding: 12px 16px; background: var(--color-pine-light); color: var(--color-pine-text); border-radius: var(--radius-sm); font-size: 13.5px;">
+            💡 <strong>Nhận định chuyên môn:</strong> Em nắm rất chắc công thức và lý thuyết nền tảng (NB + TH đạt > 90%). Tuy nhiên khi bước vào bài toán đa bước đòi hỏi kết hợp đạo hàm hàm hợp hoặc chứa tham số m, phản xạ xử lý bị gãy ở khâu biến đổi logic.
+          </div>
+        </div>
+      </section>
+
+      <section id="pattern-insights" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">05 • Nhận diện xu hướng</span>
+          <h2 class="section-title">Nhận diện mẫu sai lệch và thói quen</h2>
+          <p class="section-subtitle">Phát hiện các thói quen bất lợi về thời gian làm bài và cảnh báo lỗi lặp lại qua nhiều đề thi.</p>
+        </div>
+
+        <div class="insights-grid">
+          <div class="insight-box">
+            <span class="insight-badge badge-alert">⚠️ Cảnh báo lỗi lặp lại</span>
+            <div class="insight-box-title">"Bỏ quên nghiệm kép f'(x)=0"</div>
+            <div class="insight-box-desc">
+              Mẫu lỗi này đã lặp lại <strong>3 lần</strong> trên <strong>2 đề thi khác nhau</strong> (Đề KT 15 phút tuần trước và Đề Giữa kỳ này). Cần lưu ý ngay khi lập bảng xét dấu đạo hàm.
+            </div>
+          </div>
+
+          <div class="insight-box">
+            <span class="insight-badge badge-info">⏱️ Phân bổ thời gian</span>
+            <div class="insight-box-title">Kẹt thời gian ở Câu 32 (Phần 2)</div>
+            <div class="insight-box-desc">
+              Em đã dành tới <strong>6 phút 40 giây</strong> cho câu 32 nhưng cuối cùng vẫn chọn sai ý (c). Điều này làm thiếu thời gian cho 2 câu cuối ở Phần 3 dẫn tới việc phải bỏ trống câu 34.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="root-cause" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">06 • Knowledge Graph</span>
+          <h2 class="section-title">Ứng viên gốc rễ kiến thức (Candidate Root-Cause)</h2>
+          <p class="section-subtitle">Truy vết nguồn gốc dẫn đến việc mất điểm bằng Đồ thị Tiên quyết (Prerequisite Graph).</p>
+        </div>
+
+        <div class="root-cause-banner">
+          <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--color-accent-dark); letter-spacing: 0.05em;">
+            Mối liên hệ nhân quả phát hiện được
+          </div>
+
+          <div class="root-cause-flow">
+            <div class="flow-node flow-node--prereq">
+              <div class="flow-node-tag">Bài nền tảng (Lớp 11)</div>
+              <div class="flow-node-title">Đạo hàm & Quy tắc tính đạo hàm</div>
+              <div class="flow-node-meta">Chính xác chỉ đạt 54% (Lịch sử)</div>
+            </div>
+
+            <div class="flow-arrow">➔</div>
+
+            <div class="flow-node flow-node--target">
+              <div class="flow-node-tag">Bài thi hiện tại (Lớp 12)</div>
+              <div class="flow-node-title">Cực trị của hàm số</div>
+              <div class="flow-node-meta">Điểm mất lớn nhất: -1.50 điểm</div>
+            </div>
+          </div>
+
+          <div class="root-cause-explanation">
+            🔬 <strong>Bằng chứng từ hệ thống:</strong> TNT nhận thấy khó khăn ở bài <em>Cực trị của hàm số</em> có thể liên quan đến bài nền tảng <em>Đạo hàm & Quy tắc tính đạo hàm (Lớp 11)</em> — Dựa trên: 14 câu đạo hàm trong lịch sử em chỉ đạt 54%, kèm 3 lỗi sai do tính sai đạo hàm hàm hợp u'(x) ở bài thi này.
+          </div>
+
+          <div class="disclaimer-note">
+            * Lưu ý: Đây là các gợi ý dựa trên số liệu và đồ thị kiến thức, không phải kết luận chắc chắn tuyệt đối.
+          </div>
+        </div>
+      </section>
+
+      <section id="next-steps" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">07 • Hành động</span>
+          <h2 class="section-title">Lộ trình học tập tiếp theo</h2>
+          <p class="section-subtitle">Chuyển hóa dữ liệu phân tích thành 3 bước hành động cụ thể để cải thiện điểm số ở lần thi tới.</p>
+        </div>
+
+        <div class="next-step-card">
+          <div class="step-list">
+            <div class="step-item">
+              <div class="step-badge">1</div>
+              <div>
+                <div class="step-title">Ôn lại công thức đạo hàm hàm hợp (Lớp 11)</div>
+                <div class="step-desc">Dành 20 phút xem lại bảng đạo hàm căn thức và phân thức bậc nhất/bậc nhất để bịt lỗ hổng gốc rễ.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-badge">2</div>
+              <div>
+                <div class="step-title">Khắc phục bẫy "Nghiệm kép f'(x)=0"</div>
+                <div class="step-desc">Ghi nhớ quy tắc: qua nghiệm bội chẵn thì f'(x) không đổi dấu, do đó không tạo ra điểm cực trị.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-badge">3</div>
+              <div>
+                <div class="step-title">Luyện tập lại 7 câu sai ngay tại chỗ</div>
+                <div class="step-desc">Kiểm tra lời giải chi tiết và làm lại các câu bị mất điểm bên dưới để khắc sâu phản xạ.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn-primary" onclick="scrollToSection('question-review')">
+              Soát lại 7 câu sai ngay bên dưới ↓
+            </button>
+            <button class="btn-secondary" onclick="alert('Chuyển hướng đến Hồ sơ năng lực dài hạn!')">
+              Xem Hồ sơ năng lực toàn diện
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="question-review" class="section-block">
+        <div class="section-header">
+          <span class="section-tag">08 • Soát bài</span>
+          <h2 class="section-title">Soát lại chi tiết từng câu hỏi</h2>
+          <p class="section-subtitle">Giao diện tinh gọn dạng Progressive Disclosure: chỉ bung chi tiết câu hỏi và lời giải khi cần xem.</p>
+        </div>
+
+        <div class="review-filter-bar">
+          <button class="filter-chip active" onclick="filterQuestions('all', this)">Tất cả (34 câu)</button>
+          <button class="filter-chip" onclick="filterQuestions('wrong', this)">Chỉ câu sai & mất điểm (7 câu)</button>
+          <button class="filter-chip" onclick="filterQuestions('blank', this)">Câu bỏ trống (1 câu)</button>
+          <button class="filter-chip" onclick="filterQuestions('part1', this)">Phần 1: Trắc nghiệm</button>
+          <button class="filter-chip" onclick="filterQuestions('part2', this)">Phần 2: Đúng / Sai</button>
+          <button class="filter-chip" onclick="filterQuestions('part3', this)">Phần 3: Trả lời ngắn</button>
+        </div>
+
+        <div class="question-list">
+          <div class="question-item open" data-type="wrong" data-part="part1">
+            <div class="question-header" onclick="toggleQuestion(this)">
+              <div class="q-left-info">
+                <span class="q-num">Câu 04</span>
+                <span class="q-status-badge status-wrong">Sai • Mất 0.25đ</span>
+                <span class="q-lesson-name">Cực trị của hàm số • NB</span>
+              </div>
+              <div class="q-right-score">
+                <span>0.00 / 0.25</span>
+                <span class="q-chevron">▼</span>
+              </div>
+            </div>
+            <div class="question-body">
+              <div class="q-prompt">
+                Cho hàm số y = f(x) có đạo hàm f'(x) = (x - 1)²(x + 2). Số điểm cực trị của hàm số đã cho là:
+              </div>
+              <div class="q-options-grid">
+                <div class="q-opt">A. 0</div>
+                <div class="q-opt is-correct">B. 1 (Đáp án đúng)</div>
+                <div class="q-opt selected-wrong">C. 2 (Em đã chọn)</div>
+                <div class="q-opt">D. 3</div>
+              </div>
+              <div class="q-dna-note">
+                🧬 <strong>Error DNA: Lỗi thủ tục</strong> • <em>Bỏ quên nghiệm kép f'(x)=0</em>.<br>
+                Em đã đếm cả x = 1 (nghiệm bội 2) là điểm cực trị. Khi qua nghiệm bội chẵn thì f'(x) không đổi dấu nên x = 1 không phải là điểm cực trị.
+              </div>
+              <div class="q-explanation">
+                <strong>Lời giải chi tiết:</strong><br>
+                Ta có f'(x) = 0 ⇔ (x - 1)²(x + 2) = 0 ⇔ x = 1 hoặc x = -2.<br>
+                Vì (x - 1)² ≥ 0 với mọi x nên dấu của f'(x) chỉ phụ thuộc vào nhị thức (x + 2).<br>
+                Khi qua x = -2, f'(x) đổi dấu từ âm sang dương (điểm cực tiểu). Khi qua x = 1, f'(x) không đổi dấu.<br>
+                Vậy hàm số có đúng 1 điểm cực trị. Chọn B.
+              </div>
+            </div>
+          </div>
+
+          <div class="question-item" data-type="correct" data-part="part1">
+            <div class="question-header" onclick="toggleQuestion(this)">
+              <div class="q-left-info">
+                <span class="q-num">Câu 05</span>
+                <span class="q-status-badge status-correct">Đúng trọn vẹn</span>
+                <span class="q-lesson-name">Tính đơn điệu • TH</span>
+              </div>
+              <div class="q-right-score">
+                <span>0.25 / 0.25</span>
+                <span class="q-chevron">▼</span>
+              </div>
+            </div>
+            <div class="question-body">
+              <div class="q-prompt">
+                Hàm số y = x³ - 3x² + 2 đồng biến trên khoảng nào dưới đây?
+              </div>
+              <div class="q-options-grid">
+                <div class="q-opt is-correct">A. (2; +∞) (Em chọn đúng)</div>
+                <div class="q-opt">B. (0; 2)</div>
+                <div class="q-opt">C. (-∞; 2)</div>
+                <div class="q-opt">D. (0; +∞)</div>
+              </div>
+              <div class="q-explanation">
+                y' = 3x² - 6x = 3x(x - 2) > 0 ⇔ x < 0 hoặc x > 2. Hàm số đồng biến trên (-∞; 0) và (2; +∞).
+              </div>
+            </div>
+          </div>
+
+          <div class="question-item" data-type="blank" data-part="part3">
+            <div class="question-header" onclick="toggleQuestion(this)">
+              <div class="q-left-info">
+                <span class="q-num">Câu 34</span>
+                <span class="q-status-badge status-blank">Bỏ trống</span>
+                <span class="q-lesson-name">Tiệm cận & Đồ thị • VDC</span>
+              </div>
+              <div class="q-right-score">
+                <span>0.00 / 0.50</span>
+                <span class="q-chevron">▼</span>
+              </div>
+            </div>
+            <div class="question-body">
+              <div class="q-prompt">
+                Tìm tất cả giá trị thực của tham số m để đồ thị hàm số y = (x - 1) / (x² - 2mx + m + 2) có đúng 3 đường tiệm cận.
+              </div>
+              <div class="q-dna-note" style="border-left-color: var(--color-text-muted);">
+                ⏱️ <strong>Chẩn đoán bỏ trống:</strong> Hết thời gian trước khi làm câu này (ghi nhận thời gian dừng = 8 giây). Cần đẩy nhanh tốc độ ở Phần 1 để dư tối thiểu 15 phút cho Phần 3.
+              </div>
+              <div class="q-explanation">
+                <strong>Đáp số:</strong> m ∈ (-1; 2) \ {1.5}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="mobile-action-bar">
+    <div>
+      <div class="summary-text">Điểm: <strong>7.25 / 10</strong></div>
+      <div style="font-size: 11px; color: var(--color-clay-text);">Có 7 câu cần khắc phục</div>
+    </div>
+    <button class="btn-primary" onclick="scrollToSection('question-review')">
+      Ôn 7 câu sai →
+    </button>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeIcon').textContent = next === 'dark' ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = next === 'dark' ? 'Chế độ sáng' : 'Chế độ tối';
+    }
+
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    function toggleQuestion(header) {
+      const item = header.closest('.question-item');
+      item.classList.toggle('open');
+    }
+
+    function filterQuestions(filter, btn) {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+
+      const items = document.querySelectorAll('.question-item');
+      items.forEach(item => {
+        if (filter === 'all') {
+          item.style.display = 'block';
+        } else if (filter === 'wrong') {
+          item.style.display = item.dataset.type === 'wrong' ? 'block' : 'none';
+        } else if (filter === 'blank') {
+          item.style.display = item.dataset.type === 'blank' ? 'block' : 'none';
+        } else if (filter.startsWith('part')) {
+          item.style.display = item.dataset.part === filter ? 'block' : 'none';
+        }
+      });
+    }
+
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('.section-block');
+      const navItems = document.querySelectorAll('.sticky-nav-item');
+      let currentSectionId = '';
+
+      sections.forEach(sec => {
+        const top = sec.offsetTop - 120;
+        if (window.scrollY >= top) {
+          currentSectionId = sec.id;
+        }
+      });
+
+      if (currentSectionId) {
+        navItems.forEach(item => {
+          item.classList.remove('active');
+          const href = item.querySelector('a').getAttribute('href');
+          if (href === '#' + currentSectionId) {
+            item.classList.add('active');
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

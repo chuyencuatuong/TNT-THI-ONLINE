@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Năng Lực Học Tập — TNT Learning Intelligence (Executive Scientific Editorial)</title>
+  
+  <!-- Font Typography Chuẩn Biên Tập Khoa Học -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400;1,6..72,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       HỆ THỐNG BIẾN THIẾT KẾ ĐẶC TẢ KHOA HỌC (SCIENTIFIC EDITORIAL LUXURY)
+       TUYỆT ĐỐI KHÔNG DÙNG ICON HOẠT HÌNH / STICKER / MÀU GAMIFICATION
+       ========================================================================== */
+    :root {
+      /* Bảng màu chính thống TNT */
+      --color-primary: #9c1420;          /* Burgundy TNT */
+      --color-primary-dark: #630a13;
+      --color-primary-light: #fbebee;
+      --color-primary-glow: rgba(156, 20, 32, 0.12);
+      
+      --color-accent: #b8862d;           /* Vàng kim Ochre biên tập */
+      --color-accent-subtle: #f8f3e9;
+      --color-accent-border: #dfcca0;
+
+      /* Bề mặt & Không gian (Warm Academic Ivory — KHÔNG DÙNG LƯỚI CARO) */
+      --color-bg: #faf7f2;               /* Giấy in học thuật ấm */
+      --color-surface: #ffffff;          /* Thẻ dữ liệu cấp 1 */
+      --color-surface-subtle: #f4ede2;   /* Bề mặt cấp 2 */
+      --color-surface-hover: #ede3d3;
+      --color-surface-contrast: #181411;
+      
+      /* Hairline Borders Siêu Mảnh */
+      --color-border: #e6dcce;          /* 1px Hairline */
+      --color-border-subtle: #eee7db;
+      --color-border-strong: #c8baa6;
+
+      /* Typography Phân Cấp */
+      --color-text: #1b242c;             /* Mực in đậm */
+      --color-text-muted: #5e6873;       /* Ghi phân tích */
+      --color-text-faint: #8e98a3;       /* Chú thích dữ liệu */
+
+      /* Đo Lường Năng Lực Chuẩn Hoá (Chỉ dùng đúng 2 gam đo lường) */
+      --color-pine: #2e7d32;             /* Xanh thông (Mastery / Điểm giữ được) */
+      --color-pine-surface: #eaf5eb;
+      --color-pine-border: #b8dfba;
+      --color-pine-text: #1b5e20;
+      
+      --color-clay: #b5502f;             /* Đất nung (Hao hụt / Lỗ hổng tư duy) */
+      --color-clay-surface: #faece7;
+      --color-clay-border: #f0c3b3;
+      --color-clay-text: #8c3619;
+      --color-clay-glow: rgba(181, 80, 47, 0.16);
+
+      /* Phông chữ */
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-serif: 'Newsreader', Georgia, serif;
+      --font-mono: 'JetBrains Mono', SFMono-Regular, monospace;
+
+      /* Bán kính & Đổ bóng tinh giản */
+      --radius-xs: 2px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 14px;
+      --radius-pill: 9999px;
+
+      --shadow-subtle: 0 1px 3px rgba(27, 36, 44, 0.03);
+      --shadow-card: 0 4px 20px rgba(27, 36, 44, 0.03), 0 1px 2px rgba(27, 36, 44, 0.02);
+      --shadow-focus: 0 16px 36px rgba(156, 20, 32, 0.08), 0 2px 6px rgba(27, 36, 44, 0.03);
+
+      /* Timing Function: Ease-out-expo thuần khiết */
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    [data-theme="dark"] {
+      --color-primary: #e65560;
+      --color-primary-dark: #f89ca3;
+      --color-primary-light: #2d181a;
+      --color-primary-glow: rgba(230, 85, 96, 0.18);
+
+      --color-accent: #deb163;
+      --color-accent-subtle: #292015;
+      --color-accent-border: #4d3c26;
+
+      --color-bg: #14110e;               /* Obsidian Warm tối mật */
+      --color-surface: #1e1813;
+      --color-surface-subtle: #282019;
+      --color-surface-hover: #322820;
+      --color-surface-contrast: #ede5da;
+
+      --color-border: #33281e;
+      --color-border-subtle: #271f17;
+      --color-border-strong: #4a3a2d;
+
+      --color-text: #ece5dc;
+      --color-text-muted: #a3978a;
+      --color-text-faint: #73685c;
+
+      --color-pine: #4caf50;
+      --color-pine-surface: #152618;
+      --color-pine-border: #254d2a;
+      --color-pine-text: #a5d6a7;
+
+      --color-clay: #e06d48;
+      --color-clay-surface: #331d15;
+      --color-clay-border: #5a2e20;
+      --color-clay-text: #f5b098;
+      --color-clay-glow: rgba(224, 109, 72, 0.22);
+
+      --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+      --shadow-focus: 0 16px 40px rgba(0, 0, 0, 0.65);
+    }
+
+    /* Thiết lập tổng thể */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      font-size: 14.5px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      /* HOÀN TOÀN BỎ LƯỚI GRID THEO YÊU CẦU */
+      background-image: none;
+    }
+
+    /* SVG Stroke Helper */
+    .icon-svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      vertical-align: -2px;
+      display: inline-block;
+    }
+
+    /* ==========================================================================
+       TOP UTILITY HEADER — TỐI GIẢN, PHONG CÁCH TẠP CHÍ HỌC THUẬT
+       ========================================================================== */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 10px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark-cube {
+      width: 26px;
+      height: 26px;
+      background: var(--color-primary);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-xs);
+      letter-spacing: -0.04em;
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--color-text);
+      text-transform: uppercase;
+    }
+
+    .brand-classification {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-left: 1px solid var(--color-border);
+      padding-left: 10px;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .header-nav a {
+      font-size: 12.5px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      transition: color 0.2s ease;
+    }
+
+    .header-nav a:hover, .header-nav a.active {
+      color: var(--color-primary);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-citation-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text);
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      letter-spacing: 0.02em;
+    }
+
+    .theme-switch-btn {
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .theme-switch-btn:hover {
+      background: var(--color-surface-hover);
+      border-color: var(--color-text-muted);
+    }
+
+    /* ==========================================================================
+       BỐ CỤC KHUNG CHÍNH (EDITORIAL WORKSPACE)
+       ========================================================================== */
+    .report-workspace {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 40px 40px 120px;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 60px;
+      align-items: start;
+    }
+
+    /* Cột Mục Lục Bên Trái (Sticky Navigator) */
+    .editorial-sidebar {
+      position: sticky;
+      top: 76px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .sidebar-taxonomy-label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--color-text-faint);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding-left: 12px;
+      margin-bottom: 12px;
+    }
+
+    .editorial-nav-tree {
+      list-style: none;
+      border-left: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .nav-tree-item a {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 9px 14px;
+      font-size: 13px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      margin-left: -1.5px;
+      transition: all 0.25s var(--ease-smooth);
+    }
+
+    .nav-tree-item a:hover {
+      color: var(--color-text);
+      background: var(--color-surface-subtle);
+    }
+
+    .nav-tree-item.active a {
+      color: var(--color-primary);
+      font-weight: 600;
+      border-left-color: var(--color-primary);
+      background: var(--color-primary-glow);
+    }
+
+    .nav-tree-num {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      opacity: 0.7;
+      letter-spacing: 0.05em;
+    }
+
+    .sidebar-spec-meta {
+      border-top: 1px solid var(--color-border);
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 11.5px;
+    }
+
+    .spec-meta-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--color-text-muted);
+    }
+
+    .spec-meta-row span:last-child {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    /* ==========================================================================
+       DÒNG CHẢY BIÊN TẬP (SCROLLYTELLING STREAM)
+       ========================================================================== */
+    .editorial-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 72px;
+    }
+
+    /* Chuyển động xuất hiện nhẹ nhàng: fade-up 12px */
+    .fade-up-anchor {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.7s var(--ease-out-expo), transform 0.7s var(--ease-out-expo);
+      will-change: opacity, transform;
+    }
+
+    .fade-up-anchor.is-inview {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Khối thẻ biên tập (Clean Hairline Surface) */
+    .surface-panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+    }
+
+    .section-eyebrow-tag {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--color-primary);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    .section-main-heading {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--color-text);
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+
+    .section-abstract {
+      font-size: 13.5px;
+      color: var(--color-text-muted);
+      line-height: 1.6;
+      max-width: 800px;
+      margin-bottom: 28px;
+    }
+
+    /* ==========================================================================
+       CHƯƠNG 0: TÓM LƯỢC (HERO VIEWPORT — 5 ĐẾN 10 GIÂY ĐẦU TIÊN)
+       ========================================================================== */
+    .hero-viewport-panel {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: 40px 48px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+    }
+
+    .hero-metadata-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--color-border-subtle);
+      margin-bottom: 28px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .hero-core-grid {
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      gap: 48px;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    /* Khối Cột 1: Điểm số & Vòng Đo Khảo Sát */
+    .hero-metric-cell {
+      border-right: 1px solid var(--color-border-subtle);
+      padding-right: 40px;
+    }
+
+    .hero-score-flex {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .metric-value-display {
+      font-family: var(--font-mono);
+      font-size: 72px;
+      font-weight: 700;
+      line-height: 0.95;
+      color: var(--color-primary);
+      letter-spacing: -0.04em;
+      font-feature-settings: "tnum" 1, "zero" 1;
+    }
+
+    .metric-scale-display {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--color-text-faint);
+    }
+
+    .percentile-caliper-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: var(--radius-xs);
+      background: var(--color-accent-subtle);
+      border: 1px solid var(--color-accent-border);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--color-accent);
+      letter-spacing: 0.02em;
+    }
+
+    .caliper-notch {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--color-accent);
+    }
+
+    /* Khối Cột 2: Nhận định cốt lõi & Hành động số 1 */
+    .hero-narrative-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .core-verdict-quote {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 1.45;
+      color: var(--color-text);
+      font-style: italic;
+      border-left: 2px solid var(--color-clay);
+      padding-left: 20px;
+    }
+
+    .priority-action-hero {
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .action-hero-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .action-order-pill {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--color-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .action-order-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .cta-editorial-btn {
+      background: var(--color-primary);
+      color: #ffffff;
+      border: 1px solid var(--color-primary);
+      padding: 10px 22px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s var(--ease-smooth);
+    }
+
+    .cta-editorial-btn:hover {
+      background: var(--color-primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .hero-subfoot-scroller {
+      padding-top: 20px;
+      border-top: 1px solid var(--color-border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hairline-scroll-prompt {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .hairline-scroll-prompt:hover {
+      color: var(--color-primary);
+    }
+
+    .hairline-arrow-down {
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--color-border-strong);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      line-height: 1;
+      animation: subtleArrowFloat 2.2s infinite ease-in-out;
+    }
+
+    @keyframes subtleArrowFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(3px); }
+    }
+
+    .hero-quick-audit {
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .audit-point-val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    /* ==========================================================================
+       CHƯƠNG 1: VỊ TRÍ & PHÂN BỐ ĐIỂM (THE DOT PLOT & DECOMPOSITION)
+       ========================================================================== */
+    .chart-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 20px;
+    }
+
+    .chart-title-lead {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+    }
+
+    .chart-meta-legend {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    /* ĐỒ THỊ CHẤM BEESWARM / DOT PLOT CHUẨN NATURE DATA */
+    .scientific-dot-plot-wrap {
+      position: relative;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 32px 20px 48px;
+      margin-bottom: 28px;
+    }
+
+    .dot-plot-svg {
+      width: 100%;
+      height: 70px;
+      display: block;
+      overflow: visible;
+    }
+
+    /* Vạch chỉ tiêu chuẩn P25, Median, P75, P90 */
+    .caliper-benchmark-line {
+      position: absolute;
+      top: 20px;
+      bottom: 24px;
+      width: 1px;
+      background: var(--color-border-strong);
+      pointer-events: none;
+    }
+
+    .caliper-benchmark-label {
+      position: absolute;
+      bottom: 8px;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      letter-spacing: 0.04em;
+    }
+
+    /* Vạch & Điểm học sinh (6.50) trượt vào */
+    .student-laser-caliper {
+      position: absolute;
+      top: 14px;
+      bottom: 20px;
+      left: 0%; /* JS animate lên 65% */
+      width: 1.5px;
+      background: var(--color-primary);
+      z-index: 20;
+      transition: left 1.2s var(--ease-out-expo);
+      pointer-events: none;
+    }
+
+    .student-caliper-tag {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--color-primary);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      white-space: nowrap;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 8px rgba(156, 20, 32, 0.25);
+    }
+
+    /* 3 Thanh Phân Rã Điểm Thành Phần */
+    .decomposition-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .decomposition-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+    }
+
+    .decomp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .decomp-tag {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .decomp-score-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .decomp-val {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -0.02em;
+    }
+
+    .decomp-max {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--color-text-faint);
+    }
+
+    .decomp-bar-bg {
+      height: 5px;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .decomp-bar-active {
+      height: 100%;
+      background: var(--color-primary);
+      border-radius: var(--radius-pill);
+      width: 0%;
+      transition: width 1s var(--ease-out-expo);
+    }
+
+    .decomp-caption {
+      font-size: 11.5px;
+      color: var(--color-text-muted);
+    }
+
+    /* Dòng Tháp Bloom 1 Dòng Chuyển Màu Cô Đọng */
+    .bloom-cognitive-strip {
+      border-top: 1px solid var(--color-border);
+      padding-top: 20px;
+    }
+
+    .bloom-strip-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+    }
+
+    .bloom-spectrum-bar {
+      display: grid;
+      grid-template-columns: 2.5fr 3.0fr 3.5fr 1.0fr;
+      gap: 6px;
+      height: 8px;
+      margin-bottom: 12px;
+    }
+
+    .bloom-segment {
+      border-radius: var(--radius-xs);
+    }
+
+    .bloom-markers-list {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .bloom-marker-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .bloom-marker-level {
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .bloom-marker-ratio {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    .scientific-citation-note {
+      margin-top: 18px;
+      font-size: 11px;
+      color: var(--color-text-faint);
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    /* ==========================================================================
+       CHƯƠNG 2: SƠ ĐỒ CÂY TƯ DUY TƯƠNG TÁC (DIAGNOSTIC KNOWLEDGE TREE)
+       CUỐN HÚT, TRỰC QUAN, ĐỌC NHANH - HIỂU LẸ, ANIMATION SÁNG TẠO
+       ========================================================================== */
+    .ch2-split-scrollytelling {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 40px;
+      align-items: start;
+      position: relative;
+    }
+
+    /* CỘT TRÁI DÍNH CỐ ĐỊNH: BỘ ĐIỀU HƯỚNG CÂY TƯ DUY */
+    .ch2-sticky-rail {
+      position: sticky;
+      top: 86px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .mindmap-summary-box {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .mindmap-summary-head {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mindmap-branch-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mindmap-branch-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      background: var(--color-surface-subtle);
+      cursor: pointer;
+      transition: all 0.35s var(--ease-out-expo);
+      position: relative;
+    }
+
+    /* Trạng thái Sáng 100% vs Mờ 35% */
+    .mindmap-branch-card.is-active-branch {
+      opacity: 1 !important;
+      filter: none !important;
+      border-color: var(--color-primary);
+      background: var(--color-surface);
+      box-shadow: 0 4px 18px rgba(156, 20, 32, 0.1);
+      transform: translateX(4px);
+    }
+
+    .mindmap-branch-card.is-dimmed-branch {
+      opacity: 0.35;
+      filter: grayscale(35%);
+      transform: translateX(0);
+    }
+
+    .branch-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .branch-name-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .branch-loss-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-clay-text);
+    }
+
+    .branch-mini-bar {
+      height: 4px;
+      background: var(--color-border);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin: 6px 0;
+    }
+
+    .branch-mini-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      width: 0%;
+      transition: width 0.9s var(--ease-out-expo);
+    }
+
+    .branch-sub-label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--color-text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* CỘT PHẢI: SƠ ĐỒ CÂY TƯ DUY TRỰC QUAN ĐỈNH CAO (INTERACTIVE VISUAL MINDMAP) */
+    .ch2-mindmap-canvas-col {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* KHUNG TOÀN CẢNH SƠ ĐỒ CÂY TƯ DUY */
+    .mindmap-hero-board {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mindmap-board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--color-border-subtle);
+      padding-bottom: 14px;
+    }
+
+    .mindmap-board-title {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .mindmap-mode-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* CẤU TRÚC CÂY SƠ ĐỒ SVG VÀ HTML HYBRID */
+    .mindmap-tree-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    /* NÚT GỐC (ROOT NODE): KẾT QUẢ BÀI THI */
+    .tree-root-capsule {
+      align-self: flex-start;
+      background: var(--color-surface-subtle);
+      border: 1.5px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      padding: 12px 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow-subtle);
+    }
+
+    .root-title-lead {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .root-figure-bold {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-clay-text);
+    }
+
+    /* 3 NHÁNH LỖ HỔNG LỚN (INTERACTIVE TREE BRANCHES) */
+    .tree-branches-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding-left: 24px;
+      border-left: 2px dashed var(--color-border-strong);
+      position: relative;
+      margin-left: 28px;
+    }
+
+    .tree-branch-block {
+      background: var(--color-surface-subtle);
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 22px 26px;
+      transition: all 0.35s var(--ease-out-expo);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .tree-branch-block::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      top: 28px;
+      width: 24px;
+      height: 2px;
+      background: var(--color-border-strong);
+    }
+
+    /* Trạng thái Kích Hoạt khi cuộn / nhấp */
+    .tree-branch-block.is-focused-branch {
+      background: var(--color-surface);
+      border-color: var(--color-primary);
+      box-shadow: 0 8px 24px rgba(156, 20, 32, 0.08);
+      transform: scale(1.01);
+    }
+
+    .tree-branch-block.is-dimmed-branch {
+      opacity: 0.35;
+      filter: grayscale(35%);
+      transform: scale(0.99);
+    }
+
+    .branch-headline-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .branch-main-code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .branch-delta-loss {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-clay-text);
+    }
+
+    .branch-concept-title {
+      font-family: var(--font-serif);
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--color-text);
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+
+    /* CÁC NÚT CON CHI TIẾT (SUB-NODES FLOW) */
+    .branch-subnodes-flex {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .subnode-capsule {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xs);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .subnode-diagnostic-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--color-clay-text);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .subnode-desc-text {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--color-text);
+      line-height: 1.4;
+    }
+
+    /* HIỆU ỨNG TƯƠNG PHẢN TOÁN HỌC (MATH X-RAY PREVIEW) */
+    .math-contrast-box {
+      margin-top: 14px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-xs);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-family: var(--font-mono);
+    }
+
+    .math-wrong-point {
+      color: var(--color-clay-text);
+    }
+
+    .math-correct-point {
+      color: var(--color-pine-text);
+    }
+
+    /* MẮT XÍCH KIẾN THỨC TIỀN ĐỀ DẠNG DÂY CHUYỀN (PREREQUISITE PIPELINE) */
+    .knowledge-wire-pipeline {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: var(--color-surface);
+      border: 1px dashed var(--color-clay-border);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .wire-step-card {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .wire-step-tag {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-clay-text);
+    }
+
+    .wire-step-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .wire-arrow-symbol {
+      color: var(--color-clay);
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    /* ==========================================================================
+       CHƯƠNG 3: HÀNH ĐỘNG KHẮC PHỤC (PRIORITIZED ACTION MODULES)
+       ========================================================================== */
+    .action-modules-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .action-module-row {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 28px 32px;
+      box-shadow: var(--shadow-card);
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      gap: 28px;
+      align-items: center;
+      transition: all 0.25s var(--ease-smooth);
+    }
+
+    .action-module-row:hover {
+      border-color: var(--color-border-strong);
+      box-shadow: var(--shadow-focus);
+    }
+
+    /* Thẻ số 1 Nổi Bật Nhất */
+    .action-module-row.priority-leader {
+      border: 1.5px solid var(--color-primary);
+      background: linear-gradient(145deg, var(--color-surface) 0%, var(--color-primary-glow) 100%);
+    }
+
+    .action-index-num {
+      font-family: var(--font-serif);
+      font-size: 32px;
+      font-weight: 400;
+      color: var(--color-text-faint);
+      line-height: 1;
+    }
+
+    .action-module-row.priority-leader .action-index-num {
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    .action-main-desc {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .action-badges-cluster {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .action-impact-badge {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+      letter-spacing: 0.04em;
+    }
+
+    .action-impact-badge.high-yield {
+      background: var(--color-pine-surface);
+      color: var(--color-pine-text);
+      border: 1px solid var(--color-pine-border);
+    }
+
+    .action-impact-badge.standard-yield {
+      background: var(--color-surface-subtle);
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+    }
+
+    .action-duration-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    .action-title-text {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+    }
+
+    .action-narrative-summary {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+      max-width: 650px;
+    }
+
+    .action-cta-button {
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-cta-button.btn-primary-solid {
+      background: var(--color-primary);
+      color: #ffffff;
+      border: 1px solid var(--color-primary);
+    }
+
+    .action-cta-button.btn-primary-solid:hover {
+      background: var(--color-primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .action-cta-button.btn-outline-minimal {
+      background: transparent;
+      color: var(--color-text);
+      border: 1px solid var(--color-border-strong);
+    }
+
+    .action-cta-button.btn-outline-minimal:hover {
+      background: var(--color-surface-subtle);
+      border-color: var(--color-text);
+    }
+
+    /* ==========================================================================
+       PHỤ LỤC (DATA AUTOPSY ACCORDION — THU GỌN HOÀN TOÀN)
+       ========================================================================== */
+    .appendix-trigger-header {
+      width: 100%;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .appendix-trigger-header:hover {
+      background: var(--color-surface-subtle);
+      border-color: var(--color-border-strong);
+    }
+
+    .appendix-brand-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .appendix-count-pill {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      padding: 4px 10px;
+      border-radius: var(--radius-xs);
+      color: var(--color-text);
+    }
+
+    .appendix-label-main {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .appendix-label-sub {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .appendix-fold-arrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .appendix-expandable-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s var(--ease-out-expo);
+    }
+
+    .appendix-expandable-drawer.is-open {
+      max-height: 3500px;
+    }
+
+    .appendix-table-inner {
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .appendix-filters-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .appendix-filter-btn {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      padding: 5px 12px;
+      border-radius: var(--radius-xs);
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .appendix-filter-btn.active, .appendix-filter-btn:hover {
+      background: var(--color-primary-glow);
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+
+    /* Card Chi Tiết Câu */
+    .question-autopsy-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .autopsy-card-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--color-border-subtle);
+      padding-bottom: 8px;
+    }
+
+    .q-index-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .q-loss-tag {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--color-clay-text);
+    }
+
+    .q-choices-comparative {
+      display: flex;
+      gap: 24px;
+      font-size: 12.5px;
+    }
+
+    .choice-selected {
+      color: var(--color-clay-text);
+      font-weight: 600;
+    }
+
+    .choice-benchmark {
+      color: var(--color-pine-text);
+      font-weight: 600;
+    }
+
+    .q-teacher-rationale {
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-xs);
+      padding: 10px 14px;
+      font-size: 12.8px;
+      line-height: 1.55;
+      color: var(--color-text);
+    }
+
+    .q-pacing-metadata {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-faint);
+    }
+
+    /* FOOTER */
+    .editorial-colophon {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+      color: var(--color-text-faint);
+      font-family: var(--font-mono);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      .report-workspace {
+        grid-template-columns: 1fr;
+        padding: 24px 20px 80px;
+        gap: 40px;
+      }
+      .editorial-sidebar {
+        display: none;
+      }
+      .hero-core-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .hero-metric-cell {
+        border-right: none;
+        border-bottom: 1px solid var(--color-border-subtle);
+        padding-right: 0;
+        padding-bottom: 20px;
+      }
+      .ch2-split-scrollytelling {
+        grid-template-columns: 1fr;
+      }
+      .ch2-sticky-rail {
+        position: static;
+      }
+      .decomposition-grid {
+        grid-template-columns: 1fr;
+      }
+      .action-module-row {
+        grid-template-columns: 1fr;
+      }
+      .branch-subnodes-flex {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       TOP UTILITY HEADER
+       ========================================================================== -->
+  <header class="site-header">
+    <div class="brand-cluster">
+      <div class="brand-mark-cube">TNT</div>
+      <div class="brand-title-wrap">
+        <span class="brand-title">Toán Học TNT</span>
+        <span class="brand-classification">Learning Intelligence Platform</span>
+      </div>
+    </div>
+
+    <nav class="header-nav">
+      <a href="#">Trang chủ</a>
+      <a href="#">Kho đề</a>
+      <a href="#" class="active">Hồ sơ năng lực</a>
+      <a href="#">Lịch học</a>
+    </nav>
+
+    <div class="header-controls">
+      <div class="user-citation-badge">
+        <span>TRẦN NHẬT TƯỜNG (HS)</span>
+      </div>
+      <button class="theme-switch-btn" id="themeToggleBtn" title="Chuyển chế độ Giao diện">
+        <svg class="icon-svg" id="themeSvgIcon" viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN EDITORIAL WORKSPACE
+       ========================================================================== -->
+  <div class="report-workspace">
+
+    <!-- CỘT TRÁI: STICKY NAVIGATOR -->
+    <aside class="editorial-sidebar">
+      <div>
+        <div class="sidebar-taxonomy-label">Cấu Trúc Báo Cáo</div>
+        <ul class="editorial-nav-tree">
+          <li class="nav-tree-item active" data-nav="sec-hero">
+            <a href="#sec-hero"><span class="nav-tree-num">00</span> Tóm lược 5–10s</a>
+          </li>
+          <li class="nav-tree-item" data-nav="sec-ch1">
+            <a href="#sec-ch1"><span class="nav-tree-num">01</span> Vị trí & Năng lực</a>
+          </li>
+          <li class="nav-tree-item" data-nav="sec-ch2">
+            <a href="#sec-ch2"><span class="nav-tree-num">02</span> Sơ Đồ Cây Tư Duy</a>
+          </li>
+          <li class="nav-tree-item" data-nav="sec-ch3">
+            <a href="#sec-ch3"><span class="nav-tree-num">03</span> Kế hoạch Khắc phục</a>
+          </li>
+          <li class="nav-tree-item" data-nav="sec-appendix">
+            <a href="#sec-appendix"><span class="nav-tree-num">04</span> Phụ lục 28 câu</a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-spec-meta">
+        <div class="spec-meta-row">
+          <span>Học sinh:</span>
+          <span>Trần Nhật Tường</span>
+        </div>
+        <div class="spec-meta-row">
+          <span>Khảo sát:</span>
+          <span>Bài tập củng cố 01</span>
+        </div>
+        <div class="spec-meta-row">
+          <span>Thời điểm:</span>
+          <span>28/09/2026 · 12:51</span>
+        </div>
+        <div class="spec-meta-row">
+          <span>Chuẩn hoá lỗi:</span>
+          <span style="color: var(--color-pine-text);">100% đối soát</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CỘT PHẢI: DÒNG CHẢY BIÊN TẬP SCROLLYTELLING -->
+    <main class="editorial-stream">
+
+      <!-- ====================================================================
+           CHƯƠNG 0: TÓM LƯỢC (HERO VIEWPORT — 5 ĐẾN 10 GIÂY ĐẦU TIÊN)
+           ==================================================================== -->
+      <section id="sec-hero" class="hero-viewport-panel fade-up-anchor is-inview">
+        
+        <div class="hero-metadata-strip">
+          <div>
+            <span>Chuyên đề: </span>
+            <strong style="color: var(--color-text);">Ứng dụng Đạo hàm Khảo sát Hàm số (Lớp 12)</strong>
+          </div>
+          <div>
+            <span>Định dạng barem: </span>
+            <strong style="color: var(--color-text);">Thang điểm 10.00 · 28 câu</strong>
+          </div>
+        </div>
+
+        <h1 class="section-main-heading" style="font-size: 28px; margin-bottom: 24px;">BÁO CÁO NĂNG LỰC HỌC TẬP</h1>
+
+        <!-- 3 CÂU HỎI TRỌN VẸN TRONG HERO VIEWPORT -->
+        <div class="hero-core-grid">
+          
+          <!-- CÂU 1: ĐIỂM SỐ & PHÂN VỊ NĂNG LỰC -->
+          <div class="hero-metric-cell">
+            <div class="hero-score-flex">
+              <span class="metric-value-display" id="mainScoreCounter">0.00</span>
+              <span class="metric-scale-display">/ 10.00</span>
+            </div>
+            <div>
+              <div class="percentile-caliper-badge">
+                <span class="caliper-notch"></span>
+                <span>Phân vị P72.4</span>
+                <span style="opacity: 0.4;">|</span>
+                <span>Top 30% cao nhất</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CÂU 2 & 3: NGUYÊN NHÂN CỐT LÕI & VIỆC SỐ 1 -->
+          <div class="hero-narrative-cell">
+            <!-- CÂU 2 -->
+            <p class="core-verdict-quote">
+              “Nền tảng tư duy vững vàng. Điểm rơi tập trung ở bước biến đổi quy tắc xét dấu đạo hàm của bài nhiều bước.”
+            </p>
+
+            <!-- CÂU 3 -->
+            <div class="priority-action-hero">
+              <div class="action-hero-meta">
+                <span class="action-order-pill">Nhiệm Vụ Ưu Tiên Số 1</span>
+                <span class="action-order-title">Soát lại 3 câu Bài 1 (chiếm 43% tổng điểm rơi)</span>
+              </div>
+              <a href="#action-leader-card" class="cta-editorial-btn">
+                <span>Ôn lại 3 câu này</span>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- HAIRLINE SCROLL PROMPT & QUICK AUDIT -->
+        <div class="hero-subfoot-scroller">
+          <a href="#sec-ch1" class="hairline-scroll-prompt">
+            <span class="hairline-arrow-down">↓</span>
+            <span>Xem căn cứ phân tích dữ liệu</span>
+          </a>
+
+          <div class="hero-quick-audit">
+            <div>Độ chính xác: <span class="audit-point-val">68% (19/28)</span></div>
+            <div>Điểm rơi: <span class="audit-point-val" style="color: var(--color-clay-text);">-3.50 đ</span></div>
+            <div>Nhịp độ: <span class="audit-point-val">88s / câu</span></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           CHƯƠNG 1: VỊ TRÍ & NĂNG LỰC TỔNG THỂ ("Tôi đang ở đâu?")
+           ==================================================================== -->
+      <section id="sec-ch1" class="surface-panel fade-up-anchor">
+        
+        <span class="section-eyebrow-tag">Chương 01 · Định Vị Năng Lực</span>
+        <h2 class="section-main-heading">Vị trí & Năng lực Tổng thể</h2>
+        <p class="section-abstract">
+          Định vị năng lực của học sinh trên biểu đồ phân bố mật độ chuẩn hoá N = 1,420 thí sinh cùng đề kiểm tra và phân rã cấu trúc điểm theo 3 phần thi.
+        </p>
+
+        <!-- DẢI CHẤM SVG PHÂN BỐ ĐIỂM ẨN DANH -->
+        <div class="chart-panel-header">
+          <div class="chart-title-lead">Dải Phân Bố Điểm Số Ẩn Danh (Distribution Dot Plot)</div>
+          <div class="chart-meta-legend">Mô hình chuẩn hoá IRT 2PL · Cỡ mẫu N = 1,420</div>
+        </div>
+
+        <div class="scientific-dot-plot-wrap">
+          <!-- Laser caliper của học sinh trượt vào -->
+          <div class="student-laser-caliper" id="studentLaserCaliper">
+            <div class="student-caliper-tag">Em: 6.50 đ (P72.4)</div>
+          </div>
+
+          <!-- Mốc chuẩn P25, Median, P75, P90 -->
+          <div class="caliper-benchmark-line" style="left: 42.5%;"></div>
+          <span class="caliper-benchmark-label" style="left: 42.5%;">P25 (4.25)</span>
+
+          <div class="caliper-benchmark-line" style="left: 54.0%;"></div>
+          <span class="caliper-benchmark-label" style="left: 54.0%;">Trung vị (5.40)</span>
+
+          <div class="caliper-benchmark-line" style="left: 72.0%;"></div>
+          <span class="caliper-benchmark-label" style="left: 72.0%;">P75 (7.20)</span>
+
+          <div class="caliper-benchmark-line" style="left: 85.0%;"></div>
+          <span class="caliper-benchmark-label" style="left: 85.0%;">P90 (8.50)</span>
+
+          <!-- Đồ thị SVG sinh các điểm mật độ -->
+          <svg class="dot-plot-svg" id="dotPlotSvgElement" viewBox="0 0 1000 60" preserveAspectRatio="none">
+            <!-- JS sẽ chèn các điểm tròn SVG vào đây -->
+          </svg>
+        </div>
+
+        <!-- 3 THANH PHÂN RÃ ĐIỂM THÀNH PHẦN -->
+        <div class="decomposition-grid">
+          
+          <div class="decomposition-card">
+            <div class="decomp-header">
+              <span class="decomp-tag">Phần I · Trắc nghiệm 4 lựa chọn</span>
+            </div>
+            <div class="decomp-score-row">
+              <span class="decomp-val" data-counter-val="4.25">0.00</span>
+              <span class="decomp-max">/ 6.00 đ</span>
+            </div>
+            <div class="decomp-bar-bg">
+              <div class="decomp-bar-active" style="width: 70.8%;"></div>
+            </div>
+            <div class="decomp-caption">Đạt 17/24 câu trọn điểm · Giữ 71%</div>
+          </div>
+
+          <div class="decomposition-card" style="border-color: var(--color-clay-border);">
+            <div class="decomp-header">
+              <span class="decomp-tag" style="color: var(--color-clay-text);">Phần II · Đúng / Sai</span>
+              <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--color-clay-text);">TÂM ĐIỂM RƠI</span>
+            </div>
+            <div class="decomp-score-row">
+              <span class="decomp-val" style="color: var(--color-clay-text);" data-counter-val="1.50">0.00</span>
+              <span class="decomp-max">/ 4.00 đ</span>
+            </div>
+            <div class="decomp-bar-bg">
+              <div class="decomp-bar-active" style="width: 37.5%; background: var(--color-clay);"></div>
+            </div>
+            <div class="decomp-caption">Đạt 1/4 câu trọn 4 ý · Rơi -2.50 đ</div>
+          </div>
+
+          <div class="decomposition-card">
+            <div class="decomp-header">
+              <span class="decomp-tag">Phần III · Trả lời ngắn</span>
+            </div>
+            <div class="decomp-score-row">
+              <span class="decomp-val" data-counter-val="0.75">0.00</span>
+              <span class="decomp-max">/ 0.00 đ</span>
+            </div>
+            <div class="decomp-bar-bg">
+              <div class="decomp-bar-active" style="width: 100%; background: var(--color-pine);"></div>
+            </div>
+            <div class="decomp-caption">Đề thi tuỳ chỉnh không áp dụng Phần III</div>
+          </div>
+
+        </div>
+
+        <!-- CHỈ SỐ THÁP BLOOM 1 DÒNG CHUYỂN MÀU CÔ ĐỌNG -->
+        <div class="bloom-cognitive-strip">
+          <div class="bloom-strip-header">
+            <span>Chỉ Số Tháp Nhận Thức Bloom Cô Đọng</span>
+            <span>Tỷ Lệ Đáp Ứng Theo Trọng Số Đề</span>
+          </div>
+
+          <div class="bloom-spectrum-bar">
+            <div class="bloom-segment" style="background: var(--color-pine);" title="Nhận biết 100%"></div>
+            <div class="bloom-segment" style="background: var(--color-pine);" title="Thông hiểu 85%"></div>
+            <div class="bloom-segment" style="background: var(--color-clay);" title="Vận dụng 40%"></div>
+            <div class="bloom-segment" style="background: var(--color-border-strong);" title="Vận dụng cao 0%"></div>
+          </div>
+
+          <div class="bloom-markers-list">
+            <div class="bloom-marker-item">
+              <span class="bloom-marker-level" style="color: var(--color-pine-text);">Nhận biết</span>
+              <span class="bloom-marker-ratio">100% · 2.50 / 2.50 đ</span>
+            </div>
+            <div class="bloom-marker-item">
+              <span class="bloom-marker-level" style="color: var(--color-pine-text);">Thông hiểu</span>
+              <span class="bloom-marker-ratio">85% · 2.55 / 3.00 đ</span>
+            </div>
+            <div class="bloom-marker-item">
+              <span class="bloom-marker-level" style="color: var(--color-clay-text);">Vận dụng (Cảnh báo)</span>
+              <span class="bloom-marker-ratio">40% · 1.45 / 3.50 đ</span>
+            </div>
+            <div class="bloom-marker-item">
+              <span class="bloom-marker-level" style="color: var(--color-text-faint);">Vận dụng cao</span>
+              <span class="bloom-marker-ratio">0% · 0.00 / 1.00 đ</span>
+            </div>
+          </div>
+
+          <div class="scientific-citation-note">
+            * Căn cứ xác thực: Phân vị P72.4 được tính theo mô hình Logistic 2 Tham số (Item Response Theory — 2PL) dựa trên độ khó ($b$) và độ phân biệt ($a$) của ngân hàng đề khảo sát TNT.
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           CHƯƠNG 2: SƠ ĐỒ CÂY TƯ DUY TƯƠNG TÁC (DIAGNOSTIC KNOWLEDGE TREE)
+           TRỰC QUAN — CUỐN HÚT — ĐỌC NHANH HIỂU LẸ
+           ==================================================================== -->
+      <section id="sec-ch2" class="fade-up-anchor">
+        
+        <span class="section-eyebrow-tag">Chương 02 · Bản Đồ Tư Duy Chẩn Đoán</span>
+        <h2 class="section-main-heading">Cây Chẩn Đoán Lỗ Hổng Tư Duy</h2>
+        <p class="section-abstract">
+          Hệ thống bóc tách 3.50 điểm rơi thành các mắt xích logic. Học sinh có thể nhìn thấy ngay vị trí chuỗi tư duy bị đứt gãy giữa Lớp 11 và Lớp 12 thay vì chỉ đọc các con số khô khan.
+        </p>
+
+        <!-- BỐ CỤC CHƯƠNG 2: BẢNG ĐIỀU HƯỚNG BÊN TRÁI + SƠ ĐỒ CÂY CUỐN HÚT BÊN PHẢI -->
+        <div class="ch2-split-scrollytelling">
+          
+          <!-- CỘT TRÁI DÍNH CỐ ĐỊNH (STICKY MINDMAP NAVIGATOR) -->
+          <div class="ch2-sticky-rail">
+            <div class="mindmap-summary-box">
+              <div class="mindmap-summary-head">
+                <span>3 Nhánh Điểm Rơi</span>
+                <span>Tỷ trọng</span>
+              </div>
+
+              <div class="mindmap-branch-list">
+                
+                <!-- NHÁNH 1: THỰC THI (57% - LỚN NHẤT) -->
+                <div class="mindmap-branch-card is-active-branch" id="nav-branch-thuc-thi" onclick="selectMindmapBranch('branch-thuc-thi')">
+                  <div class="branch-card-row">
+                    <span class="branch-name-title">
+                      <span style="color: var(--color-clay); font-family: var(--font-mono); font-size: 11px;">[01]</span>
+                      Thực thi
+                    </span>
+                    <span class="branch-loss-tag">-2.00 đ</span>
+                  </div>
+                  <div class="branch-mini-bar">
+                    <div class="branch-mini-fill" style="width: 57%; background: var(--color-clay);"></div>
+                  </div>
+                  <div class="branch-sub-label">
+                    <span>Nghiệm bội & mút đoạn</span>
+                    <strong>57%</strong>
+                  </div>
+                </div>
+
+                <!-- NHÁNH 2: KIẾN THỨC (21%) -->
+                <div class="mindmap-branch-card is-dimmed-branch" id="nav-branch-kien-thuc" onclick="selectMindmapBranch('branch-kien-thuc')">
+                  <div class="branch-card-row">
+                    <span class="branch-name-title">
+                      <span style="color: var(--color-accent); font-family: var(--font-mono); font-size: 11px;">[02]</span>
+                      Kiến thức
+                    </span>
+                    <span class="branch-loss-tag">-0.75 đ</span>
+                  </div>
+                  <div class="branch-mini-bar">
+                    <div class="branch-mini-fill" style="width: 21%; background: var(--color-accent);"></div>
+                  </div>
+                  <div class="branch-sub-label">
+                    <span>Ký hiệu khoảng tăng/giảm</span>
+                    <strong>21%</strong>
+                  </div>
+                </div>
+
+                <!-- NHÁNH 3: NHỊP ĐỘ (22%) -->
+                <div class="mindmap-branch-card is-dimmed-branch" id="nav-branch-nhip-do" onclick="selectMindmapBranch('branch-nhip-do')">
+                  <div class="branch-card-row">
+                    <span class="branch-name-title">
+                      <span style="color: var(--color-text-muted); font-family: var(--font-mono); font-size: 11px;">[03]</span>
+                      Nhịp độ
+                    </span>
+                    <span class="branch-loss-tag">-0.75 đ</span>
+                  </div>
+                  <div class="branch-mini-bar">
+                    <div class="branch-mini-fill" style="width: 22%; background: var(--color-text-muted);"></div>
+                  </div>
+                  <div class="branch-sub-label">
+                    <span>Áp lực 12 phút cuối</span>
+                    <strong>22%</strong>
+                  </div>
+                </div>
+
+              </div>
+
+              <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-border-subtle); font-size: 11px; color: var(--color-text-faint); line-height: 1.5;">
+                Chạm vào từng nhánh để xem cận cảnh lỗi toán học và chuỗi logic tiền đề bị gián đoạn.
+              </div>
+            </div>
+          </div>
+
+          <!-- CỘT PHẢI: SƠ ĐỒ CÂY TƯ DUY TRỰC QUAN (VISUAL MINDMAP CANVAS) -->
+          <div class="ch2-mindmap-canvas-col">
+            
+            <div class="mindmap-hero-board">
+              <div class="mindmap-board-header">
+                <div>
+                  <h3 class="mindmap-board-title">Sơ Đồ Phân Nhánh Gốc Rễ Sai Lệch</h3>
+                  <div style="font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px;">
+                    Phân tích nguyên nhân sâu xa dẫn đến việc rơi -3.50 điểm
+                  </div>
+                </div>
+                <span class="mindmap-mode-tag">Tương Tác Scrollytelling</span>
+              </div>
+
+              <!-- SƠ ĐỒ CÂY (TREE MINDMAP) -->
+              <div class="mindmap-tree-layout">
+                
+                <!-- GỐC CÂY: TỔNG THẤT THOÁT -->
+                <div class="tree-root-capsule">
+                  <span class="root-title-lead">Gốc Rễ Khảo Sát</span>
+                  <span style="opacity: 0.3;">|</span>
+                  <span class="root-figure-bold">Tổng Điểm Rơi: -3.50 điểm (7 câu sai)</span>
+                </div>
+
+                <!-- 3 NHÁNH LỖ HỔNG LỚN -->
+                <div class="tree-branches-stack">
+                  
+                  <!-- NHÁNH 1: LỖI THỰC THI (57% - LỚN NHẤT) -->
+                  <div class="tree-branch-block is-focused-branch" id="branch-thuc-thi" data-nav-ref="nav-branch-thuc-thi">
+                    <div class="branch-headline-strip">
+                      <span class="branch-main-code" style="color: var(--color-clay);">Nhánh 01 · Thực Thi Kỹ Thuật (57% Điểm Mất)</span>
+                      <span class="branch-delta-loss">-2.00 đ</span>
+                    </div>
+
+                    <h4 class="branch-concept-title">Quy Trình Xét Dấu Đạo Hàm & Điểm Mút Đoạn</h4>
+
+                    <p style="font-size: 13.5px; color: var(--color-text-muted); line-height: 1.55;">
+                      Em nắm rất chắc lý thuyết về hàm số đồng biến, nghịch biến và bảng biến thiên. Tuy nhiên, chuỗi tư duy bị đứt gãy ở <strong>khâu biến đổi đại số cơ sở</strong>: nhầm lẫn giữa nghiệm đơn và nghiệm bội kép khi giải phương trình $f'(x) = 0$.
+                    </p>
+
+                    <!-- 2 NÚT CON BÓC TÁCH CỤ THỂ -->
+                    <div class="branch-subnodes-flex">
+                      <div class="subnode-capsule">
+                        <span class="subnode-diagnostic-label">Sai sót 1 · Nghiệm bội kép</span>
+                        <span class="subnode-desc-text">
+                          Phương trình $(x-1)^2(x+2) = 0$: coi $x = 1$ là cực trị làm đếm thừa cực trị (Câu 14 Phần I).
+                        </span>
+                      </div>
+                      <div class="subnode-capsule">
+                        <span class="subnode-diagnostic-label">Sai sót 2 · Bỏ quên mút đoạn</span>
+                        <span class="subnode-desc-text">
+                          Tìm GTNN trên $[0; 3]$: chỉ tính đạo hàm mà quên so sánh giá trị tại $x = 3$ (Ý c Câu 2 Phần II).
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- MINH HOẠ TƯƠNG PHẢN TOÁN HỌC -->
+                    <div class="math-contrast-box">
+                      <div><span style="opacity: 0.5;">Lỗi của em:</span> <span class="math-wrong-point">$f'(x)$ đổi dấu qua $(x-1)^2$</span></div>
+                      <div><span style="opacity: 0.5;">Bản chất đúng:</span> <span class="math-correct-point">Nghiệm bội chẵn không đổi chiều</span></div>
+                    </div>
+
+                    <!-- CHUỖI MẮT XÍCH TIỀN ĐỀ DÂY CHUYỀN -->
+                    <div class="knowledge-wire-pipeline">
+                      <div class="wire-step-card">
+                        <span class="wire-step-tag">Lớp 11 (Gốc Rễ Bị Hổng)</span>
+                        <span class="wire-step-title">Quy tắc đạo hàm & Bội số nghiệm</span>
+                      </div>
+                      <span class="wire-arrow-symbol">──▶</span>
+                      <div class="wire-step-card">
+                        <span class="wire-step-tag">Lớp 12 (Biểu Hiện Thất Thoát)</span>
+                        <span class="wire-step-title">Đơn điệu & Cực trị hàm số (-1.50đ)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- NHÁNH 2: LỖI KIẾN THỨC (21%) -->
+                  <div class="tree-branch-block is-dimmed-branch" id="branch-kien-thuc" data-nav-ref="nav-branch-kien-thuc">
+                    <div class="branch-headline-strip">
+                      <span class="branch-main-code" style="color: var(--color-accent);">Nhánh 02 · Khái Niệm Giải Tích (21% Điểm Mất)</span>
+                      <span class="branch-delta-loss">-0.75 đ</span>
+                    </div>
+
+                    <h4 class="branch-concept-title">Nhầm Lẫn Ký Hiệu Hợp (∪) Trên Các Khoảng Rời</h4>
+
+                    <p style="font-size: 13.5px; color: var(--color-text-muted); line-height: 1.55;">
+                      Ở 3 câu đồ thị hàm phân thức, em sử dụng ký hiệu hợp ($\cup$) để gộp 2 khoảng đồng biến. Đây là thói quen trình bày sai nghiêm trọng về mặt bản chất giải tích được lặp lại từ bài kiểm tra trước.
+                    </p>
+
+                    <div class="branch-subnodes-flex">
+                      <div class="subnode-capsule">
+                        <span class="subnode-diagnostic-label">Sai sót 1 · Điểm gián đoạn</span>
+                        <span class="subnode-desc-text">
+                          Hàm số phân thức gián đoạn tại mẫu bằng 0 thì không thể nối liền hai khoảng bằng ký hiệu hợp.
+                        </span>
+                      </div>
+                      <div class="subnode-capsule">
+                        <span class="subnode-diagnostic-label">Sai sót 2 · Nhầm tập nghiệm</span>
+                        <span class="subnode-desc-text">
+                          Nhầm lẫn giữa "Tập nghiệm của bất phương trình" với "Tính đồng biến trên từng khoảng".
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="math-contrast-box">
+                      <div><span style="opacity: 0.5;">Em viết:</span> <span class="math-wrong-point">$(-\infty; -1) \cup (1; +\infty)$</span></div>
+                      <div><span style="opacity: 0.5;">Quy chuẩn Bộ:</span> <span class="math-correct-point">$(-\infty; -1)$ và $(1; +\infty)$</span></div>
+                    </div>
+                  </div>
+
+                  <!-- NHÁNH 3: LỖI NHỊP ĐỘ (22%) -->
+                  <div class="tree-branch-block is-dimmed-branch" id="branch-nhip-do" data-nav-ref="nav-branch-nhip-do">
+                    <div class="branch-headline-strip">
+                      <span class="branch-main-code" style="color: var(--color-text-muted);">Nhánh 03 · Chiến Thuật Thời Gian (22% Điểm Mất)</span>
+                      <span class="branch-delta-loss">-0.75 đ</span>
+                    </div>
+
+                    <h4 class="branch-concept-title">Dồn Ép Nhịp Độ Vào 12 Phút Cuối Bài Thi</h4>
+
+                    <p style="font-size: 13.5px; color: var(--color-text-muted); line-height: 1.55;">
+                      Em tiêu tốn tới 140 giây cho mỗi câu ở Phần I (vượt 55% so với chuẩn 90 giây). Hậu quả là bước sang Phần II chỉ còn vỏn vẹn 12 phút, buộc em phải đọc lướt và khoanh vội ở các ý c và d của Câu 3, Câu 4 Phần II.
+                    </p>
+
+                    <div class="branch-subnodes-flex">
+                      <div class="subnode-capsule">
+                        <span class="subnode-diagnostic-label">Hao hụt · Ý 3c Phần II</span>
+                        <span class="subnode-desc-text">
+                          Chỉ làm trong 14 giây, không kịp thiết lập phương trình bài toán thực tế (-0.50đ).
+                        </span>
+                      </div>
+                      <div class="subnode-capsule">
+                        <span class="subnode-diagnostic-label">Hao hụt · Ý 4d Phần II</span>
+                        <span class="subnode-desc-text">
+                          Đọc sót giả thiết điều kiện xác định dẫn đến mất trắng 0.25đ câu hỏi gỡ điểm.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="math-contrast-box">
+                      <div><span style="opacity: 0.5;">Thực tế Phần I:</span> <span class="math-wrong-point">140 giây / câu</span></div>
+                      <div><span style="opacity: 0.5;">Định mức tối ưu:</span> <span class="math-correct-point">90 giây / câu</span></div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           CHƯƠNG 3: HÀNH ĐỘNG KHẮC PHỤC ("Tôi cần làm gì ngay?")
+           ==================================================================== -->
+      <section id="sec-ch3" class="surface-panel fade-up-anchor">
+        
+        <span class="section-eyebrow-tag">Chương 03 · Kế Hoạch Khắc Phục</span>
+        <h2 class="section-main-heading">Kế Hoạch Hành Động Ưu Tiên</h2>
+        <p class="section-abstract">
+          3 bài tập được tính toán và xếp hạng theo mức tăng điểm số kỳ vọng (Delta ROI), tối ưu trong 12–15 phút/nhiệm vụ.
+        </p>
+
+        <div class="action-modules-stack">
+          
+          <!-- THẺ SỐ 1: HERO ACTION CARD NỔI BẬT NHẤT -->
+          <div class="action-module-row priority-leader" id="action-leader-card">
+            <div class="action-index-num">01</div>
+            <div class="action-main-desc">
+              <div class="action-badges-cluster">
+                <span class="action-impact-badge high-yield">Ưu tiên số 1 · Kỳ vọng: +1.25 điểm</span>
+                <span class="action-duration-pill">Thời lượng: ~15 phút</span>
+              </div>
+              <h3 class="action-title-text">Soát lại 3 câu Bài 1: Kỹ thuật xét dấu đạo hàm & nghiệm bội</h3>
+              <p class="action-narrative-summary">
+                Khắc phục dứt điểm lỗi nhầm lẫn nghiệm bội chẵn của $f'(x) = 0$. Bộ 3 câu phân hoá được chọn lọc chuẩn theo đúng dạng bài em vừa sai để hoàn trả 1.25 điểm rơi.
+              </p>
+            </div>
+            <div>
+              <a href="#" class="action-cta-button btn-primary-solid" onclick="alert('Đang khởi tạo bài luyện tập 3 câu trọng điểm...'); return false;">
+                <span>Bắt đầu ngay (3 câu)</span>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- THẺ SỐ 2 -->
+          <div class="action-module-row">
+            <div class="action-index-num">02</div>
+            <div class="action-main-desc">
+              <div class="action-badges-cluster">
+                <span class="action-impact-badge standard-yield">Ưu tiên số 2 · Kỳ vọng: +0.75 điểm</span>
+                <span class="action-duration-pill">Thời lượng: ~15 phút</span>
+              </div>
+              <h3 class="action-title-text">Ôn quy tắc đạo hàm hàm hợp $u'(x) \cdot f'(u)$ (Lớp 11)</h3>
+              <p class="action-narrative-summary">
+                Hàn gắn mắt xích tiền đề bị hổng từ lớp 11 để không bị sai bước biến đổi đầu tiên khi làm các bài toán cực trị chứa tham số.
+              </p>
+            </div>
+            <div>
+              <a href="#" class="action-cta-button btn-outline-minimal" onclick="alert('Mở video bài giảng giải thích đối soát...'); return false;">
+                <span>Xem đối soát (4p)</span>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- THẺ SỐ 3 -->
+          <div class="action-module-row">
+            <div class="action-index-num">03</div>
+            <div class="action-main-desc">
+              <div class="action-badges-cluster">
+                <span class="action-impact-badge standard-yield">Ưu tiên số 3 · Kỳ vọng: +0.50 điểm</span>
+                <span class="action-duration-pill">Thời lượng: ~12 phút</span>
+              </div>
+              <h3 class="action-title-text">Chiến thuật kiểm soát định mức 90 giây cho câu Đúng/Sai</h3>
+              <p class="action-narrative-summary">
+                Luyện thói quen đọc nhanh điều kiện và phán đoán tính đúng sai của ý a, b trong 30 giây để dành đủ 60 giây phân tích ý c, d.
+              </p>
+            </div>
+            <div>
+              <a href="#" class="action-cta-button btn-outline-minimal" onclick="alert('Bắt đầu thử thách bấm giờ 90 giây...'); return false;">
+                <span>Luyện bấm giờ</span>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           PHỤ LỤC: BẢN KIỂM TRA CHI TIẾT 28 CÂU (THU GỌN HOÀN TOÀN)
+           ==================================================================== -->
+      <section id="sec-appendix" class="fade-up-anchor">
+        
+        <div class="appendix-trigger-header" onclick="toggleAppendixDrawer()">
+          <div class="appendix-brand-left">
+            <div class="appendix-count-pill">28</div>
+            <div>
+              <div class="appendix-label-main">Phụ Lục: Bản Kiểm Tra Chi Tiết 28 Câu Hỏi</div>
+              <div class="appendix-label-sub">21 câu đạt trọn điểm · 7 câu sai có nhãn đối soát tư duy & nhịp độ</div>
+            </div>
+          </div>
+          <div class="appendix-fold-arrow" id="appendixToggleIndicator">
+            [ + Mở rộng xem chi tiết ]
+          </div>
+        </div>
+
+        <div class="appendix-expandable-drawer" id="appendixExpandable">
+          <div class="appendix-table-inner">
+            
+            <!-- BỘ LỌC TƯƠNG TÁC -->
+            <div class="appendix-filters-bar">
+              <button class="appendix-filter-btn active" onclick="applyAppendixFilter('all', this)">Tất cả (7 câu lỗi)</button>
+              <button class="appendix-filter-btn" onclick="applyAppendixFilter('thuc-thi', this)">Lỗi Thực thi (4 câu)</button>
+              <button class="appendix-filter-btn" onclick="applyAppendixFilter('kien-thuc', this)">Lỗi Kiến thức (2 câu)</button>
+              <button class="appendix-filter-btn" onclick="applyAppendixFilter('nhip-do', this)">Lỗi Nhịp độ (1 câu)</button>
+            </div>
+
+            <!-- CÂU 1 -->
+            <div class="question-autopsy-card" data-cat="kien-thuc">
+              <div class="autopsy-card-topbar">
+                <span class="q-index-tag">Câu 1 · Phần I (Trắc nghiệm)</span>
+                <span class="q-loss-tag">-0.25 đ</span>
+              </div>
+              <div class="q-choices-comparative">
+                <div>Bài 1. Tính đơn điệu và cực trị của hàm số</div>
+                <div>Em chọn: <span class="choice-selected">A</span></div>
+                <div>Đáp án chuẩn: <span class="choice-benchmark">D</span></div>
+              </div>
+              <div class="q-teacher-rationale">
+                <strong>Nhầm khoảng đồng biến với nghịch biến:</strong> Khoảng $(-\infty; -1)$ có $f'(x) < 0$ nên hàm số nghịch biến. Mẫu nhầm dấu này đã xuất hiện 3 lần trên 2 đề khảo sát gần đây.
+              </div>
+              <div class="q-pacing-metadata">
+                <span>Nhãn lỗi: Khái niệm (Conceptual)</span>
+                <span>Thời gian: 42s (Định mức: 90s)</span>
+              </div>
+            </div>
+
+            <!-- CÂU 2 -->
+            <div class="question-autopsy-card" data-cat="thuc-thi">
+              <div class="autopsy-card-topbar">
+                <span class="q-index-tag">Câu 2 · Phần I (Trắc nghiệm)</span>
+                <span class="q-loss-tag">-0.25 đ</span>
+              </div>
+              <div class="q-choices-comparative">
+                <div>Bài 1. Tính đơn điệu và cực trị của hàm số</div>
+                <div>Em chọn: <span class="choice-selected">C</span></div>
+                <div>Đáp án chuẩn: <span class="choice-benchmark">D</span></div>
+              </div>
+              <div class="q-teacher-rationale">
+                <strong>Chọn khoảng đi qua điểm cực trị:</strong> Khoảng $(-1; +\infty)$ chứa cả điểm cực tiểu $x = 1$, tại đó đồ thị đổi chiều biến thiên nên không thể đơn điệu trên toàn khoảng.
+              </div>
+              <div class="q-pacing-metadata">
+                <span>Nhãn lỗi: Quy trình xét dấu (Procedural)</span>
+                <span>Thời gian: 85s (Định mức: 90s)</span>
+              </div>
+            </div>
+
+            <!-- CÂU 3 -->
+            <div class="question-autopsy-card" data-cat="kien-thuc">
+              <div class="autopsy-card-topbar">
+                <span class="q-index-tag">Câu 3 · Phần I (Trắc nghiệm)</span>
+                <span class="q-loss-tag">-0.25 đ</span>
+              </div>
+              <div class="q-choices-comparative">
+                <div>Bài 1. Tính đơn điệu và cực trị của hàm số</div>
+                <div>Em chọn: <span class="choice-selected">B</span></div>
+                <div>Đáp án chuẩn: <span class="choice-benchmark">C</span></div>
+              </div>
+              <div class="q-teacher-rationale">
+                <strong>Gộp khoảng qua điểm gián đoạn:</strong> Hàm phân thức không xác định tại $x = -1/2$, tuyệt đối không dùng ký hiệu hợp ($\cup$) khi kết luận đồng biến.
+              </div>
+              <div class="q-pacing-metadata">
+                <span>Nhãn lỗi: Khái niệm (Conceptual)</span>
+                <span>Thời gian: 64s (Định mức: 90s)</span>
+              </div>
+            </div>
+
+            <!-- CÂU 14 -->
+            <div class="question-autopsy-card" data-cat="thuc-thi">
+              <div class="autopsy-card-topbar">
+                <span class="q-index-tag">Câu 14 · Phần I (Trắc nghiệm)</span>
+                <span class="q-loss-tag">-0.25 đ</span>
+              </div>
+              <div class="q-choices-comparative">
+                <div>Bài 1. Cực trị của hàm số bậc bốn trùng phương</div>
+                <div>Em chọn: <span class="choice-selected">A</span></div>
+                <div>Đáp án chuẩn: <span class="choice-benchmark">B</span></div>
+              </div>
+              <div class="q-teacher-rationale">
+                <strong>Đếm nhầm nghiệm kép:</strong> Phương trình $f'(x) = x(x-2)^2 = 0$ chỉ đổi dấu qua $x = 0$, không đổi dấu qua nghiệm kép $x = 2$. Do đó chỉ có duy nhất 1 điểm cực trị.
+              </div>
+              <div class="q-pacing-metadata">
+                <span>Nhãn lỗi: Quy trình biến đổi (Procedural)</span>
+                <span>Thời gian: 135s (Vượt chuẩn 45s)</span>
+              </div>
+            </div>
+
+            <!-- PHẦN II: CÂU 2 Ý C -->
+            <div class="question-autopsy-card" data-cat="thuc-thi">
+              <div class="autopsy-card-topbar">
+                <span class="q-index-tag">Câu 2 · Ý c · Phần II (Đúng/Sai)</span>
+                <span class="q-loss-tag">-0.50 đ</span>
+              </div>
+              <div class="q-choices-comparative">
+                <div>Bài 2. Giá trị lớn nhất & nhỏ nhất trên đoạn</div>
+                <div>Em chọn: <span class="choice-selected">Đúng</span></div>
+                <div>Đáp án chuẩn: <span class="choice-benchmark">Sai</span></div>
+              </div>
+              <div class="q-teacher-rationale">
+                <strong>Quên kiểm tra biên đoạn:</strong> Em chỉ tính giá trị tại các điểm cực trị mà quên tính giá trị tại 2 đầu mút đoạn $[0; 3]$. Giá trị nhỏ nhất rơi vào mút $x = 3$.
+              </div>
+              <div class="q-pacing-metadata">
+                <span>Nhãn lỗi: Quy trình thực thi (Procedural)</span>
+                <span>Thời gian: 110s</span>
+              </div>
+            </div>
+
+            <!-- PHẦN II: CÂU 3 Ý C -->
+            <div class="question-autopsy-card" data-cat="nhip-do">
+              <div class="autopsy-card-topbar">
+                <span class="q-index-tag">Câu 3 · Ý c · Phần II (Đúng/Sai)</span>
+                <span class="q-loss-tag">-0.50 đ</span>
+              </div>
+              <div class="q-choices-comparative">
+                <div>Bài 5. Ứng dụng đạo hàm giải bài toán thực tế</div>
+                <div>Em chọn: <span class="choice-selected">Sai</span></div>
+                <div>Đáp án chuẩn: <span class="choice-benchmark">Đúng</span></div>
+              </div>
+              <div class="q-teacher-rationale">
+                <strong>Lỗi đọc lướt do hết giờ:</strong> Thời gian làm câu này chỉ 14 giây. Học sinh không kịp lập hàm mục tiêu mà chọn vội theo phán đoán cảm tính.
+              </div>
+              <div class="q-pacing-metadata">
+                <span>Nhãn lỗi: Nhịp độ & Thời gian (Pacing)</span>
+                <span>Thời gian: 14s (Bị dồn thời gian)</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="editorial-colophon">
+        <div>© 2026 Toán học TNT — Scientific Learning Intelligence Platform</div>
+        <div>Standard Rasch 2PL Model · Scrollytelling Spec v4.0</div>
+      </footer>
+
+    </main>
+
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT: COUNTER (900MS), SVG BEESWARM & MINDMAP SCROLLYTELLING
+       ========================================================================== -->
+  <script>
+    // 1. SINH ĐÁM MÂY ĐIỂM CHUẨN SVG (SCIENTIFIC BEESWARM)
+    function buildBeeswarmSvg() {
+      const svg = document.getElementById('dotPlotSvgElement');
+      if (!svg) return;
+
+      const dotTotal = 150;
+      let svgHtml = '';
+
+      for (let i = 0; i < dotTotal; i++) {
+        const u1 = Math.random();
+        const u2 = Math.random();
+        const randNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+
+        let score = 5.4 + randNormal * 1.7;
+        score = Math.max(0.5, Math.min(9.8, score));
+
+        const cx = (score / 10) * 1000;
+        const cy = 10 + Math.random() * 40;
+        const opacity = 0.25 + Math.random() * 0.25;
+
+        svgHtml += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2.5" fill="var(--color-text-faint)" opacity="${opacity.toFixed(2)}"/>`;
+      }
+
+      svg.innerHTML = svgHtml;
+    }
+
+    // 2. COUNTER SỐ CHẠY TRONG 900MS (EASE-OUT-EXPO)
+    function runMetricsCounter() {
+      const duration = 900;
+      const startTime = performance.now();
+
+      const mainScoreEl = document.getElementById('mainScoreCounter');
+      const targetMain = 6.50;
+
+      const subElements = document.querySelectorAll('[data-counter-val]');
+      const subTargets = Array.from(subElements).map(el => parseFloat(el.getAttribute('data-counter-val')));
+
+      function easeOutExpo(x) {
+        return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+      }
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const factor = easeOutExpo(progress);
+
+        if (mainScoreEl) {
+          mainScoreEl.textContent = (targetMain * factor).toFixed(2);
+        }
+
+        subElements.forEach((el, index) => {
+          el.textContent = (subTargets[index] * factor).toFixed(2);
+        });
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    // 3. VẠCH THƯỚC LASER CỦA HỌC SINH TRƯỢT VÀO VỊ TRÍ
+    function triggerStudentLaser() {
+      const laser = document.getElementById('studentLaserCaliper');
+      if (laser) {
+        setTimeout(() => {
+          laser.style.left = '65.0%';
+        }, 250);
+      }
+    }
+
+    // 4. CHƯƠNG 2: TƯƠNG TÁC SƠ ĐỒ CÂY TƯ DUY (MINDMAP SCROLL SPY)
+    function initMindmapScrollSpy() {
+      const branchBlocks = document.querySelectorAll('.tree-branch-block');
+      const navCards = document.querySelectorAll('.mindmap-branch-card');
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const navRefId = entry.target.getAttribute('data-nav-ref');
+
+            // Cập nhật khối branch bên phải
+            branchBlocks.forEach(b => {
+              b.classList.remove('is-focused-branch');
+              b.classList.add('is-dimmed-branch');
+            });
+            entry.target.classList.remove('is-dimmed-branch');
+            entry.target.classList.add('is-focused-branch');
+
+            // Cập nhật card bên trái
+            navCards.forEach(card => {
+              if (card.id === navRefId) {
+                card.classList.add('is-active-branch');
+                card.classList.remove('is-dimmed-branch');
+              } else {
+                card.classList.remove('is-active-branch');
+                card.classList.add('is-dimmed-branch');
+              }
+            });
+          }
+        });
+      }, {
+        threshold: 0.4,
+        rootMargin: '-50px 0px -40% 0px'
+      });
+
+      branchBlocks.forEach(b => observer.observe(b));
+    }
+
+    // Bấm vào card nhánh bên trái để cuộn mượt đến nhánh cây bên phải
+    function selectMindmapBranch(branchId) {
+      const el = document.getElementById(branchId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // 5. HIỆU ỨNG FADE-UP KHI CUỘN VÀO KHỐI
+    function initFadeUpObserver() {
+      const elements = document.querySelectorAll('.fade-up-anchor');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-inview');
+          }
+        });
+      }, { threshold: 0.1 });
+
+      elements.forEach(el => observer.observe(el));
+    }
+
+    // 6. SCROLLSPY CHO THANH MỤC LỤC BÊN TRÁI
+    function initSidebarScrollspy() {
+      const sections = document.querySelectorAll('main > section');
+      const navItems = document.querySelectorAll('.nav-tree-item');
+
+      window.addEventListener('scroll', () => {
+        let activeSectionId = '';
+        const scrollPosition = window.scrollY + 160;
+
+        sections.forEach(sec => {
+          if (scrollPosition >= sec.offsetTop) {
+            activeSectionId = sec.id;
+          }
+        });
+
+        if (activeSectionId) {
+          navItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('data-nav') === activeSectionId) {
+              item.classList.add('active');
+            }
+          });
+        }
+      }, { passive: true });
+    }
+
+    // 7. BẬT/TẮT PHỤ LỤC 28 CÂU
+    function toggleAppendixDrawer() {
+      const drawer = document.getElementById('appendixExpandable');
+      const arrow = document.getElementById('appendixToggleIndicator');
+      if (!drawer) return;
+
+      const isOpen = drawer.classList.contains('is-open');
+      if (isOpen) {
+        drawer.classList.remove('is-open');
+        arrow.textContent = '[ + Mở rộng xem chi tiết ]';
+      } else {
+        drawer.classList.add('is-open');
+        arrow.textContent = '[ − Thu gọn danh sách ]';
+      }
+    }
+
+    // 8. BỘ LỌC CÂU HỎI TRONG PHỤ LỤC
+    function applyAppendixFilter(category, btn) {
+      document.querySelectorAll('.appendix-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const cards = document.querySelectorAll('.question-autopsy-card');
+      cards.forEach(card => {
+        if (category === 'all') {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = card.getAttribute('data-cat') === category ? 'flex' : 'none';
+        }
+      });
+    }
+
+    // 9. THEME TOGGLE (LIGHT WARM IVORY <-> DARK OBSIDIAN WARM)
+    function initThemeSystem() {
+      const btn = document.getElementById('themeToggleBtn');
+      const iconSvg = document.getElementById('themeSvgIcon');
+      const root = document.documentElement;
+
+      const saved = localStorage.getItem('tnt_theme_pref') || 'light';
+      root.setAttribute('data-theme', saved);
+      updateThemeIcon(saved);
+
+      btn.addEventListener('click', () => {
+        const cur = root.getAttribute('data-theme');
+        const next = cur === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        localStorage.setItem('tnt_theme_pref', next);
+        updateThemeIcon(next);
+      });
+
+      function updateThemeIcon(theme) {
+        if (theme === 'dark') {
+          iconSvg.innerHTML = `
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          `;
+        } else {
+          iconSvg.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+        }
+      }
+    }
+
+    // 10. KHỞI CHẠY HỆ THỐNG KHI TRANG TẢI XONG
+    document.addEventListener('DOMContentLoaded', () => {
+      initThemeSystem();
+      buildBeeswarmSvg();
+      runMetricsCounter();
+      triggerStudentLaser();
+      initMindmapScrollSpy();
+      initFadeUpObserver();
+      initSidebarScrollspy();
+    });
+  </script>
+</body>
+</html>

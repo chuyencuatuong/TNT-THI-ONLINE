@@ -38,3 +38,18 @@ Supabase Dashboard → SQL Editor → New query → dán nguyên file `supabase/
 ## Việc Thầy Tường có thể làm ngay sau khi chạy migration
 
 Mở Ngân hàng câu hỏi → lọc Chương "Ứng dụng đạo hàm..." → với mỗi câu Phần 1, bấm "Gắn nhãn lỗi cho phương án nhiễu" → "Gợi ý bằng AI" → sửa/xác nhận. Càng nhiều câu được gắn nhãn trước khi học sinh làm bài, Đợt 2 (Exam Autopsy) càng có nhiều dữ liệu tin cậy cao ngay từ đầu.
+
+## Cập nhật 22/09/2026 — sửa theo phản hồi thực tế sau khi bật lại trang
+
+Thầy Tường phản hồi 2 việc sau khi thử trang thật:
+
+1. **Gắn nhãn nên có menu chọn**, không chỉ gõ tay tự do.
+2. **"Gợi ý bằng AI" không dùng được** — đúng như rủi ro đã ghi trong lịch sử `ai.ts`: model `gemini-3.7-flash` chỉ có 20 lượt gọi/NGÀY (free tier), dùng chung với mọi tính năng AI khác trong hệ thống (gợi ý dạng bài, nhập đề PDF/Word...) nên rất dễ hết hạn mức nếu gắn nhãn hàng loạt bằng AI.
+
+Đã sửa `DistractorRationaleEditor.tsx` + thêm hàm `listPatternLabelStatsForLesson()` trong `api.ts`:
+
+- **Nút "Gợi ý nhanh (không cần AI)"** — đường vào chính mới. Điền sẵn nhãn lỗi (loại + nhãn ngắn) dùng NHIỀU NHẤT cho Bài đang gắn, tính thuần từ dữ liệu đã gắn nhãn trước đó (đếm tần suất `pattern_label` + `error_type` trong bảng `question_option_rationale`, group theo Bài). Không gọi AI, không giới hạn số lần dùng. Nếu Bài chưa có nhãn nào, vẫn cho vào chế độ sửa với 3 dòng trống — sửa luôn lỗi trước đó là **bắt buộc gọi AI thành công mới sửa được**, giờ AI hết hạn mức vẫn gắn nhãn thủ công bình thường.
+- **Dropdown "Nhãn có sẵn"** cho mỗi phương án — chọn 1 cú nhấp từ danh sách nhãn đã dùng cho Bài đó (xếp theo tần suất), tự điền luôn cả loại lỗi đi kèm. Ô gõ tay tự do vẫn còn bên cạnh cho nhãn mới, nhưng giờ không còn là lựa chọn duy nhất — giảm rủi ro gõ lệch chính tả cùng 1 nhãn (vd "Quên đổi cận" vs "quên đổi cận"), quan trọng vì Progress Story (Đợt 5) đếm theo CHUỖI CHÍNH XÁC của `pattern_label`.
+- Nút "Gợi ý bằng AI" vẫn còn (hữu ích khi cần AI soạn mô tả chi tiết dựa vào lời giải), kèm dòng ghi chú nhắc rõ nó dùng chung hạn mức 20 lượt/ngày, nên để dành chứ không dùng cho gắn nhãn hàng loạt.
+
+Đã xác minh lại: `tsc -b` sạch, `vitest run` 382/382 pass (không thêm/bớt test — đây là thay đổi UI/luồng, không phải logic thuần cần unit test mới), `vite build` build thành công.

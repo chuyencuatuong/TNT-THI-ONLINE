@@ -1,0 +1,477 @@
+id,bai_so,bai,difficulty,content_latex,options,correct_answer,solution_latex,image_url
+b761a0c5-4745-4c5d-a34d-45f3ae6b0b24,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có bảng biến thiên như sau:
+
+(có hình minh hoạ — cần dán thủ công)
+
+Hàm số đồng biến trên khoảng nào sau đây?","{""choices"":{""A"":""$(-\\infty; -2)$"",""B"":""$(-1; 1)$"",""C"":""$(0; +\\infty)$"",""D"":""$(-1; +\\infty)$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên $(-\infty; -1)$ và $(1; +\infty)$ nên chọn đáp án A.",null
+96280938-8326-4ec4-b231-d91443c9b5c1,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có đồ thị như hình vẽ:
+
+(có hình minh hoạ — cần dán thủ công)
+
+Giá trị cực tiểu của hàm số bằng","{""choices"":{""A"":""$2$"",""B"":""$-2$"",""C"":""$\\frac{5}{2}$"",""D"":""$-\\frac{5}{2}$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào đồ thị chọn đáp án A.",null
+e105f560-f160-4261-830b-d326e52a2ffc,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có bảng biến thiên như sau:
+
+(có hình minh hoạ — cần dán thủ công)
+
+Hàm số đồng biến trên khoảng nào sau đây?","{""choices"":{""A"":""$(-\\infty; -2)$"",""B"":""$(-1; 1)$"",""C"":""$(0; +\\infty)$"",""D"":""$(-1; +\\infty)$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên $(-\infty; -1)$ và $(1; +\infty)$ nên chọn đáp án A.",null
+3217c374-d934-4ccb-a732-eaf7b65aab3e,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có đồ thị như hình vẽ:
+
+(có hình minh hoạ — cần dán thủ công)
+
+Giá trị cực tiểu của hàm số bằng","{""choices"":{""A"":""$2$"",""B"":""$-2$"",""C"":""$\\frac{5}{2}$"",""D"":""$-\\frac{5}{2}$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào đồ thị chọn đáp án A.",null
+ce640163-ffd1-4e2c-910e-48b7365d278f,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có bảng biến thiên như sau:
+(có hình minh hoạ — cần dán thủ công)
+Hàm số đồng biến trên khoảng nào sau đây?","{""choices"":{""A"":""$(-\\infty; -2)$"",""B"":""$(-1; 1)$"",""C"":""$(0; +\\infty)$"",""D"":""$(-1; +\\infty)$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên $(-\infty; -1)$ và $(1; +\infty)$ nên chọn đáp án A.",null
+3ae45ad2-962f-4946-b271-3481585e2be8,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có đồ thị như hình vẽ:
+(có hình minh hoạ — cần dán thủ công)
+Giá trị cực tiểu của hàm số bằng","{""choices"":{""A"":""$2$"",""B"":""$-2$"",""C"":""$\\frac{5}{2}$"",""D"":""$-\\frac{5}{2}$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào đồ thị chọn đáp án A.",null
+fffea099-61bb-4246-891d-9eba8418687b,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có bảng biến thiên như sau:
+(có hình minh hoạ — cần dán thủ công)
+Hàm số đồng biến trên khoảng nào sau đây?","{""choices"":{""A"":""$(-\\infty; -2)$"",""B"":""$(-1; 1)$"",""C"":""$(0; +\\infty)$"",""D"":""$(-1; +\\infty)$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên $(-\infty; -1)$ và $(1; +\infty)$ nên chọn đáp án A.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/16801127-33a2-4e89-a29e-bcfeb8a9e337.png
+73c55ee9-9012-4b2c-8cf4-0aaff89cf970,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có đồ thị như hình vẽ:
+(có hình minh hoạ — cần dán thủ công)
+Giá trị cực tiểu của hàm số bằng","{""choices"":{""A"":""$2$"",""B"":""$-2$"",""C"":""$\\frac{5}{2}$"",""D"":""$-\\frac{5}{2}$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào đồ thị chọn đáp án A.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/c08d3132-3024-4e73-8d8a-1198f3df0d68.png
+85e4ada1-9f7e-4800-bf61-41f930e333d2,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có bảng biến thiên như sau:
+(có hình minh hoạ — cần dán thủ công)
+Hàm số đồng biến trên khoảng nào sau đây?","{""choices"":{""A"":""$(-\\infty; -2)$"",""B"":""$(-1; 1)$"",""C"":""$(0; +\\infty)$"",""D"":""$(-1; +\\infty)$""}}","{""choice"":""A""}","Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên $(-\infty; -1)$ và $(1; +\infty)$ nên chọn đáp án A.",null
+3a8bb7ab-c0c8-4e1d-864c-9564025093a7,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ có đồ thị như hình vẽ:
+(có hình minh hoạ — cần dán thủ công)
+Giá trị cực tiểu của hàm số bằng","{""choices"":{""A"":""$2$"",""B"":""$-2$"",""C"":""$\\frac{5}{2}$"",""D"":""$-\\frac{5}{2}$""}}","{""choice"":""A""}",Dựa vào đồ thị chọn đáp án A.,null
+518f984f-43de-4126-b3bc-4c467e27326c,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $f(x)$ có bảng biến thiên như sau:
+
+Hàm số đã cho đồng biến trên khoảng nào dưới đây?","{""choices"":{""A"":""$(-\\infty; -1)$"",""B"":""$(0; 1)$"",""C"":""$(-1; 1)$"",""D"":""$(-1; 0)$""}}","{""choice"":""D""}","Chọn D
+Hàm số đã cho đồng biến trên khoảng $(-1;0)$ và $(1;+\infty)$",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/9a490824-07fb-4b33-b990-313647fd30bb.png
+0ed65626-e40b-4614-8265-6e750ab0c5b9,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y = f(x)$ có bảng xét dấu của đạo hàm như hình vẽ. Hàm số đã cho nghịch biến trên khoảng nào dưới đây?
+(có hình minh hoạ — cần dán thủ công)","{""choices"":{""A"":""$(1; +\\infty)$"",""B"":""$(-\\infty; 1)$"",""C"":""$(-1; +\\infty)$"",""D"":""$(-\\infty; -1)$""}}","{""choice"":""D""}","Chọn D
+Từ bảng xét dấu ta thấy hàm số đã cho nghịch biến trên khoảng $(-\infty; -1)$ và $(-1;1)$.
+Vậy hàm số đã cho nghịch biến trên khoảng $(-\infty; -1)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/7330034f-622e-4adb-beae-67fe59becb20.png
+043ed8bd-4b3b-458d-bba6-137197867c4e,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y = f(x)$ có bảng biến thiên như hình dưới đây. Mệnh đề nào sau đây là đúng?
+","{""choices"":{""A"":""Hàm số đã cho đồng biến trên khoảng $\\left(-\\frac{1}{2}; +\\infty\\right)$."",""B"":""Hàm số đã cho đồng biến trên khoảng $(-\\infty; 3)$."",""C"":""Hàm số đã cho nghịch biến trên khoảng $(3; +\\infty)$."",""D"":""Hàm số đã cho nghịch biến trên các khoảng $\\left(-\\infty; -\\frac{1}{2}\\right)$ và $(3; +\\infty)$.""}}","{""choice"":""C""}","Chọn C
+Từ bảng biến thiên ta thấy hàm số đã cho nghịch biến trên khoảng $(3; +\infty)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/a0af9d2c-afc9-48f8-99a4-82e7a536b6ad.png
+f4c2a86d-2ed5-43d4-9581-d01c4b13a0bd,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y = f(x)$ có đồ thị như hình vẽ bên. Hàm số đã cho đồng biến trên khoảng nào dưới đây?
+","{""choices"":{""A"":""$(-\\infty; -1)$"",""B"":""$(-1; 1)$"",""C"":""$(-1; 0)$"",""D"":""$(0; 1)$""}}","{""choice"":""C""}","Chọn C
+Từ đồ thị, ta thấy hàm số đồng biến trên các khoảng $(-1;0)$ và $(1;+\infty)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/4cb1e61d-c52e-430b-b0f1-e2521c7fe23d.png
+145c11de-c5d8-432c-8389-73e124cb61e9,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y = f(x)$ có đồ thị là đường cong trong hình bên. Hàm số đã cho nghịch biến trên khoảng nào dưới đây?
+","{""choices"":{""A"":""$(-1; 0)$"",""B"":""$(-\\infty; -1)$"",""C"":""$(0; 1)$"",""D"":""$(0; +\\infty)$""}}","{""choice"":""A""}","Chọn A
+Dựa vào đồ thị của hàm số $y = f(x)$ ta có:
+Hàm số $y = f(x)$ nghịch biến trên các khoảng $(-1;0)$ và $(1;+\infty)$, đồng biến trên các khoảng $(-\infty;-1)$ và $(0;1)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/8c8e30dc-b7f0-4079-8ed3-8c8116968e32.png
+78d46e65-b640-44ba-b423-6f101924ad4a,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Hàm số nào dưới đây đồng biến trên khoảng $(-\infty; +\infty)$?,"{""choices"":{""A"":""$y = \\frac{x-1}{x-2}$"",""B"":""$y = x^3 + x$"",""C"":""$y = -x^3 - 3x$"",""D"":""$y = \\frac{x+1}{x+3}$""}}","{""choice"":""B""}","Chọn B
+Vì $y = x^3 + x \Rightarrow y' = 3x^2 + 1 > 0, \forall x \in \mathbb{R}$.",null
+0f318ebd-1e03-4cd0-a308-62b4a9c216e2,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y = f(x)$ có bảng biến thiên như sau:
+
+Giá trị cực tiểu của hàm số đã cho bằng","{""choices"":{""A"":""$2$"",""B"":""$3$"",""C"":""$0$"",""D"":""$-4$""}}","{""choice"":""D""}","Chọn D
+Từ bảng biến thiên, ta thấy giá trị cực tiểu của hàm số đã cho bằng $-4$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/0bbe7777-62f5-4f91-9b8e-863cf9be72cc.png
+1b027501-9523-4866-b7b5-28c5ecff71e6,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $f(x)$ có bảng biến thiên như sau:
+
+Hàm số đã cho đạt cực đại tại","{""choices"":{""A"":""$x = -2$"",""B"":""$x = 2$"",""C"":""$x = 1$"",""D"":""$x = -1$""}}","{""choice"":""D""}","Chọn D
+Hàm số đạt cực đại tại điểm mà đạo hàm đổi dấu từ dương sang âm.
+Từ bảng biến thiên hàm số đạt cực đại tại $x = -1$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/be1e49ac-81e8-4293-ba01-f4c19769b7c5.png
+352175be-42f5-41ec-835d-653ca6739e99,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y = ax^3 + bx^2 + cx + d$ ($a, b, c, d \in \mathbb{R}$) có đồ thị như hình vẽ bên. Số điểm cực trị của hàm số này là
+","{""choices"":{""A"":""$3$"",""B"":""$2$"",""C"":""$0$"",""D"":""$1$""}}","{""choice"":""B""}","Chọn B
+Dựa vào hình dạng đồ thị hàm số có hai điểm cực trị.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/963cbc17-c9b5-4cda-a7f0-bb3be71ef765.png
+2c29e153-16ac-43ca-a24b-e84d258228a7,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm $f(x)$ liên tục trên $\mathbb{R}$ và có bảng xét dấu $f'(x)$ như sau:
+
+Số điểm cực tiểu của hàm số là","{""choices"":{""A"":""$1$"",""B"":""$2$"",""C"":""$3$"",""D"":""$4$""}}","{""choice"":""B""}","Chọn B
+Ta thấy $f'(x)$ đổi dấu 2 lần từ $(-)$ sang $(+)$ khi qua các điểm $x = -1; x = 1$ nên hàm số có 2 điểm cực tiểu.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/80f1edf7-4a62-4749-b7c5-5fb8fb158a75.png
+25469253-8d30-4a37-8147-abba0c75d7e2,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $f(x)$ có đạo hàm $f'(x) = x(x-1)(x+4)^3, \forall x \in \mathbb{R}$. Số điểm cực đại của hàm số đã cho là","{""choices"":{""A"":""$3$"",""B"":""$4$"",""C"":""$2$"",""D"":""$1$""}}","{""choice"":""D""}","Chọn D
+Ta có $f'(x) = 0 \Leftrightarrow \begin{bmatrix} x = 0 \\ x = 1 \\ x = -4 \end{bmatrix}$
+Bảng xét dấu $f'(x)$:
+(có hình minh hoạ — cần dán thủ công)
+Từ bảng xét dấu suy ra hàm số có đúng 1 điểm cực đại.",null
+7eeb8cf7-563f-4fa4-ba64-b1ed0c5fb4a9,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số $y = \frac{x^2+3}{x+1}$. Mệnh đề nào dưới đây đúng?,"{""choices"":{""A"":""Cực tiểu của hàm số bằng $-3$"",""B"":""Cực tiểu của hàm số bằng $1$"",""C"":""Cực tiểu của hàm số bằng $-6$"",""D"":""Cực tiểu của hàm số bằng $2$""}}","{""choice"":""D""}","Chọn D
+Ta có: $y' = \frac{x^2+2x-3}{(x+1)^2}$; $y' = 0 \Leftrightarrow x^2+2x-3 = 0 \Leftrightarrow \begin{bmatrix} x = -3 \\ x = 1 \end{bmatrix}$
+Lập bảng biến thiên. Vậy hàm số đạt cực tiểu tại $x = 1$ và giá trị cực tiểu bằng $2$.",null
+00f2e9f7-5c3f-43b0-b064-50ed611ab82a,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Hàm số $y=x^{3}-3x^{2}-9x+7$ đồng biến trên khoảng nào sau đây?,"{""choices"":{""A"":""$(1;+\\infty)$"",""B"":""$(-5;-2)$"",""C"":""$(-\\infty;1)$"",""D"":""$(-1;3)$""}}","{""choice"":""B""}","Tập xác định: $D=\mathbb{R}$.
+Ta có $y^{\prime}=3x^{2}-6x-9$.
+$y^{\prime}=0\Leftrightarrow3x^{2}-6x-9=0\Leftrightarrow\left[\begin{matrix}x=-1\\ x=3\end{matrix}\right.$.
+Bảng xét dấu:
+Từ bảng xét dấu ta thấy hàm số đồng biến trên khoảng $(-\infty;-1)$ nên hàm số đồng biến trên khoảng $(-5;-2)$.",null
+4c41caa3-50f3-47a8-965a-d245b8869105,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=f(x)$ có bảng xét dấu đạo hàm như sau:
+
+Mệnh đề nào dưới đây đúng?","{""choices"":{""A"":""Hàm số đồng biến trên khoảng $(-\\infty;0)$."",""B"":""Hàm số đồng biến trên khoảng $(-2;0)$."",""C"":""Hàm số nghịch biến trên khoảng $(0;2)$."",""D"":""Hàm số nghịch biến trên khoảng $(-\\infty;-2)$.""}}","{""choice"":""C""}","Nhìn vào bảng xét dấu của đạo hàm ta thấy:
+Hàm số đồng biến trên mỗi khoảng $(-\infty;-2)$ và $(2;+\infty)$.
+Hàm số nghịch biến trên mỗi khoảng $(-2;0)$ và $(0;2)$.
+Từ đây suy ra đáp án đúng là: Hàm số nghịch biến trên khoảng $(0;2)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/4533c41e-9087-4b03-ab43-f1ad8072b471.png
+c9594aa9-a422-44f1-ae79-c13775835e64,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số $y=f(x)$ liên tục trên $\mathbb{R}$ và có đạo hàm $f^{\prime}(x)=x^{2}(x^{2}-4)(x^{2}+3x+2)(x+3)$. Hàm số có bao nhiêu điểm cực tiểu?,"{""choices"":{""A"":""$3$"",""B"":""$2$"",""C"":""$1$"",""D"":""$0$""}}","{""choice"":""B""}","$x^{2}(x^{2}-4)(x^{2}+3x+2)(x+3)=0\Leftrightarrow\left[\begin{matrix}x=0\\ x=2\\ x=-2\\ x=-1\\ x=-3\end{matrix}\right.$
+Trong đó $x=-1$; $x=-3$; $x=2$ là nghiệm đơn, $x=-2$; $x=0$ là nghiệm kép.
+Bảng biến thiên:
+Từ bảng biến thiên suy ra hàm số có 2 điểm cực tiểu.",null
+a2b736b7-bc1c-4da5-8abd-202ffb1e6ce6,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số $y=f(x)$ có đồ thị như hình vẽ. Khẳng định nào sau đây đúng?,"{""choices"":{""A"":""Đồ thị hàm số có điểm cực tiểu là $(1;1)$."",""B"":""Đồ thị hàm số có điểm cực tiểu là $(1;-1)$."",""C"":""Đồ thị hàm số có điểm cực tiểu là $(-1;3)$."",""D"":""Đồ thị hàm số có điểm cực đại là $(1;-1)$.""}}","{""choice"":""B""}","Từ đồ thị ta có, đồ thị của hàm số đã cho có điểm cực đại là $(-1;3)$, điểm cực tiểu là $(1;-1)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/04b62bba-3edc-4011-91b7-aff7f2d719d9.png
+7b06b7c4-d383-4fee-9f50-89d95bc13a45,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=f(x)$ có bảng biến thiên như sau:
+
+Tổng số đường tiệm cận đứng và tiệm cận ngang của đồ thị hàm số đã cho bằng:","{""choices"":{""A"":""$2$"",""B"":""$1$"",""C"":""$0$"",""D"":""$3$""}}","{""choice"":""D""}","Ta có:
+$\lim_{x\rightarrow-2^{+}}y=-\infty\Rightarrow x=-2$ là tiệm cận đứng của đồ thị hàm số đã cho.
+$\lim_{x\rightarrow0^{-}}y=+\infty\Rightarrow x=0$ là tiệm cận đứng của đồ thị hàm số đã cho.
+$\lim_{x\rightarrow+\infty}y=0\Rightarrow y=0$ là tiệm cận ngang của đồ thị hàm số đã cho.
+Vậy đồ thị hàm số đã cho có tổng đường tiệm cận đứng và tiệm cận ngang là $3$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/39da0ad6-9816-499c-98af-cdccd277ec57.png
+bc0e7cd0-44a3-4b4e-9b9f-1b8ee05a06fd,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=f(x)$ có bảng biến thiên như sau:
+
+Hàm số $y=f(x)$ nghịch biến trên khoảng nào dưới đây?","{""choices"":{""A"":""$(-2;0)$"",""B"":""$(-\\infty;-2)$"",""C"":""$(0;2)$"",""D"":""$(0;+\\infty)$""}}","{""choice"":""A""}",Dựa vào bảng biến thiên ta thấy hàm số nghịch biến trên các khoảng $(-2;0)$ và $(2;+\infty)$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/cf60e22f-7e47-4bfd-99f2-63edbfb7a70c.png
+d6b4a0b9-9f55-4ac3-88e9-371412042d07,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Hàm số $y=x^{3}-3x^{2}-9x+7$ đồng biến trên khoảng nào sau đây?,"{""choices"":{""A"":""$(1;+\\infty)$"",""B"":""$(-5;-2)$"",""C"":""$(-\\infty;1)$"",""D"":""$(-1;3)$""}}","{""choice"":""B""}","Tập xác định: $D=\mathbb{R}$.
+Ta có $y^{\prime}=3x^{2}-6x-9$.
+$y^{\prime}=0\Leftrightarrow 3x^{2}-6x-9=0\Leftrightarrow\left[\begin{matrix}x=-1\\ x=3\end{matrix}\right.$.
+Từ bảng xét dấu ta thấy hàm số đồng biến trên khoảng $(-\infty;-1)$ nên hàm số đồng biến trên khoảng $(-5;-2)$.",null
+1d7a1b08-0fd2-407d-b0f2-db1e95282400,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=f(x)$ có bảng xét dấu đạo hàm như sau
+
+Mệnh đề nào dưới đây đúng?","{""choices"":{""A"":""Hàm số đồng biến trên khoảng $(-\\infty;0)$."",""B"":""Hàm số đồng biến trên khoảng $(-2;0)$."",""C"":""Hàm số nghịch biến trên khoảng $(0;2)$."",""D"":""Hàm số nghịch biến trên khoảng $(-\\infty;-2)$.""}}","{""choice"":""C""}","Nhìn vào bảng xét dấu của đạo hàm ta thấy:
+Hàm số đồng biến trên mỗi khoảng $(-\infty;-2)$ và $(2;+\infty)$.
+Hàm số nghịch biến trên mỗi khoảng $(-2;0)$ và $(0;2)$.
+Từ đây suy ra đáp án đúng là: Hàm số nghịch biến trên khoảng $(0;2)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/adceb336-cd7b-41ba-85c3-7867a60f6953.png
+a69dcb90-33f4-422f-a364-4c58f77f4ff3,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số $y=f(x)$ liên tục trên $\mathbb{R}$ và có đạo hàm $f^{\prime}(x)=x^{2}(x^{2}-4)(x^{2}+3x+2)(x+3)$. Hàm số có bao nhiêu điểm cực tiểu?,"{""choices"":{""A"":""$3$"",""B"":""$2$"",""C"":""$1$"",""D"":""$0$""}}","{""choice"":""B""}","$f^{\prime}(x)=0\Leftrightarrow\left[\begin{matrix}x=0\\ x=2\\ x=-2\\ x=-1\\ x=-3\end{matrix}\right.$
+Trong đó $x=-1$; $x=-3$; $x=2$ là nghiệm đơn, $x=-2$; $x=0$ là nghiệm kép.
+Dựa vào bảng biến thiên suy ra hàm số có 2 điểm cực tiểu.",null
+affcfb89-4471-4dc3-aa61-5c01145ba6f1,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số $y=f(x)$ có đồ thị như hình vẽ. Khẳng định nào sau đây đúng?,"{""choices"":{""A"":""Đồ thị hàm số có điểm cực tiểu là $(1;1)$."",""B"":""Đồ thị hàm số có điểm cực tiểu là $(1;-1)$."",""C"":""Đồ thị hàm số có điểm cực tiểu là $(-1;3)$."",""D"":""Đồ thị hàm số có điểm cực đại là $(1;-1)$.""}}","{""choice"":""B""}","Từ đồ thị ta có, đồ thị của hàm số đã cho có điểm cực đại là $(-1;3)$, điểm cực tiểu là $(1;-1)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/f8638e54-766b-4d16-9b6a-1c81afc48daa.png
+ca275c9d-c5c7-4597-8629-70e50ba70d76,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $f(x)$ xác định trên $\mathbb{R}$ và có đồ thị của hàm số $f'(x)$ như hình vẽ bên
+
+Hỏi hàm số $f(x)$ có bao nhiêu điểm cực trị?","{""choices"":{""A"":""$0$"",""B"":""$1$"",""C"":""$2$"",""D"":""$4$""}}","{""choice"":""B""}","Ta có $f'(x)=0\Leftrightarrow\left[\begin{matrix}x=-1\\ x=0\\ x=2\end{matrix}\right.$
+Bảng biến thiên:
+Dựa vào bảng biến thiên suy ra hàm số có 1 cực trị.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/f720cda5-d63d-4301-b583-71d7cbe999c8.png
+4ceecc05-afe6-4836-b7cc-6ac83de6c777,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=ax^{3}+bx^{2}+cx+d$ $(a,b,c,d\in\mathbb{R})$ có đồ thị là đường cong trong hình bên. Điểm cực tiểu của hàm số đã cho là","{""choices"":{""A"":""$x=1$"",""B"":""$-2$"",""C"":""$x=-1$"",""D"":""$x=2$""}}","{""choice"":""A""}",null,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/c171d615-0425-4afd-9088-92cbb0f148b1.png
+5123f260-1fac-4e1f-8646-fc27a3770f79,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=ax^{3}+bx^{2}+cx+d$ ($a,b,c,d\in\mathbb{R}$) có đồ thị là đường cong trong hình bên. Giá trị cực đại của hàm số đã cho bằng","{""choices"":{""A"":""$3$"",""B"":""$0$"",""C"":""$-1$"",""D"":""$1$""}}","{""choice"":""A""}","Dựa vào đồ thị, giá trị cực đại của hàm số bằng 3.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/9a22ab5b-0a66-4a91-b891-08580c275ee1.png
+5bca4180-1d23-40be-a603-dcbbdde503dd,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số bậc bốn $y=f(x)$ có đồ thị là đường cong trong hình bên. Số điểm cực tiểu của hàm số đã cho là,"{""choices"":{""A"":""$1$"",""B"":""$3$"",""C"":""$0$"",""D"":""$2$""}}","{""choice"":""D""}",Số điểm cực tiểu của hàm số đã cho là 2.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/2540dc80-ef55-4bfb-b6ff-2b42178a602a.png
+163a3a03-f5f6-4531-86c2-4e076896042e,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,Cho hàm số bậc bốn $y=f(x)$ có đồ thị như đường cong trong hình bên. Số điểm cực tiểu của hàm số đã cho là,"{""choices"":{""A"":""$3$"",""B"":""$1$"",""C"":""$2$"",""D"":""$0$""}}","{""choice"":""C""}",Số cực tiểu là 2.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/5ceed4bb-b34c-4a2d-8c4a-64aaa23858e7.png
+72117ffc-d603-4af2-8891-15325de759b8,1,Bài 1. Tính đơn điệu và cực trị của hàm số,null,"Cho hàm số $y=f(x)$ có đạo hàm $f'(x)=(x+2)(x-1)$, $\forall x\in\mathbb{R}$. Số điểm cực trị của hàm số đã cho là","{""choices"":{""A"":""$2$"",""B"":""$0$"",""C"":""$3$"",""D"":""$1$""}}","{""choice"":""A""}","Xét phương trình $f'(x)=0 \Leftrightarrow f'(x)=(x+2)(x-1)=0\Leftrightarrow\left[\begin{matrix}x+2=0\\ x-1=0\end{matrix}\right.\Leftrightarrow\left[\begin{matrix}x=-2\\ x=1\end{matrix}\right.$
+Ta có bảng xét dấu
+Từ bảng xét dấu ta có số điểm cực trị của hàm số đã cho là 2.",null
+4db30460-14f8-4593-9010-9cc6133b3d4d,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ liên tục trên $(-\infty; 1)$ và $(1; +\infty)$ có bảng biến thiên như sau:
+
+(có hình minh hoạ — cần dán thủ công)
+
+Giá trị nhỏ nhất của hàm số $y = f(x)$ trên đoạn $[2; 7]$ là:","{""choices"":{""A"":""$f(3)$"",""B"":""$-1$"",""C"":""$f(7)$"",""D"":""$f(2)$""}}","{""choice"":""D""}","Chọn D.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên đoạn $[2; 7]$ nên $\min_{[2; 7]} f(x) = f(2)$.",null
+41296e0c-52d0-49b1-9b90-272af1c10dfe,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ liên tục trên $(-\infty; 1)$ và $(1; +\infty)$ có bảng biến thiên như sau:
+
+(có hình minh hoạ — cần dán thủ công)
+
+Giá trị nhỏ nhất của hàm số $y = f(x)$ trên đoạn $[2; 7]$ là:","{""choices"":{""A"":""$f(3)$"",""B"":""$-1$"",""C"":""$f(7)$"",""D"":""$f(2)$""}}","{""choice"":""D""}","Chọn D.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên đoạn $[2; 7]$ nên $\min_{[2; 7]} f(x) = f(2)$.",null
+5018b719-ce04-49ff-9873-e5dbb06a86d3,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ liên tục trên $(-\infty; 1)$ và $(1; +\infty)$ có bảng biến thiên như sau:
+(có hình minh hoạ — cần dán thủ công)
+Giá trị nhỏ nhất của hàm số $y = f(x)$ trên đoạn $[2; 7]$ là:","{""choices"":{""A"":""$f(3)$"",""B"":""$-1$"",""C"":""$f(7)$"",""D"":""$f(2)$""}}","{""choice"":""D""}","Chọn D.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên đoạn $[2; 7]$ nên $\min_{[2; 7]} f(x) = f(2)$.",null
+4bf7657e-c7ac-426a-8d63-be895cf7b785,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ liên tục trên $(-\infty; 1)$ và $(1; +\infty)$ có bảng biến thiên như sau:
+(có hình minh hoạ — cần dán thủ công)
+Giá trị nhỏ nhất của hàm số $y = f(x)$ trên đoạn $[2; 7]$ là:","{""choices"":{""A"":""$f(3)$"",""B"":""$-1$"",""C"":""$f(7)$"",""D"":""$f(2)$""}}","{""choice"":""D""}","Chọn D.
+Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên đoạn $[2; 7]$ nên $\min_{[2; 7]} f(x) = f(2)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/62daabc9-64a3-480a-8bbf-cbce71b3e895.png
+49bf2231-4f9f-4e54-9111-d8896802245a,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"[Mức độ 1] Cho hàm số $y = f(x)$ liên tục trên $(-\infty; 1)$ và $(1; +\infty)$ có bảng biến thiên như sau:
+(có hình minh hoạ — cần dán thủ công)
+Giá trị nhỏ nhất của hàm số $y = f(x)$ trên đoạn $[2; 7]$ là:","{""choices"":{""A"":""$f(3)$"",""B"":""$-1$"",""C"":""$f(7)$"",""D"":""$f(2)$""}}","{""choice"":""D""}","Dựa vào bảng biến thiên, ta thấy hàm số đồng biến trên đoạn $[2; 7]$ nên $\min_{[2; 7]} f(x) = f(2)$.",null
+8eb18f37-78ef-44f2-aece-dbbeef87abb6,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Cho hàm số $f(x) = ax^3 + bx^2 + cx + d$ có đồ thị như hình vẽ bên: (có hình minh hoạ — cần dán thủ công) Giá trị lớn nhất của hàm số đã cho trên đoạn $[-3; 3]$ bằng,"{""choices"":{""A"":""$f(2)$"",""B"":""$f(-1)$"",""C"":""$f(-3)$"",""D"":""$f(3)$""}}","{""choice"":""C""}",Dựa vào đồ thị hàm số đã cho ta thấy hàm số đạt giá trị lớn nhất trên đoạn $[-3; 3]$ bằng $f(-3)$.,null
+6c7fad7d-dee9-4ad4-a3c4-fc5b131737fe,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y = f(x)$ liên tục trên đoạn $[-1; 3]$ và có đồ thị như hình vẽ bên. (có hình minh hoạ — cần dán thủ công) Gọi $M$ và $m$ lần lượt là giá trị lớn nhất và nhỏ nhất của hàm số trên đoạn $[-1; 3]$. Khi đó, tổng $M + m$ bằng","{""choices"":{""A"":""$-6$"",""B"":""$-2$"",""C"":""$-5$"",""D"":""$2$""}}","{""choice"":""B""}","Theo đồ thị, ta có: $M = 2$ và $m = -4 \Rightarrow M + m = -2$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/671e76e9-47bc-43d9-8c0d-20fe1b9fe0a3.png
+8700d29a-7b58-431a-b3f3-cc00f5bd19cc,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,(THPT Yên Lạc - Vĩnh Phúc 2025) Cho hàm số $f(x)$ có đồ thị như hình vẽ (có hình minh hoạ — cần dán thủ công). Giá trị lớn nhất của hàm số đã cho trên khoảng $(-\infty; -1)$ bằng,"{""choices"":{""A"":""$1$"",""B"":""$2$"",""C"":""$-6$"",""D"":""$-3$""}}","{""choice"":""C""}","Chọn C
+Giá trị lớn nhất của hàm số đã cho trên khoảng $(-\infty; -1)$ bằng $-6$.",null
+6fe82204-597a-4edd-820d-444eaa52b6e7,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,(Chuyên Hùng Vương - Phú Thọ 2025) Cho hàm số $y = f(x)$ xác định trên $\mathbb{R}$ và có bảng xét dấu $f'(x)$ như sau: (có hình minh hoạ — cần dán thủ công) Khẳng định nào dưới đây đúng?,"{""choices"":{""A"":""$\\min_{(-2; +\\infty)} f(x) = f(1)$"",""B"":""$\\min_{(-\\infty; -3)} f(x) = f(-3)$"",""C"":""$\\min_{(-2; 1)} f(x) = f(1)$"",""D"":""$\\min_{[-3; -2]} f(x) = f(-2)$""}}","{""choice"":""A""}","Chọn A
+Ta có bảng biến thiên của hàm số (có hình minh hoạ — cần dán thủ công).
+Dựa vào bảng biến thiên ta thấy $\min_{(-2; +\infty)} f(x) = f(1)$.",null
+5cfdd13f-b790-4ad6-af21-2076d103412c,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Gọi $M, m$ lần lượt là giá trị lớn nhất, giá trị nhỏ nhất của hàm số $y = \frac{1}{3}x^3 - 2x^2 + 3x + 1$ trên đoạn $[0; 4]$. Tính tổng $S = M + m$.","{""choices"":{""A"":""\\frac{7}{3}"",""B"":""1"",""C"":""\\frac{10}{3}"",""D"":""4""}}","{""choice"":""C""}","Dễ thấy hàm số liên tục trên $\mathbb{R}$.
+Ta có: $y' = x^2 - 4x + 3 = 0 \Leftrightarrow \begin{bmatrix} x = 1 \\ x = 3 \end{bmatrix}$.
+Ta có: $y(0) = 1$; $y(1) = \frac{7}{3}$; $y(3) = 1$; $y(4) = \frac{7}{3}$.
+Vậy $\begin{cases} M = \max_{[0;4]} y = y(1) = y(4) = \frac{7}{3} \\ m = \min_{[0;4]} y = y(0) = y(3) = 1 \end{cases} \Rightarrow S = M + m = \frac{7}{3} + 1 = \frac{10}{3}$.",null
+a81e1c3f-01ef-4428-9625-10c6911f9dac,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Trên đoạn $[-4; -1]$, hàm số $y = x + \frac{9}{x - 1}$ đạt giá trị lớn nhất bằng","{""choices"":{""A"":""$-5$"",""B"":""$-\\frac{29}{5}$"",""C"":""$-\\frac{11}{2}$"",""D"":""$4$""}}","{""choice"":""A""}","Tập xác định: $D = \mathbb{R} \setminus \{1\}$.
+Ta có $y' = 1 - \frac{9}{(x-1)^2} \Rightarrow y' = 0 \Leftrightarrow 1 - \frac{9}{(x-1)^2} = 0 \Leftrightarrow (x-1)^2 = 9 \Leftrightarrow \begin{bmatrix} x = 4 \notin [-4; -1] \\ x = -2 \in [-4; -1] \end{bmatrix}$.
+Ta thấy $y(-4) = -\frac{29}{5}$; $y(-2) = -5$; $y(-1) = -\frac{11}{2}$. Vậy $\max_{[-4; -1]} y = y(-2) = -5$.",null
+c3d578f0-1b0f-4e22-a673-f2f2b9c2d32b,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị lớn nhất của hàm số $y = 2\cos x - \frac{4}{3}\cos^3 x$ trên $[0; \pi]$.,"{""choices"":{""A"":""$\\max_{[0; \\pi]} y = \\frac{2}{3}$"",""B"":""$\\max_{[0; \\pi]} y = \\frac{10}{3}$"",""C"":""$\\max_{[0; \\pi]} y = \\frac{2\\sqrt{2}}{3}$"",""D"":""$\\max_{[0; \\pi]} y = 0$""}}","{""choice"":""C""}","Đặt $t = \cos x \Rightarrow t \in [-1; 1]$. Đặt $f(t) = 2t - \frac{4}{3}t^3$, suy ra $f'(t) = 2 - 4t^2$.
+Do đó $f'(t) = 0 \Leftrightarrow \begin{bmatrix} t = -\frac{1}{\sqrt{2}} \in [-1; 1] \\ t = \frac{1}{\sqrt{2}} \in [-1; 1] \end{bmatrix}$.
+Ta có $f(-1) = -\frac{2}{3}$, $f\left(-\frac{1}{\sqrt{2}}\right) = -\frac{2\sqrt{2}}{3}$, $f\left(\frac{1}{\sqrt{2}}\right) = \frac{2\sqrt{2}}{3}$, $f(1) = \frac{2}{3}$.
+Vậy $\max_{[0; \pi]} y = \max_{[-1; 1]} f(t) = \frac{2\sqrt{2}}{3}$.",null
+f3c7aa73-41c2-4c42-9f14-63a8362ad792,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Gọi $M, m$ thứ tự là giá trị lớn nhất và giá trị nhỏ nhất của hàm số $y = \frac{x^2 + 3}{x - 1}$ trên đoạn $[-2; 0]$. Tính $P = M + m$?","{""choices"":{""A"":""$P = 1$"",""B"":""$P = -3$"",""C"":""$P = -\\frac{13}{3}$"",""D"":""$P = -5$""}}","{""choice"":""D""}","Tập xác định $D = \mathbb{R} \setminus \{1\}$. Xét trên $[-2; 0]$ hàm số xác định và liên tục.
+Đạo hàm $y' = \frac{2x(x-1) - (x^2 + 3)}{(x-1)^2} = \frac{x^2 - 2x - 3}{(x-1)^2} = 0 \Leftrightarrow \frac{x^2 - 2x - 3}{(x-1)^2} = 0 \Leftrightarrow \begin{bmatrix} x = -1 \in [-2; 0] \\ x = 3 \end{bmatrix}$.
+Khi đó $y(-2) = -\frac{7}{3}, y(0) = -3, y(-1) = -2$.
+Vậy $m = \min_{[-2; 0]} y = -3, M = \max_{[-2; 0]} y = -2 \Rightarrow P = m + M = -5$.",null
+7f8ae028-3234-4a5a-acdb-33e7e836d639,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị lớn nhất của hàm số $y = \sqrt{-x^2 + 3x + 4}$ là bao nhiêu?,"{""choices"":{""A"":""$\\frac{5}{2}$"",""B"":""$\\frac{2}{5}$"",""C"":""$\\frac{3}{2}$"",""D"":""$0$""}}","{""choice"":""A""}","Tập xác định: $D = [-1; 4]$. Ta có $y' = \frac{-2x + 3}{2\sqrt{-x^2 + 3x + 4}} \Rightarrow y' = 0 \Leftrightarrow x = \frac{3}{2}$.
+Khi đó $y(-1) = 0; y(4) = 0; y\left(\frac{3}{2}\right) = \frac{5}{2}$. Vậy $\max_{[-1; 4]} y = \frac{5}{2}$.",null
+41bb22b4-41c2-4d26-9203-a0f75b6b8f5f,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,[ Mức độ 2] Giá trị nhỏ nhất của hàm số $y = x e^x$ trên $[0; 2]$ là,"{""choices"":{""A"":""$\\frac{-1}{e}$"",""B"":""$e$"",""C"":""$2$"",""D"":""$0$""}}","{""choice"":""D""}","$y = x e^x \Rightarrow y' = e^x + x e^x = (x + 1) e^x$.
+$y' = 0 \Leftrightarrow x = -1 \notin [0; 2]$.
+$y(0) = 0; y(2) = 2e^2$.
+$\min_{[0; 2]} y = y(0) = 0$.",null
+c43a7727-c0ca-45d1-9957-5a221d2e077e,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y = f(x)$ liên tục trên đoạn $[-1; 3]$ và có đồ thị như hình vẽ bên. Gọi $M$ và $m$ lần lượt là giá trị lớn nhất và nhỏ nhất của hàm số đã cho trên đoạn $[-1; 3]$. Giá trị của $M - m$ bằng
+","{""choices"":{""A"":""$1$"",""B"":""$4$"",""C"":""$5$"",""D"":""$0$""}}","{""choice"":""C""}","Chọn C
+Dựa vào đồ thị suy ra $M = f(3) = 3; m = f(2) = -2$
+Vậy $M - m = 5$",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/a21b71a7-6dfb-4535-b548-d88e2ed33bbd.png
+b758e2ff-f475-43a8-93ed-65c03891cc30,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y = f(x)$ liên tục trên $[-3; 2]$ và có bảng biến thiên như sau. Gọi $M, m$ lần lượt là giá trị lớn nhất và giá trị nhỏ nhất của hàm số $y = f(x)$ trên đoạn $[-1; 2]$. Tính $M + m$.
+","{""choices"":{""A"":""$3$"",""B"":""$2$"",""C"":""$1$"",""D"":""$4$""}}","{""choice"":""A""}","Chọn A
+Trên đoạn $[-1; 2]$ ta có giá trị lớn nhất $M = 3$ khi $x = -1$ và giá trị nhỏ nhất $m = 0$ khi $x = 0$.
+Khi đó $M + m = 3 + 0 = 3$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/cf741a8b-1935-4f97-8315-a868b8a33aff.png
+be9b8db8-935c-48d9-a087-f6ea0f3490d9,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $f(x)$ liên tục trên $[-1; 5]$ và có đồ thị trên đoạn $[-1; 5]$ như hình vẽ bên dưới. Tổng giá trị lớn nhất và giá trị nhỏ nhất của hàm số $f(x)$ trên đoạn $[-1; 5]$ bằng
+","{""choices"":{""A"":""$-1$"",""B"":""$4$"",""C"":""$1$"",""D"":""$2$""}}","{""choice"":""C""}","Chọn C
+Từ đồ thị ta thấy:
+$\begin{cases} M = \max_{[-1;5]} f(x) = 3 \\ n = \min_{[-1;5]} f(x) = -2 \end{cases} \Rightarrow M + n = 1.$",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/9be60582-b4bc-4886-962b-8c80881dd6d3.png
+4a20526d-71be-4080-85b2-f4f013eb1e36,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y = f(x)$ xác định, liên tục trên $\left[-1; \frac{5}{2}\right]$ và có đồ thị là đường cong như hình vẽ.
+(có hình minh hoạ — cần dán thủ công)
+Giá trị lớn nhất $M$ và giá trị nhỏ nhất $m$ của hàm số $f(x)$ trên $\left[-1; \frac{5}{2}\right]$ là:","{""choices"":{""A"":""$M = 4, m = 1$"",""B"":""$M = 4, m = -1$"",""C"":""$M = \\frac{7}{2}, m = -1$"",""D"":""$M = \\frac{7}{2}, m = 1$""}}","{""choice"":""B""}","Chọn B
+Dựa vào đồ thị $M = 4, m = -1$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/b1a497ad-3709-4bca-b34b-984546af878b.png
+1590e99e-f279-4f36-a339-8c4a944d3341,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $f(x)$   có bảng xét dấu đạo hàm như sau:
+Mệnh đề nào sau đây đúng","{""choices"":{""A"":""$\\max_{[-1;1]} f(x) = f(0)$"",""B"":""$\\max_{(0;+\\infty)} f(x) = f(1)$"",""C"":""$\\min_{(-\\infty;-1)} f(x) = f(-1)$"",""D"":""$\\min_{(-1;+\\infty)} f(x) = f(0)$""}}","{""choice"":""B""}","Chọn B
+(có hình minh hoạ — cần dán thủ công)",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/d9314ac6-588e-4abf-906f-c010cecd6d43.png
+9380b3d8-bf79-48da-bad3-4e4f8b314f2c,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị nhỏ nhất của hàm số $f(x) = x^3 - 21x$ trên đoạn $[2;19]$ bằng,"{""choices"":{""A"":""$-36$"",""B"":""$-14\\sqrt{7}$"",""C"":""$14\\sqrt{7}$"",""D"":""$-34$""}}","{""choice"":""B""}","Chọn B
+Trên đoạn $[2;19]$, ta có: $y' = 3x^2 - 21 \Rightarrow y' = 0 \Leftrightarrow \begin{bmatrix} x = -\sqrt{7} \notin [2;19] \\ x = \sqrt{7} \in [2;19] \end{bmatrix}$.
+Ta có: $y(2) = -34$; $y(\sqrt{7}) = -14\sqrt{7}$; $y(19) = 6460$. Vậy $m = -14\sqrt{7}$.",null
+2b6c7aeb-1742-478e-b55b-c5cc3363fc33,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị nhỏ nhất của hàm số $f(x) = x^4 - 12x^2 - 4$ trên đoạn $[0;9]$ bằng,"{""choices"":{""A"":""$-39$"",""B"":""$-40$"",""C"":""$-36$"",""D"":""$-4$""}}","{""choice"":""B""}","Chọn B
+Ta có: $f'(x) = 4x^3 - 24x$; $f'(x) = 0 \Leftrightarrow \begin{bmatrix} x = 0 \\ x = \pm\sqrt{6} \end{bmatrix}$.
+Tính được: $f(0) = -4$; $f(9) = 5585$ và $f(\sqrt{6}) = -40$.
+Suy ra $\min_{[0;9]} f(x) = -40$.",null
+786d3ae6-55f5-4ddf-8654-bb31643d296f,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Tìm tập giá trị của hàm số $y = \sqrt{x-1} + \sqrt{9-x}$,"{""choices"":{""A"":""$T = [1; 9]$"",""B"":""$T = [2\\sqrt{2}; 4]$"",""C"":""$T = (1; 9)$"",""D"":""$T = [0; 2\\sqrt{2}]$""}}","{""choice"":""B""}","Chọn B
+Tập xác định: $D = [1; 9]$.
+$y' = \frac{1}{2\sqrt{x-1}} - \frac{1}{2\sqrt{9-x}} = 0 \Leftrightarrow \sqrt{9-x} = \sqrt{x-1} \Leftrightarrow \begin{cases} x \ge 1 \\ 9-x = x-1 \end{cases} \Leftrightarrow x = 5$.
+$f(1) = f(9) = 2\sqrt{2}$; $f(5) = 4$.
+Vậy tập giá trị là $T = [2\sqrt{2}; 4]$.",null
+7201d1f0-1269-491f-9ad0-a987c3de11dd,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Tìm giá trị nhỏ nhất $m$ của hàm số $y = x^3 - 7x^2 + 11x - 2$ trên đoạn $[0; 2]$.,"{""choices"":{""A"":""$m = 3$"",""B"":""$m = 0$"",""C"":""$m = -2$"",""D"":""$m = 11$""}}","{""choice"":""C""}","Chọn C
+Xét hàm số trên đoạn $[0; 2]$. Ta có $y' = 3x^2 - 14x + 11$ suy ra $y' = 0 \Leftrightarrow x = 1$.
+Tính $f(0) = -2$; $f(1) = 3$, $f(2) = 0$. Suy ra $\min_{[0;2]} f(x) = f(0) = -2 = m$.",null
+62bfe927-7792-47c4-b49f-1b3ce3b0ee44,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Gọi $m, M$ lần lượt là giá trị nhỏ nhất và giá trị lớn nhất của hàm số $f(x) = \frac{1}{2}x - \sqrt{x+1}$ trên đoạn $[0;3]$. Tính tổng $S = 2m + 3M$.","{""choices"":{""A"":""$S = -\\frac{7}{2}$"",""B"":""$S = -\\frac{3}{2}$"",""C"":""$S = -3$"",""D"":""$S = 4$""}}","{""choice"":""A""}","Chọn A
+Ta có: $f'(x) = \frac{1}{2} - \frac{1}{2\sqrt{x+1}} = \frac{\sqrt{x+1}-1}{2\sqrt{x+1}}$, cho $f'(x) = 0 \Rightarrow \sqrt{x+1} = 1 \Leftrightarrow x = 0 \in [0;3]$.
+Khi đó: $f(0) = -1$, $f(3) = -\frac{1}{2}$ nên $m = -1$ và $M = -\frac{1}{2}$.
+Vậy $S = 2m + 3M = -\frac{7}{2}$.",null
+6f84be38-cc8c-4286-aeab-de12956fb41f,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Tính giá trị nhỏ nhất của hàm số $y = 3x + \frac{4}{x^2}$ trên khoảng $(0; +\infty)$.,"{""choices"":{""A"":""$\\min_{(0;+\\infty)} y = \\frac{33}{5}$"",""B"":""$\\min_{(0;+\\infty)} y = 2\\sqrt[3]{9}$"",""C"":""$\\min_{(0;+\\infty)} y = 3\\sqrt[3]{9}$"",""D"":""$\\min_{(0;+\\infty)} y = 7$""}}","{""choice"":""C""}","Chọn C
+Cách 1:
+$y = 3x + \frac{4}{x^2} = \frac{3x}{2} + \frac{3x}{2} + \frac{4}{x^2} \ge 3\sqrt[3]{\frac{3x}{2} \cdot \frac{3x}{2} \cdot \frac{4}{x^2}} = 3\sqrt[3]{9}$.
+Dấu ""="" xảy ra khi $\frac{3x}{2} = \frac{4}{x^2} \Leftrightarrow x = \sqrt[3]{\frac{8}{3}}$.
+Vậy $\min_{(0;+\infty)} y = 3\sqrt[3]{9}$.
+Cách 2:
+Xét hàm số $y = 3x + \frac{4}{x^2}$ trên khoảng $(0; +\infty)$.
+Ta có $y' = 3 - \frac{8}{x^3}$. Cho $y' = 0 \Leftrightarrow \frac{8}{x^3} = 3 \Leftrightarrow x^3 = \frac{8}{3} \Leftrightarrow x = \sqrt[3]{\frac{8}{3}}$.
+Lập bảng biến thiên (có hình minh hoạ — cần dán thủ công).
+$\Rightarrow \min_{(0;+\infty)} y = y\left(\sqrt[3]{\frac{8}{3}}\right) = 3\sqrt[3]{9}$.",null
+7e2134bd-19a7-4f6c-883c-e8bee14d9eda,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị nhỏ nhất của hàm số $y = x - 5 + \frac{1}{x}$ trên khoảng $(0; +\infty)$ bằng bao nhiêu?,"{""choices"":{""A"":""$0$"",""B"":""$-1$"",""C"":""$-3$"",""D"":""$-2$""}}","{""choice"":""C""}","Chọn C
+Áp dụng bất đẳng thức Cô – si ta có:
+$y = x + \frac{1}{x} - 5 \ge 2\sqrt{x \cdot \frac{1}{x}} - 5 = -3$
+Dấu bằng xảy ra khi $x = \frac{1}{x} \Leftrightarrow x^2 = 1 \Leftrightarrow x = 1$.
+Vậy $\min_{(0;+\infty)} y = -3$",null
+c43ae6f0-58fd-44c9-8719-d7e09feae9e1,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Gọi $M$ và $m$ lần lượt là giá trị lớn nhất và giá trị nhỏ nhất của hàm số $y=x^{3}-3x+2$ trên $[0;2]$. Khi đó tổng $M+m$ bằng,"{""choices"":{""A"":""$4$"",""B"":""$16$"",""C"":""$2$"",""D"":""$6$""}}","{""choice"":""A""}","Đạo hàm $y^{\prime}=3x^{2}-3$.
+$y^{\prime}=0\Leftrightarrow\left[\begin{matrix}x=-1\text{ (L)}\\ x=1\end{matrix}\right.$.
+Ta có: $y(0)=2$, $y(1)=0$ và $y(2)=4$.
+Do đó $M=\max_{[0;2]} y=y(2)=4$ và $m=\min_{[0;2]} y=y(1)=0$. Suy ra $M+m=4$.",null
+71d704e7-be4f-4151-87f4-76830c51e462,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y=f(x)$ liên tục trên đoạn $[1;5]$ và có đồ thị như hình vẽ. Gọi $M, m$ lần lượt là giá trị lớn nhất và giá trị nhỏ nhất của hàm số trên đoạn $[1;5]$. Giá trị $M-m$ bằng:","{""choices"":{""A"":""$2$"",""B"":""$1$"",""C"":""$4$"",""D"":""$5$""}}","{""choice"":""C""}","Dựa vào đồ thị ta thấy $M=4$, $m=0$.
+Do đó $M-m=4$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/6beff1c0-06f9-4a97-bd42-5cf43c140910.png
+6cc5ebec-bafa-4cd3-b109-6a0cceab9906,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $f(x)=ax^{3}+bx^{2}+cx+d$ có đồ thị như hình vẽ bên:
+
+Giá trị lớn nhất của hàm số đã cho trên đoạn $[-3;3]$ bằng","{""choices"":{""A"":""$f(2)$"",""B"":""$f(-1)$"",""C"":""$f(-3)$"",""D"":""$f(3)$""}}","{""choice"":""C""}",Dựa vào đồ thị hàm số đã cho ta thấy hàm số đạt giá trị lớn nhất trên đoạn $[-3;3]$ bằng $f(-3)$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/e2f18ad6-188a-4c4e-bb9b-056f73392b94.png
+ac27920a-4944-4b62-94bc-c83dd6d61f0c,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y=f(x)$ liên tục trên đoạn $[-1;3]$ và có đồ thị như hình vẽ bên. Gọi $M$ và $m$ lần lượt là giá trị lớn nhất và nhỏ nhất của hàm số trên đoạn $[-1;3]$. Khi đó, tổng $M+m$ bằng","{""choices"":{""A"":""$-6$"",""B"":""$-2$"",""C"":""$-5$"",""D"":""$2$""}}","{""choice"":""B""}","Theo đồ thị, ta có: $M=2$ và $m=-4\Rightarrow M+m=-2$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/33bc2483-d1c7-44e4-885f-261a3cc9d0d9.png
+b3ae0562-a1a2-4552-9cc6-86e726569e2d,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $f(x)$ có đồ thị như hình vẽ
+
+Giá trị lớn nhất của hàm số đã cho trên khoảng $(-\infty;-1)$ bằng","{""choices"":{""A"":""$1$"",""B"":""$2$"",""C"":""$-6$"",""D"":""$-3$""}}","{""choice"":""C""}","Chọn C
+Giá trị lớn nhất của hàm số đã cho trên khoảng $(-\infty;-1)$ bằng $-6$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/4fc09ac4-7138-43ee-8f15-0091988235bf.png
+131ca709-8f7f-446b-bc77-de7a1d214681,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Cho hàm số $y=f(x)$ xác định trên $\mathbb{R}$ và có bảng xét dấu $f^{\prime}(x)$ như sau:
+
+Khẳng định nào dưới đây đúng?","{""choices"":{""A"":""$\\min_{(-2;+\\infty)}f(x)=f(1)$"",""B"":""$\\min_{(-\\infty;-3)}f(x)=f(-3)$"",""C"":""$\\min_{(-2;1)}f(x)=f(1)$"",""D"":""$\\min_{[-3;-2]}f(x)=f(-2)$""}}","{""choice"":""A""}","Chọn A
+Ta có bảng biến thiên của hàm số
+Dựa vào bảng biến thiên ta thấy $\min_{(-2;+\infty)}f(x)=f(1)$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/33b7f187-783d-4f17-9ee1-2fe644d39b6a.png
+2e63b290-f922-4032-99de-603de4692213,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Gọi $M, m$ lần lượt là giá trị lớn nhất, giá trị nhỏ nhất của hàm số $y=\frac{1}{3}x^{3}-2x^{2}+3x+1$ trên đoạn $[0;4]$. Tính tổng $S=M+m$.","{""choices"":{""A"":""$\\frac{7}{3}$"",""B"":""$1$"",""C"":""$\\frac{10}{3}$"",""D"":""$4$""}}","{""choice"":""C""}","Dễ thấy hàm số liên tục trên $\mathbb{R}$.
+Ta có: $y^{\prime}=x^{2}-4x+3=0\Leftrightarrow\left[\begin{matrix}x=1\\ x=3\end{matrix}\right.$.
+Ta có: $y(0)=1$; $y(1)=\frac{7}{3}$; $y(3)=1$; $y(4)=\frac{7}{3}$.
+Vậy $\begin{cases}M=\max_{[0;4]}y=y(1)=y(4)=\frac{7}{3}\\ m=\min_{[0;4]}y=y(0)=y(3)=1\end{cases}\Rightarrow S=M+m=\frac{7}{3}+1=\frac{10}{3}$.",null
+c8ff8421-37ad-44a3-864e-93a8584d2a33,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Trên đoạn $[-4;-1]$ hàm số $y=x+\frac{9}{x-1}$ đạt giá trị lớn nhất bằng,"{""choices"":{""A"":""$-5$"",""B"":""$-\\frac{29}{5}$"",""C"":""$-\\frac{11}{2}$"",""D"":""$4$""}}","{""choice"":""A""}","Tập xác định: $D=\mathbb{R}\backslash\{1\}$.
+Ta có $y^{\prime}=1-\frac{9}{(x-1)^{2}}\Rightarrow y^{\prime}=0\Leftrightarrow1-\frac{9}{(x-1)^{2}}=0\Leftrightarrow(x-1)^{2}=9\Leftrightarrow\left[\begin{matrix}x=4\notin[-4;-1]\\ x=-2\in[-4;-1]\end{matrix}\right.$
+Ta thấy $y(-4)=-\frac{29}{5}$; $y(-2)=-5$; $y(-1)=-\frac{11}{2}$.
+Vậy $\max_{[-4;-1]}y=y(-2)=-5$.",null
+7a6a31ca-48cc-4f15-bd1b-7c6723df7d9a,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị lớn nhất của hàm số $y=2\cos x-\frac{4}{3}\cos^{3}x$ trên $[0;\pi]$.,"{""choices"":{""A"":""$\\max_{[0;\\pi]}y=\\frac{2}{3}$"",""B"":""$\\max_{[0;\\pi]}y=\\frac{10}{3}$"",""C"":""$\\max_{[0;\\pi]}y=\\frac{2\\sqrt{2}}{3}$"",""D"":""$\\max_{[0;\\pi]}y=0$""}}","{""choice"":""C""}","Đặt $t=\cos x\Rightarrow t\in[-1;1]$. Đặt $f(t)=2t-\frac{4}{3}t^{3}$, suy ra $f^{\prime}(t)=2-4t^{2}$.
+Do đó $f^{\prime}(t)=0\Leftrightarrow\left[\begin{matrix}t=-\frac{1}{\sqrt{2}}\in[-1;1]\\ t=\frac{1}{\sqrt{2}}\in[-1;1]\end{matrix}\right.$.
+Ta có $f(-1)=-\frac{2}{3}$, $f\left(-\frac{1}{\sqrt{2}}\right)=-\frac{2\sqrt{2}}{3}$, $f\left(\frac{1}{\sqrt{2}}\right)=\frac{2\sqrt{2}}{3}$, $f(1)=\frac{2}{3}$.
+Vậy $\max_{[0;\pi]}y=\max_{[-1;1]}f(t)=\frac{2\sqrt{2}}{3}$.",null
+de77a224-1311-4bf7-af3b-07edc7eb375f,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,"Gọi $M, m$ thứ tự là giá trị lớn nhất và giá trị nhỏ nhất của hàm số $y=\frac{x^{2}+3}{x-1}$ trên đoạn $[-2;0]$. Tính $P=M+m$?","{""choices"":{""A"":""$P=1$"",""B"":""$P=-3$"",""C"":""$P=-\\frac{13}{3}$"",""D"":""$P=-5$""}}","{""choice"":""D""}","Tập xác định $D=\mathbb{R}\backslash\{1\}$. Xét trên $[-2;0]$ hàm số xác định và liên tục.
+Đạo hàm $y^{\prime}=\frac{2x(x-1)-(x^{2}+3)}{(x-1)^{2}}=\frac{x^{2}-2x-3}{(x-1)^{2}}=0\Leftrightarrow\left[\begin{matrix}x=-1\in[-2;0]\\ x=3\notin[-2;0]\end{matrix}\right.$.
+Khi đó $y(-2)=-\frac{7}{3}$, $y(0)=-3$, $y(-1)=-2$.
+Vậy $m=\min_{[-2;0]}y=-3, M=\max_{[-2;0]}y=-2\Rightarrow P=m+M=-5$.",null
+3244b33f-6aec-4165-8205-fb0e723da775,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị lớn nhất của hàm số $y=\sqrt{-x^{2}+3x+4}$ là bao nhiêu?,"{""choices"":{""A"":""$\\frac{5}{2}$"",""B"":""$\\frac{2}{5}$"",""C"":""$\\frac{3}{2}$"",""D"":""$0$""}}","{""choice"":""A""}","Tập xác định: $D=[-1;4]$. Ta có $y^{\prime}=\frac{-2x+3}{2\sqrt{-x^{2}+3x+4}}\Rightarrow y^{\prime}=0\Leftrightarrow x=\frac{3}{2}$.
+Khi đó $y(-1)=0$; $y(4)=0$; $y\left(\frac{3}{2}\right)=\frac{5}{2}$. Vậy $\max_{[-1;4]}y=\frac{5}{2}$.",null
+24f2c527-bb98-48e0-8078-70e047ebb03a,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị nhỏ nhất của hàm số $y=xe^{x}$ trên $[0;2]$ là,"{""choices"":{""A"":""$-\\frac{1}{e}$"",""B"":""$e$"",""C"":""$2$"",""D"":""$0$""}}","{""choice"":""D""}","$y=xe^{x}\Rightarrow y^{\prime}=e^{x}+xe^{x}=(x+1)e^{x}$.
+$y^{\prime}=0\Leftrightarrow x=-1\notin[0;2]$.
+$y(0)=0$; $y(2)=2e^{2}$.
+$\min_{[0;2]}y=y(0)=0$.",null
+f3d27238-e13a-4363-848a-cbb026606144,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Hàm số $f(x)=\log_{2}x$ đạt giá trị lớn nhất trên đoạn $[2;8]$ tại giá trị $x$ bằng bao nhiêu?,"{""choices"":{""A"":""$2$"",""B"":""$8$"",""C"":""$1$"",""D"":""$3$""}}","{""choice"":""B""}","Tập xác định $D=(0;+\infty)$.
+Hàm số $f(x)=\log_{2}x$ có cơ số $a=2>1$ nên đồng biến trên $(0;+\infty)$, suy ra hàm số đồng biến trên đoạn $[2;8]$. Do đó hàm số đạt giá trị lớn nhất tại $x=8$.",null
+bc140845-dcb8-4298-bd50-611d7c476c01,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị nhỏ nhất của hàm số $f(x)=4^{x-1}+4^{3-x}$ là,"{""choices"":{""A"":""$4$"",""B"":""$2$"",""C"":""$2\\sqrt{2}$"",""D"":""$8$""}}","{""choice"":""D""}","Theo bất đẳng thức Cauchy ta có: $4^{x-1}+4^{3-x}\ge2\sqrt{4^{x-1}\cdot4^{3-x}}=8$.
+Do đó $\min_{\mathbb{R}}f(x)=8$ khi $4^{x-1}=4^{3-x}\Leftrightarrow x=2$.",null
+386b06a4-ad7e-4e91-8526-c685ff80ebfd,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Giá trị lớn nhất của hàm số $f(x)=x^3-3x$ trên đoạn $[-3;3]$ bằng,"{""choices"":{""A"":""$-2$"",""B"":""$18$"",""C"":""$2$"",""D"":""$-18$""}}","{""choice"":""B""}","Ta có $y'=3x^2-3=0\Leftrightarrow x=\pm 1$.
+$f(-3)=-18$; $f(-1)=2$; $f(1)=-2$; $f(3)=18\Rightarrow\max_{[-3;3]}y=18$.",null
+15d4eb9c-4fd4-4f41-a2a6-5834b6601911,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Gọi $M$ và $m$ lần lượt là giá trị lớn nhất và giá trị nhỏ nhất của hàm số $y=x^{3}-3x+2$ trên $[0;2]$. Khi đó tổng $M+m$ bằng,"{""choices"":{""A"":""$4$"",""B"":""$16$"",""C"":""$2$"",""D"":""$6$""}}","{""choice"":""A""}","Đạo hàm $y^{\prime}=3x^{2}-3$.
+$y^{\prime}=0\Leftrightarrow\left[\begin{matrix}x=-1\text{ (loại)}\\ x=1\end{matrix}\right.$
+Ta có: $y(0)=2$, $y(1)=0$ và $y(2)=4$.
+Do đó $M=\max_{[0;2]} y = y(2) = 4$ và $m=\min_{[0;2]} y = y(1)=0$. Suy ra $M+m=4$.",null
+12fc6e77-4cab-4dc3-a654-dea5a72e89eb,2,Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số,null,Cho hàm số $f(x)$ liên tục trên $[-1;5]$ và có đồ thị trên đoạn $[-1;5]$ như hình vẽ bên dưới. Tổng giá trị lớn nhất và giá trị nhỏ nhất của hàm số $f(x)$ trên đoạn $[-1;5]$ bằng,"{""choices"":{""A"":""$-1$"",""B"":""$4$"",""C"":""$1$"",""D"":""$2$""}}","{""choice"":""C""}",Từ đồ thị ta thấy: $\begin{cases}M=\max_{[-1;5]} f(x)=3\\ m=\min_{[-1;5]} f(x)=-2\end{cases}\Rightarrow M+m=1$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/c99dbf73-457a-4e3e-8445-0f06cedbc6ba.png
+ec75d7a8-bc75-4a51-b33b-5d33f457d568,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Tiệm cận ngang của đồ thị hàm số $y = \frac{x-2}{x+1}$ là,"{""choices"":{""A"":""$y = -2$"",""B"":""$y = 1$"",""C"":""$x = -1$"",""D"":""$x = 2$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} y = \lim_{x \to +\infty} \frac{x-2}{x+1} = 1$ và $\lim_{x \to -\infty} y = \lim_{x \to -\infty} \frac{x-2}{x+1} = 1$.
+
+Vậy đồ thị hàm số $y = \frac{x-2}{x+1}$ có tiệm cận ngang là $y = 1$.",null
+bf2a48ea-4e13-4822-8488-89c6a299da64,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có đường tiệm cận xiên là,"{""choices"":{""A"":""$y = 2x - 3$"",""B"":""$y = 2x + 1$"",""C"":""$y = 2x - 1$"",""D"":""$y = x + 1$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} (y - (2x+1)) = \lim_{x \to +\infty} \left(-\frac{3}{x+1}\right) = 0$ và $\lim_{x \to -\infty} (y - (2x+1)) = \lim_{x \to -\infty} \left(-\frac{3}{x+1}\right) = 0$.
+
+Vậy đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có tiệm cận xiên là $y = 2x + 1$.",null
+485f4e3e-c002-46e6-9615-bd81c82696ba,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Tiệm cận ngang của đồ thị hàm số $y = \frac{x-2}{x+1}$ là,"{""choices"":{""A"":""$y = -2$"",""B"":""$y = 1$"",""C"":""$x = -1$"",""D"":""$x = 2$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} y = \lim_{x \to +\infty} \frac{x-2}{x+1} = 1$ và $\lim_{x \to -\infty} y = \lim_{x \to -\infty} \frac{x-2}{x+1} = 1$.
+
+Vậy đồ thị hàm số $y = \frac{x-2}{x+1}$ có tiệm cận ngang là $y = 1$.",null
+2866b4ff-ca3c-42d3-9e70-dc7cf76eeda0,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có đường tiệm cận xiên là,"{""choices"":{""A"":""$y = 2x - 3$"",""B"":""$y = 2x + 1$"",""C"":""$y = 2x - 1$"",""D"":""$y = x + 1$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} (y - (2x+1)) = \lim_{x \to +\infty} \left(-\frac{3}{x+1}\right) = 0$ và $\lim_{x \to -\infty} (y - (2x+1)) = \lim_{x \to -\infty} \left(-\frac{3}{x+1}\right) = 0$.
+
+Vậy đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có tiệm cận xiên là $y = 2x + 1$.",null
+6c827782-217b-489e-ac36-e4d6fc995bec,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Tiệm cận ngang của đồ thị hàm số $y = \frac{x-2}{x+1}$ là,"{""choices"":{""A"":""$y = -2$"",""B"":""$y = 1$"",""C"":""$x = -1$"",""D"":""$x = 2$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} y = \lim_{x \to +\infty} \frac{x-2}{x+1} = 1$ và $\lim_{x \to -\infty} y = \lim_{x \to -\infty} \frac{x-2}{x+1} = 1$.
+Vậy đồ thị hàm số $y = \frac{x-2}{x+1}$ có tiệm cận ngang là $y = 1$.",null
+1a71dfa5-432f-4a06-8969-b06ea10e0cd3,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có đường tiệm cận xiên là,"{""choices"":{""A"":""$y = 2x - 3$"",""B"":""$y = 2x + 1$"",""C"":""$y = 2x - 1$"",""D"":""$y = x + 1$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} (y - (2x + 1)) = \lim_{x \to +\infty} (-\frac{3}{x+1}) = 0$ và $\lim_{x \to -\infty} (y - (2x + 1)) = \lim_{x \to -\infty} (-\frac{3}{x+1}) = 0$.
+Vậy đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có tiệm cận xiên là $y = 2x + 1$.",null
+d0cc5a63-689f-4221-8aed-208bfc30303c,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Tiệm cận ngang của đồ thị hàm số $y = \frac{x-2}{x+1}$ là,"{""choices"":{""A"":""$y = -2$"",""B"":""$y = 1$"",""C"":""$x = -1$"",""D"":""$x = 2$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} y = \lim_{x \to +\infty} \frac{x-2}{x+1} = 1$ và $\lim_{x \to -\infty} y = \lim_{x \to -\infty} \frac{x-2}{x+1} = 1$.
+Vậy đồ thị hàm số $y = \frac{x-2}{x+1}$ có tiệm cận ngang là $y = 1$.",null
+bb6a0984-d5fa-4968-9f67-429bb370323a,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có đường tiệm cận xiên là,"{""choices"":{""A"":""$y = 2x - 3$"",""B"":""$y = 2x + 1$"",""C"":""$y = 2x - 1$"",""D"":""$y = x + 1$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} (y - (2x + 1)) = \lim_{x \to +\infty} (-\frac{3}{x+1}) = 0$ và $\lim_{x \to -\infty} (y - (2x + 1)) = \lim_{x \to -\infty} (-\frac{3}{x+1}) = 0$.
+Vậy đồ thị hàm số $y = 2x + 1 - \frac{3}{x+1}$ có tiệm cận xiên là $y = 2x + 1$.",null
+badd2131-d80e-47c2-b166-16c0b7ca95c3,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Tiệm cận ngang của đồ thị hàm số $y = \frac{x - 2}{x + 1}$ là,"{""choices"":{""A"":""$y = -2$"",""B"":""$y = 1$"",""C"":""$x = -1$"",""D"":""$x = 2$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} y = \lim_{x \to +\infty} \frac{x - 2}{x + 1} = 1$ và $\lim_{x \to -\infty} y = \lim_{x \to -\infty} \frac{x - 2}{x + 1} = 1$.
+Vậy đồ thị hàm số $y = \frac{x - 2}{x + 1}$ có tiệm cận ngang là $y = 1$.",null
+974aaf11-ceae-4f1b-8fa9-55c5ae6335f5,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Đồ thị hàm số $y = 2x + 1 - \frac{3}{x + 1}$ có đường tiệm cận xiên là,"{""choices"":{""A"":""$y = 2x - 3$"",""B"":""$y = 2x + 1$"",""C"":""$y = 2x - 1$"",""D"":""$y = x + 1$""}}","{""choice"":""B""}","Ta có $\lim_{x \to +\infty} (y - (2x + 1)) = \lim_{x \to +\infty} \left(-\frac{3}{x + 1}\right) = 0$ và $\lim_{x \to -\infty} (y - (2x + 1)) = \lim_{x \to -\infty} \left(-\frac{3}{x + 1}\right) = 0$.
+Vậy đồ thị hàm số $y = 2x + 1 - \frac{3}{x + 1}$ có tiệm cận xiên là $y = 2x + 1$.",null
+838d9d4a-97c5-4b99-868f-c0ecd892fca8,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[ Mức độ 1] Cho hàm số $y = f(x)$ có $\lim_{x \to +\infty} f(x) = a$ hoặc $\lim_{x \to -\infty} f(x) = a$ với $a$ là hằng số. Khẳng định nào sau đây là khẳng định đúng?,"{""choices"":{""A"":""Đồ thị hàm số đã cho có tiệm cận đứng là đường thẳng $x = a$."",""B"":""Đồ thị hàm số đã cho có đường tiệm cận ngang là đường thẳng $y = a$."",""C"":""Đồ thị hàm số đã cho có hai đường tiệm cận ngang là các đường thẳng $y = a$ và $y = -a$."",""D"":""Đồ thị hàm số đã cho không có tiệm cận ngang.""}}","{""choice"":""B""}","Chọn B.
+Dựa vào định nghĩa đường tiệm cận ngang của đồ thị hàm số ta chọn đáp án.",null
+4b48e49d-b05a-4e49-8c4e-e53ac81ab63e,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[ Mức độ 1] Đường thẳng $y = ax + b$ ($a \neq 0$) là tiệm cận xiên của đồ thị hàm số $y = f(x)$. Mệnh đề nào sau đây đúng,"{""choices"":{""A"":""$\\lim_{x \\to +\\infty} [f(x) - (ax + b)] = a$."",""B"":""$\\lim_{x \\to +\\infty} [f(x) - (ax + b)] = 0$ hoặc $\\lim_{x \\to -\\infty} [f(x) - (ax + b)] = 0$."",""C"":""$\\lim_{x \\to +\\infty} [f(x) - (ax + b)] = b$."",""D"":""$\\lim_{x \\to +\\infty} [f(x) - (ax + b)] = 0$.""}}","{""choice"":""B""}",Chọn B.,null
+39fe5944-8c74-4c02-a5bc-a70ba146e733,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,"[ Mức độ 1] Điều kiện nào sau đây xác định tiệm cận đứng của đồ thị hàm số $y = f(x)$, với $a, b$ là các hằng số?","{""choices"":{""A"":""$\\lim_{x \\to a} f(x) = b$."",""B"":""$\\lim_{x \\to \\pm\\infty} f(x) = a$."",""C"":""$\\lim_{x \\to a^-} f(x) = \\pm\\infty$ hoặc $\\lim_{x \\to a^+} f(x) = \\pm\\infty$."",""D"":""$\\lim_{x \\to a} f(x) = b$ tồn tại và là số hữu hạn.""}}","{""choice"":""C""}","Chọn C.
+Dựa vào định nghĩa đường tiệm cận đứng của đồ thị hàm số ta chọn đáp án.",null
+6fb6b76f-219d-44ab-a4b0-da40e37c8007,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,[Mức độ 1] Tiệm cận đứng của đồ thị hàm số $y = f(x) = \frac{x - 2}{x + 1}$ là:,"{""choices"":{""A"":""$x = -1$."",""B"":""$x = 1$."",""C"":""$x = -2$."",""D"":""$x = -2$.""}}","{""choice"":""A""}","Chọn A.
+Tập xác định $D = \mathbb{R} \setminus \{-1\}$.
+Ta có: $\lim_{x \to (-1)^+} f(x) = \lim_{x \to (-1)^+} \frac{x-2}{x+1} = -\infty$, $\lim_{x \to (-1)^-} f(x) = \lim_{x \to (-1)^-} \frac{x-2}{x+1} = +\infty$.
+Vậy đường thẳng $x = -1$ là tiệm cận đứng của đồ thị hàm số đã cho.
+Vậy chọn đáp án A.",null
+334c76bd-3dfd-4b8f-a995-a772db43f68d,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Cho hàm số $y = \frac{ax + b}{cx + d}$ ($ad - bc \neq 0; ac \neq 0$) có đồ thị như hình vẽ bên dưới. (có hình minh hoạ — cần dán thủ công) Tìm phương trình đường tiệm cận đứng và tiệm cận ngang của đồ thị hàm số.,"{""choices"":{""A"":""$x = 1, y = 1$."",""B"":""$x = -1, y = 1$."",""C"":""$x = 1, y = 2$."",""D"":""$x = 2, y = 1$.""}}","{""choice"":""A""}","Chọn A.
+Dựa vào đồ thị hàm số, ta suy ra:
+- Phương trình đường tiệm cận đứng của đồ thị hàm số: $x = 1$.
+- Phương trình đường tiệm cận ngang của đồ thị hàm số: $y = 1$.",null
+fd27df0f-a6e4-43f9-8aa8-8918f6842980,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Cho hàm số $y=f(x)$ có $\lim_{x\rightarrow+\infty}f(x)=2024$ và $\lim_{x\rightarrow-\infty}f(x)=-2024$. Khẳng định nào sau đây là khẳng định đúng?,"{""choices"":{""A"":""Đồ thị hàm số đã cho có hai tiệm cận ngang là các đường thẳng $x=2024$ và $x=-2024$."",""B"":""Đồ thị hàm số đã cho không có tiệm cận ngang."",""C"":""Đồ thị hàm số đã cho có đúng một tiệm cận ngang."",""D"":""Đồ thị hàm số đã cho có hai tiệm cận ngang là các đường thẳng $y=2024$ và $y=-2024$.""}}","{""choice"":""D""}",Dựa vào định nghĩa đường tiệm cận ngang của đồ thị hàm số ta chọn đáp án D.,null
+5af58bf3-84c5-414f-84bd-c72d70699942,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Đường tiệm cận ngang của đồ thị hàm số $y=\frac{x-2}{-x+1}$ là,"{""choices"":{""A"":""$y=-2$"",""B"":""$y=-1$"",""C"":""$x=-1$"",""D"":""$x=2$""}}","{""choice"":""B""}","Ta có $\lim_{x\rightarrow+\infty}\frac{x-2}{-x+1}=-1$ và $\lim_{x\rightarrow-\infty}\frac{x-2}{-x+1}=-1$.
+Suy ra $y=-1$ là tiệm cận ngang của đồ thị hàm số.",null
+befeec58-66ae-4633-ae59-9644f5590671,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Đường tiệm cận xiên của đồ thị hàm số $y=\frac{x^{2}-2x+2}{x-1}$ là,"{""choices"":{""A"":""$y=x+1$"",""B"":""$y=x-1$"",""C"":""$x=3$"",""D"":""$x=2$""}}","{""choice"":""B""}","Ta có $\lim_{x\rightarrow+\infty}\left(\frac{x^{2}-2x+2}{x-1}-(x-1)\right)=0$ và $\lim_{x\rightarrow-\infty}\left(\frac{x^{2}-2x+2}{x-1}-(x-1)\right)=0$.
+Suy ra $y=x-1$ là đường tiệm cận xiên của đồ thị hàm số.",null
+bded0cb5-b544-49ef-9610-5f134f0d3b1f,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Cho hàm số $y=f(x)$ có $\lim_{x\rightarrow+\infty}f(x)=a$ hoặc $\lim_{x\rightarrow-\infty}f(x)=a$ với $a$ là hằng số. Khẳng định nào sau đây là khẳng định đúng?,"{""choices"":{""A"":""Đồ thị hàm số đã cho có tiệm cận đứng là đường thẳng $x=a$."",""B"":""Đồ thị hàm số đã cho có đường tiệm cận ngang là đường thẳng $y=a$."",""C"":""Đồ thị hàm số đã cho có hai đường tiệm cận ngang là các đường thẳng $y=a$ và $y=-a$."",""D"":""Đồ thị hàm số đã cho không có tiệm cận ngang.""}}","{""choice"":""B""}","Chọn B.
+Dựa vào định nghĩa đường tiệm cận ngang của đồ thị hàm số ta chọn đáp án B.",null
+63553d1d-504a-46e6-8bb2-ba0cf12746c6,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Đường thẳng $y=ax+b$ ($a\ne0$) là tiệm cận xiên của đồ thị hàm số $y=f(x)$. Mệnh đề nào sau đây đúng,"{""choices"":{""A"":""$\\lim_{x\\rightarrow+\\infty}[f(x)-(ax+b)]=a$"",""B"":""$\\lim_{x\\rightarrow+\\infty}[f(x)-(ax+b)]=0$ hoặc $\\lim_{x\\rightarrow-\\infty}[f(x)-(ax+b)]=0$"",""C"":""$\\lim_{x\\rightarrow+\\infty}[f(x)-(ax+b)]=b$"",""D"":""$\\lim_{x\\rightarrow+\\infty}[f(x)-(ax+b)]=0$""}}","{""choice"":""B""}","Chọn B.
+Dựa vào định nghĩa đường tiệm cận xiên của đồ thị hàm số ta chọn đáp án B.",null
+7c818fea-27f6-45e5-be1b-6c151ef84515,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,"Điều kiện nào sau đây xác định tiệm cận đứng của đồ thị hàm số $y=f(x)$, với $a,b$ là các hằng số?","{""choices"":{""A"":""$\\lim_{x\\rightarrow a}f(x)=b$"",""B"":""$\\lim_{x\\rightarrow\\pm\\infty}f(x)=a$"",""C"":""$\\lim_{x\\rightarrow a^{-}}f(x)=\\pm\\infty$ hoặc $\\lim_{x\\rightarrow a^{+}}f(x)=\\pm\\infty$"",""D"":""$\\lim_{x\\rightarrow a}f(x)=b$ tồn tại và là số hữu hạn""}}","{""choice"":""C""}","Chọn C.
+Dựa vào định nghĩa đường tiệm cận đứng của đồ thị hàm số ta chọn đáp án C.",null
+eca800c0-59e3-4518-8271-c47bafcf1ba5,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Tiệm cận đứng của đồ thị hàm số $y=f(x)=\frac{x-2}{x+1}$ là:,"{""choices"":{""A"":""$x=-1$"",""B"":""$x=1$"",""C"":""$x=-2$"",""D"":""$x=2$""}}","{""choice"":""A""}","Chọn A.
+Tập xác định $D=\mathbb{R}\backslash\{-1\}$.
+Ta có: $\lim_{x\rightarrow(-1)^{+}}f(x)=\lim_{x\rightarrow(-1)^{+}}\frac{x-2}{x+1}=-\infty$.
+$\lim_{x\rightarrow(-1)^{-}}f(x)=\lim_{x\rightarrow(-1)^{-}}\frac{x-2}{x+1}=+\infty$.
+Vậy đường thẳng $x=-1$ là tiệm cận đứng của đồ thị hàm số đã cho.",null
+377d31a8-b182-4bec-9bc8-850730a1bc4f,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Cho hàm số $y=\frac{ax+b}{cx+d}$ ($ad-bc\ne0$; $ac\ne0$) có đồ thị như hình vẽ bên dưới. Tìm phương trình đường tiệm cận đứng và tiệm cận ngang của đồ thị hàm số.,"{""choices"":{""A"":""$x=1$, $y=1$"",""B"":""$x=-1$, $y=1$"",""C"":""$x=1$, $y=2$"",""D"":""$x=2$, $y=1$""}}","{""choice"":""A""}","Chọn A.
+Dựa vào đồ thị hàm số, ta suy ra:
+
+* Phương trình đường tiệm cận đứng của đồ thị hàm số: $x=1$.
+* Phương trình đường tiệm cận ngang của đồ thị hàm số: $y=1$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/61084f26-5df7-4f6e-a8f5-1bddd729f303.png
+4453d385-b6e6-4935-84f2-4877b9220d64,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Đường tiệm cận ngang của đồ thị hàm số $y=\frac{x-2}{-x+1}$ là,"{""choices"":{""A"":""$y=-2$"",""B"":""$y=-1$"",""C"":""$x=-1$"",""D"":""$x=2$""}}","{""choice"":""B""}",Ta có $\lim_{x\rightarrow+\infty}\frac{x-2}{-x+1}=-1$ và $\lim_{x\rightarrow-\infty}\frac{x-2}{-x+1}=-1$. Suy ra $y=-1$ là tiệm cận ngang của đồ thị hàm số.,null
+82b59582-124e-4c0b-8d11-7dc1fd77c1e9,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Đường tiệm cận xiên của đồ thị hàm số $y=\frac{x^{2}-2x+2}{x-1}$ là,"{""choices"":{""A"":""$y=x+1$"",""B"":""$y=x-1$"",""C"":""$x=3$"",""D"":""$x=2$""}}","{""choice"":""B""}",Ta có $\lim_{x\rightarrow+\infty}\left(\frac{x^{2}-2x+2}{x-1}-(x-1)\right)=0$ và $\lim_{x\rightarrow-\infty}\left(\frac{x^{2}-2x+2}{x-1}-(x-1)\right)=0$. Suy ra $y=x-1$ là đường tiệm cận xiên của đồ thị hàm số.,null
+9ffe792f-c8a1-4055-a463-a3b658a12453,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Tiệm cận đứng của đồ thị hàm số $y=\frac{3x-1}{x-2}$ có phương trình là,"{""choices"":{""A"":""$x=2$"",""B"":""$x=-2$"",""C"":""$x=3$"",""D"":""$x=\\frac{1}{2}$""}}","{""choice"":""A""}",Ta có $\lim_{x\rightarrow2^{+}}\frac{3x-1}{x-2}=+\infty$ và $\lim_{x\rightarrow2^{-}}\frac{3x-1}{x-2}=-\infty$ nên tiệm cận đứng của đồ thị hàm số $y=\frac{3x-1}{x-2}$ có phương trình là $x=2$.,null
+74250c21-a1ab-4d1c-b281-c1e634f1abc2,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,"Cho hàm số $y=f(x)$ có bảng biến thiên như sau
+
+Tiệm cận đứng của đồ thị hàm số đã cho có phương trình là","{""choices"":{""A"":""$x=-1$"",""B"":""$x=-3$"",""C"":""$x=3$"",""D"":""$x=1$""}}","{""choice"":""D""}",Quan sát bảng biến thiên ta thấy $\lim_{x\rightarrow1^{+}}f(x)=-\infty$; $\lim_{x\rightarrow1^{-}}f(x)=+\infty$. Do đó đường thẳng $x=1$ là tiệm cận đứng của đồ thị hàm số $y=f(x)$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/11678b37-bdf1-43db-aad3-e0b0151dbe23.png
+f809e1bd-972a-4023-aef9-6fbc025da91e,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Tiệm cận ngang của đồ thị hàm số $y=\frac{5x-1}{x+1}$ là đường thẳng có phương trình:,"{""choices"":{""A"":""$y=5$"",""B"":""$y=1$"",""C"":""$y=-5$"",""D"":""$y=-1$""}}","{""choice"":""A""}",Tiệm cận ngang của đồ thị hàm số $y=\frac{5x-1}{x+1}$ là đường thẳng có phương trình $y=5$.,null
+223f8e50-4082-4733-9c90-af259a76406a,3,Bài 3. Đường tiệm cận của đồ thị hàm số,null,Cho hàm số $y=f(x)$ có bảng biến thiên như hình vẽ bên. Hỏi đồ thị hàm số đã cho có bao nhiêu đường tiệm cận?,"{""choices"":{""A"":""$1$"",""B"":""$3$"",""C"":""$2$"",""D"":""$4$""}}","{""choice"":""B""}",Chọn B. $\lim_{x\rightarrow+\infty}y=0\Rightarrow$ TCN: $y=0$. $\lim_{x\rightarrow-2^{+}}y=-\infty\Rightarrow$ TCĐ: $x=-2$. $\lim_{x\rightarrow0^{-}}y=+\infty\Rightarrow$ TCĐ: $x=0$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/c9d8d7eb-173b-4aaf-a9eb-ab3588f8d7cf.png
+69900e41-1173-4780-ab28-e3712d5d2772,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,"[Mức độ 1] Đường cong trong hình bên là đồ thị của một hàm số trong bốn hàm số được liệt kê ở bốn phương án $A, B, C, D$ dưới đây. Hỏi hàm số đó là hàm số nào?
+
+(có hình minh hoạ — cần dán thủ công)","{""choices"":{""A"":""$y = \\frac{-x^2 + x - 1}{x - 1}$"",""B"":""$y = -x^3 + 3x + 1$"",""C"":""$y = \\frac{x - 1}{x + 2}$"",""D"":""$y = x^3 - 3x + 1$""}}","{""choice"":""D""}","Đường cong ở hình trên là hình dạng của đồ thị hàm số bậc 3, với $a > 0$, nên các đáp án A, B, C đều sai.
+
+Do đó đường cong ở hình trên là đồ thị của hàm số $y = x^3 - 3x + 1$.",null
+4ba929c9-0111-4a81-ad09-0697fb800634,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,"[Mức độ 1] Đường cong trong hình bên là đồ thị của một hàm số trong bốn hàm số được liệt kê ở bốn phương án $A, B, C, D$ dưới đây. Hỏi hàm số đó là hàm số nào?
+
+(có hình minh hoạ — cần dán thủ công)","{""choices"":{""A"":""$y = \\frac{-x^2 + x - 1}{x - 1}$"",""B"":""$y = -x^3 + 3x + 1$"",""C"":""$y = \\frac{x - 1}{x + 2}$"",""D"":""$y = x^3 - 3x + 1$""}}","{""choice"":""D""}","Đường cong ở hình trên là hình dạng của đồ thị hàm số bậc 3, với $a > 0$, nên các đáp án A, B, C đều sai.
+
+Do đó đường cong ở hình trên là đồ thị của hàm số $y = x^3 - 3x + 1$.",null
+2567929b-1488-42cc-b568-1a6b4c43ecf0,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,"[Mức độ 1] Đường cong trong hình bên là đồ thị của một hàm số trong bốn hàm số được liệt kê ở bốn phương án $A, B, C, D$ dưới đây. Hỏi hàm số đó là hàm số nào?
+(có hình minh hoạ — cần dán thủ công)","{""choices"":{""A"":""$y = \\frac{-x^2+x-1}{x-1}$"",""B"":""$y = -x^3+3x+1$"",""C"":""$y = \\frac{x-1}{x+2}$"",""D"":""$y = x^3-3x+1$""}}","{""choice"":""D""}","Đường cong ở hình trên là hình dạng của đồ thị hàm số bậc 3, với $a > 0$, nên các đáp án A, B, C đều sai.
+Do đó đường cong ở hình trên là đồ thị của hàm số $y = x^3-3x+1$",null
+3bdffb90-ed43-4e6e-ba42-7db6604e53bd,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,"[Mức độ 1] Đường cong trong hình bên là đồ thị của một hàm số trong bốn hàm số được liệt kê ở bốn phương án $A, B, C, D$ dưới đây. Hỏi hàm số đó là hàm số nào?
+(có hình minh hoạ — cần dán thủ công)","{""choices"":{""A"":""$y = \\frac{-x^2+x-1}{x-1}$"",""B"":""$y = -x^3+3x+1$"",""C"":""$y = \\frac{x-1}{x+2}$"",""D"":""$y = x^3-3x+1$""}}","{""choice"":""D""}","Đường cong ở hình trên là hình dạng của đồ thị hàm số bậc 3, với $a > 0$, nên các đáp án A, B, C đều sai.
+Do đó đường cong ở hình trên là đồ thị của hàm số $y = x^3-3x+1$",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/67ecdb2c-fb1a-45f2-bb25-70bc492a3f81.png
+87911792-18f5-4be0-bb7f-7adeabafb83d,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,"[Mức độ 1] Đường cong trong hình bên là đồ thị của một hàm số trong bốn hàm số được liệt kê ở bốn phương án A, B, C, D dưới đây. Hỏi hàm số đó là hàm số nào?
+(có hình minh hoạ — cần dán thủ công)","{""choices"":{""A"":""$y = \\frac{-x^2 + x - 1}{x - 1}$"",""B"":""$y = -x^3 + 3x + 1$"",""C"":""$y = \\frac{x - 1}{x + 2}$"",""D"":""$y = x^3 - 3x + 1$""}}","{""choice"":""D""}","Đường cong ở hình trên là hình dạng của đồ thị hàm số bậc 3, với $a > 0$, nên các đáp án A, B, C đều sai.
+Do đó đường cong ở hình trên là đồ thị của hàm số $y = x^3 - 3x + 1$.",null
+934b12b7-c1b5-4b56-a9a8-d2510b02fdcd,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Cho hàm số $y=\frac{ax+b}{x+c}$ có đồ thị như hình sau. Khẳng định nào sau đây đúng?,"{""choices"":{""A"":""$a<0, b<0, c<0$"",""B"":""$a<0, b>0, c>0$"",""C"":""$a>0, b>0, c>0$"",""D"":""$a>0, b>0, c<0$""}}","{""choice"":""A""}","Nhìn vào đồ thị ta có:
+Tiệm cận ngang $y=a<0$.
+Tiệm cận đứng $x=-c>0\Leftrightarrow c<0$.
+Đồ thị hàm số cắt trục tung tại điểm có tung độ dương nên $\frac{b}{c}>0\Leftrightarrow b<0$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/d468decd-db6f-451a-8e69-b64ac4a79e72.png
+91679736-6e12-4cb5-86e4-3b751aa8188c,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong hình bên là đồ thị của một trong bốn hàm số dưới đây. Hàm số đó là hàm số nào?,"{""choices"":{""A"":""$y=-x^{3}+3x+2$"",""B"":""$y=x^{4}-x^{2}+1$"",""C"":""$y=x^{4}+x^{2}+1$"",""D"":""$y=x^{3}-3x+2$""}}","{""choice"":""D""}",Đồ thị hình vẽ là đồ thị hàm số bậc ba có hệ số $a>0$ nên chỉ có hàm số $y=x^{3}-3x+2$ thỏa mãn điều kiện trên.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/5ce978cc-3b17-472b-8170-1663bd8943d9.png
+a6313d25-2690-4b6a-aa76-d5fa0835d8bb,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong trong hình vẽ bên là đồ thị của hàm số nào dưới đây?,"{""choices"":{""A"":""$y=\\frac{2x-1}{x-1}$"",""B"":""$y=\\frac{x+1}{x-1}$"",""C"":""$y=x^{4}+x^{2}+1$"",""D"":""$y=x^{3}-3x-1$""}}","{""choice"":""B""}","Vì từ đồ thị ta suy ra đồ thị của hàm phân thức có tiệm cận đứng và ngang $x=1$, $y=1$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/fc60b860-ca5a-47b4-97a5-828ecc0c3e33.png
+1818a337-6c06-435a-b439-4fe7efd1b790,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong hình bên là đồ thị của hàm số nào?,"{""choices"":{""A"":""$y=x^2-3x+2$"",""B"":""$y=x^4-x^2+2$"",""C"":""$y=-x^3-3x+2$"",""D"":""$y=x^3-3x+2$""}}","{""choice"":""D""}","Từ dạng tổng quát của đồ thị hàm số ta loại được A, C, B.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/06656103-154a-4b32-9348-6bb5267d53b3.png
+ae09252a-c75d-4e6f-b16d-e5383ab8294d,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Cho hàm số $y=\frac{ax+b}{x+c}$ có đồ thị như hình sau. Khẳng định nào sau đây đúng?,"{""choices"":{""A"":""$a<0, b<0, c<0$"",""B"":""$a<0, b>0, c>0$"",""C"":""$a>0, b>0, c>0$"",""D"":""$a>0, b>0, c<0$""}}","{""choice"":""A""}","Nhìn vào đồ thị ta có:
+Tiệm cận ngang $y=a<0$.
+Tiệm cận đứng $x=-c>0\Leftrightarrow c<0$.
+Đồ thị hàm số cắt trục tung tại điểm có tung độ dương nên $\frac{b}{c}>0\Leftrightarrow b<0$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/980217ec-7feb-48ec-8a5f-ba4c90c1718d.png
+33d88569-b2e0-4f21-b8c3-a317e13e4c8b,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong hình bên là đồ thị của một trong bốn hàm số dưới đây. Hàm số đó là hàm số nào?,"{""choices"":{""A"":""$y=-x^{3}+3x+2$"",""B"":""$y=x^{4}-x^{2}+1$"",""C"":""$y=x^{4}+x^{2}+1$"",""D"":""$y=x^{3}-3x+2$""}}","{""choice"":""D""}",Đồ thị hình vẽ là đồ thị hàm số bậc ba có hệ số $a>0$ nên chỉ có hàm số $y=x^{3}-3x+2$ thỏa mãn điều kiện trên.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/bc747b5f-6934-4f11-9103-6074b00be801.png
+6071f18c-8759-4125-8c3d-c39e15ca34a9,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong trong hình vẽ bên là đồ thị của hàm số nào dưới đây?,"{""choices"":{""A"":""$y=\\frac{2x-1}{x-1}$"",""B"":""$y=\\frac{x+1}{x-1}$"",""C"":""$y=x^{4}+x^{2}+1$"",""D"":""$y=x^{3}-3x-1$""}}","{""choice"":""B""}",Vì từ đồ thị ta suy ra đồ thị của hàm phân thức có tiệm cận đứng và ngang $x=1$; $y=1$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/d335a2fa-cf03-4e96-bd28-342427bdc8a1.png
+a40c9b9e-7b69-48cf-820a-017db51fa6a9,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong trong hình là đồ thị của hàm số nào dưới đây?,"{""choices"":{""A"":""$y=\\frac{x-1}{x+1}$"",""B"":""$y=\\frac{-2x+1}{2x+2}$"",""C"":""$y=x^{4}-3x^{2}$"",""D"":""$y=x^{3}-3x^{2}$""}}","{""choice"":""A""}","Chọn A. Hình vẽ trên là đồ thị của hàm số dạng $y=\frac{ax+b}{cx+d}$ ($c\ne0; ad-bc\ne0$) $\Rightarrow$ Loại phương án C, D. Ta thấy: Đồ thị có đường tiệm cận đứng là $x=-1$ và đường tiệm cận ngang là $y=1$. Phương án B: Đồ thị có đường tiệm cận đứng là $x=-1$ nhưng $y=-1\Rightarrow$ loại B. Vậy A đúng.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/017ff6c2-65dc-4c73-89b0-a57832933ee1.png
+9fec3282-cbda-4626-ad87-b3f049570b8d,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Đường cong trong hình vẽ bên là đồ thị của hàm số nào sau đây?,"{""choices"":{""A"":""$y=-x^{3}+3x+1$"",""B"":""$y=x^{4}-x^{2}+1$"",""C"":""$y=-x^{2}+x-1$"",""D"":""$y=x^{3}-3x+1$""}}","{""choice"":""D""}","Chọn D. Đồ thị đã cho có hình dạng của đồ thị hàm số bậc ba $y=ax^{3}+bx^{2}+cx+d$ nên loại phương án B và C. Dựa vào đồ thị, ta có $\lim_{x\rightarrow+\infty}y=+\infty\Rightarrow a>0$ nên loại phương án A.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/f4b0479d-8958-4d86-a0a3-2c2eb9ca0929.png
+dce137c8-197d-405c-92f8-63865d3b09e0,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,Cho hàm số $y=\frac{ax+b}{cx+d}$ có đồ thị như sau. Mệnh đề nào sau đây đúng?,"{""choices"":{""A"":""$ac>0;\\ bd>0$"",""B"":""$ab<0;\\ cd<0$"",""C"":""$bc>0;\\ ad<0$"",""D"":""$ad>0;\\ bd<0$""}}","{""choice"":""C""}",Theo đồ thị: Tiệm cận ngang: $y=\frac{a}{c}>0$ (1). Tiệm cận đứng: $x=-\frac{d}{c}>0\Rightarrow\frac{d}{c}<0$ (2). Giao với $Oy$: $x=0\Rightarrow y=\frac{b}{d}<0$ hay $y=0\Rightarrow x=-\frac{b}{a}<0\Rightarrow\frac{b}{a}>0$ (3).,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/58e43ea8-5180-45a0-9f59-3ec3b9a3f97f.png
+a2a4a9b3-a97f-43bb-af4f-f14c9b0729cc,4,Bài 4. Khảo sát sự biến thiên và vẽ đồ thị của hàm số,null,"Cho hàm số $y=ax^{3}+bx^{2}+cx+d$ ($a\ne0$) có đồ thị như hình vẽ dưới đây. Chọn khẳng định đúng về dấu của $a, b, c, d$?","{""choices"":{""A"":""$a>0, b>0, d>0, c>0$"",""B"":""$a>0, c>0>b, d<0$"",""C"":""$a>0, b>0, c>0, d>0$"",""D"":""$a>0, b<0, c<0, d>0$""}}","{""choice"":""D""}","Chọn D. Dựa vào đồ thị ta có $a>0$, đồ thị cắt Oy tại 1 điểm có tung độ dương nên $d>0$, đồ thị có 2 cực trị trái dấu nên $x_{1}.x_{2}<0\Rightarrow\frac{c}{a}<0\Rightarrow c<0$. Vậy đáp án D.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/5e74f180-ecea-4c89-a28d-65c66920d90b.png
+9dfde972-2a9d-4cae-b7db-252786729fa1,5,Bài 5. Ứng dụng đạo hàm để giải quyết một số vấn đề liên quan đến thực tiễn,null,[Mức độ 2] Một loại thuốc được dùng cho một bệnh nhân và nồng độ thuốc trong máu của bệnh nhân được giám sát bởi bác sĩ. Biết rằng nồng độ thuốc trong máu của bệnh nhân sau khi tiêm vào cơ thể trong $t$ giờ được tính theo công thức $c(t) = \frac{t}{t^2 + 1}\text{ (mg/L)}$. Sau khi tiêm thuốc bao lâu thì nồng độ thuốc trong máu của bệnh nhân cao nhất?,"{""choices"":{""A"":""1 giờ."",""B"":""4 giờ."",""C"":""3 giờ."",""D"":""2 giờ.""}}","{""choice"":""A""}","Với $c(t) = \frac{t}{t^2 + 1}$, $t > 0$ ta có $c'(t) = \frac{-t^2 + 1}{(t^2 + 1)^2}$.
+
+Cho $c'(t) = 0 \Leftrightarrow \frac{-t^2 + 1}{(t^2 + 1)^2} = 0 \Leftrightarrow t = 1$.
+
+Bảng biến thiên
+
+(có hình minh hoạ — cần dán thủ công)
+
+Vậy $\max_{(0; +\infty)} c(t) = \frac{1}{2}$ khi $t = 1$.",null
+1b3bb7e8-4c47-4c3a-8389-5ed35dde1e47,5,Bài 5. Ứng dụng đạo hàm để giải quyết một số vấn đề liên quan đến thực tiễn,null,[Mức độ 2] Một loại thuốc được dùng cho một bệnh nhân và nồng độ thuốc trong máu của bệnh nhân được giám sát bởi bác sĩ. Biết rằng nồng độ thuốc trong máu của bệnh nhân sau khi tiêm vào cơ thể trong $t$ giờ được tính theo công thức $c(t) = \frac{t}{t^2 + 1}\text{ (mg/L)}$. Sau khi tiêm thuốc bao lâu thì nồng độ thuốc trong máu của bệnh nhân cao nhất?,"{""choices"":{""A"":""1 giờ."",""B"":""4 giờ."",""C"":""3 giờ."",""D"":""2 giờ.""}}","{""choice"":""A""}","Với $c(t) = \frac{t}{t^2 + 1}$, $t > 0$ ta có $c'(t) = \frac{-t^2 + 1}{(t^2 + 1)^2}$.
+
+Cho $c'(t) = 0 \Leftrightarrow \frac{-t^2 + 1}{(t^2 + 1)^2} = 0 \Leftrightarrow t = 1$.
+
+Bảng biến thiên
+
+(có hình minh hoạ — cần dán thủ công)
+
+Vậy $\max_{(0; +\infty)} c(t) = \frac{1}{2}$ khi $t = 1$.",null
+2b2c4510-1d38-49e3-ae2a-5413270b392e,5,Bài 5. Ứng dụng đạo hàm để giải quyết một số vấn đề liên quan đến thực tiễn,null,[Mức độ 2] Một loại thuốc được dùng cho một bệnh nhân và nồng độ thuốc trong máu của bệnh nhân được giám sát bởi bác sĩ. Biết rằng nồng độ thuốc trong máu của bệnh nhân sau khi tiêm vào cơ thể trong $t$ giờ được tính theo công thức $c(t) = \frac{t}{t^2+1}$ (mg/L). Sau khi tiêm thuốc bao lâu thì nồng độ thuốc trong máu của bệnh nhân cao nhất?,"{""choices"":{""A"":""$1$ giờ."",""B"":""$4$ giờ."",""C"":""$3$ giờ."",""D"":""$2$ giờ.""}}","{""choice"":""A""}","Với $c(t) = \frac{t}{t^2+1}$, $t > 0$ ta có $c'(t) = \frac{-t^2+1}{(t^2+1)^2}$.
+Cho $c'(t) = 0 \Leftrightarrow \frac{-t^2+1}{(t^2+1)^2} = 0 \Leftrightarrow t = 1$.
+Bảng biến thiên
+Vậy $\max_{(0; +\infty)} c(t) = \frac{1}{2}$ khi $t = 1$.",null
+6c5e61ad-cb39-449f-bb0c-37a59f903e30,5,Bài 5. Ứng dụng đạo hàm để giải quyết một số vấn đề liên quan đến thực tiễn,null,[Mức độ 2] Một loại thuốc được dùng cho một bệnh nhân và nồng độ thuốc trong máu của bệnh nhân được giám sát bởi bác sĩ. Biết rằng nồng độ thuốc trong máu của bệnh nhân sau khi tiêm vào cơ thể trong $t$ giờ được tính theo công thức $c(t) = \frac{t}{t^2+1}$ (mg/L). Sau khi tiêm thuốc bao lâu thì nồng độ thuốc trong máu của bệnh nhân cao nhất?,"{""choices"":{""A"":""$1$ giờ."",""B"":""$4$ giờ."",""C"":""$3$ giờ."",""D"":""$2$ giờ.""}}","{""choice"":""A""}","Với $c(t) = \frac{t}{t^2+1}$, $t > 0$ ta có $c'(t) = \frac{-t^2+1}{(t^2+1)^2}$.
+Cho $c'(t) = 0 \Leftrightarrow \frac{-t^2+1}{(t^2+1)^2} = 0 \Leftrightarrow t = 1$.
+Bảng biến thiên
+Vậy $\max_{(0; +\infty)} c(t) = \frac{1}{2}$ khi $t = 1$.",null
+3b032523-6eb2-4515-869f-a934185408a3,5,Bài 5. Ứng dụng đạo hàm để giải quyết một số vấn đề liên quan đến thực tiễn,null,[Mức độ 2] Một loại thuốc được dùng cho một bệnh nhân và nồng độ thuốc trong máu của bệnh nhân được giám sát bởi bác sĩ. Biết rằng nồng độ thuốc trong máu của bệnh nhân sau khi tiêm vào cơ thể trong $t$ giờ được tính theo công thức $c(t) = \frac{t}{t^2 + 1}$ (mg/L). Sau khi tiêm thuốc bao lâu thì nồng độ thuốc trong máu của bệnh nhân cao nhất?,"{""choices"":{""A"":""$1\\text{ giờ}$"",""B"":""$4\\text{ giờ}$"",""C"":""$3\\text{ giờ}$"",""D"":""$2\\text{ giờ}$""}}","{""choice"":""A""}","Với $c(t) = \frac{t}{t^2 + 1}$, $t > 0$ ta có $c'(t) = \frac{-t^2 + 1}{(t^2 + 1)^2}$.
+Cho $c'(t) = 0 \Leftrightarrow \frac{-t^2 + 1}{(t^2 + 1)^2} = 0 \Leftrightarrow t = 1$.
+Bảng biến thiên
+(có hình minh hoạ — cần dán thủ công)
+Vậy $\max_{(0; +\infty)} c(t) = \frac{1}{2}$ khi $t = 1$.",null
+a77c4dcf-caf9-48db-a1db-46f696364c20,null,null,null,Cho hàm số $y = f(x)$ có đồ thị như hình vẽ. Điểm cực tiểu của hàm số đã cho là,"{""choices"":{""A"":""$x = -1$."",""B"":""$x = 2$."",""C"":""$x = 3$."",""D"":""$x = 0$.""}}","{""choice"":""D""}",Từ đồ thị suy ra điểm cực tiểu của đồ thị hàm số đã cho là $x = 0$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/4251ec4e-eaf0-43b6-a84e-5218e2e1264c.png
+36007f33-cbb4-48ac-bee3-497caf2a7378,null,null,null,Cho hàm số $y = f(x)$ có bảng biến thiên như sau.Hàm số đã cho đồng biến trên khoảng,"{""choices"":{""A"":""$(-\\infty; 0)$."",""B"":""$(-\\infty; -2)$."",""C"":""$(-1; 0)$."",""D"":""$(-1; +\\infty)$.""}}","{""choice"":""B""}",Từ bảng biến thiên suy ra hàm số đã cho đồng biến trên khoảng $(-\infty; -2)$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/358aabd2-418c-45fd-9cc4-f35d32183ab4.png
+349d3bbc-3a90-43f2-bfc5-10efb9b28aaa,null,null,null,"Cho hàm số $y = f(x)$ xác định, liên tục trên $\left[-1; \frac{5}{2}\right]$ và có đồ thị như hình vẽ. 
+Giá trị lớn nhất $M$ và giá trị nhỏ nhất $m$ của hàm số $f(x)$ trên $\left[-1; \frac{5}{2}\right]$ là","{""choices"":{""A"":""$M = 4, m = 1$."",""B"":""$M = 4, m = -1$."",""C"":""$M = \\frac{7}{2}, m = -1$."",""D"":""$M = \\frac{7}{2}, m = 1$.""}}","{""choice"":""B""}","Chọn B
+Dựa vào đồ thị, $\max_{\left[-1; \frac{5}{2}\right]} f(x) = 4; \min_{\left[-1; \frac{5}{2}\right]} f(x) = -1$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/fd0e855e-a9c5-435e-93d2-8a0edfd939cc.png
+dfcb6918-febc-4e0a-9a40-21024a5e552d,null,null,null,Cho hàm số $y = f(x)$ có $\lim_{x \to +\infty} f(x) = 2$ và $\lim_{x \to -\infty} f(x) = -2$. Khẳng định nào sau đây là khẳng định đúng?,"{""choices"":{""A"":""Đồ thị hàm số đã cho có hai tiệm cận ngang là các đường thẳng $x = 2$ và $x = -2$."",""B"":""Đồ thị hàm số đã cho không có tiệm cận ngang."",""C"":""Đồ thị hàm số đã cho có đúng một tiệm cận ngang."",""D"":""Đồ thị hàm số đã cho có hai tiệm cận ngang là các đường thẳng $y = 2$ và $y = -2$.""}}","{""choice"":""D""}","Chọn D
+Theo định nghĩa, đồ thị hàm số đã cho có hai tiệm cận ngang là các đường thẳng $y = 2$ và $y = -2$.",null
+d140f210-e516-4480-8b63-c7c0e3808cf7,null,null,null,"Hàm số nào trong các hàm số sau có đồ thị như hình vẽ bên dưới ","{""choices"":{""A"":""$y = \\frac{x^2 + x + 2}{x + 1}$."",""B"":""$y = \\frac{x^2 + 2x}{x + 1}$."",""C"":""$y = \\frac{x + 2}{x + 1}$."",""D"":""$y = x^3 - 3x + 2$.""}}","{""choice"":""A""}","Từ đồ thị suy ra hàm số đã cho có đường tiệm cận đứng là $x = -1$.
+Cũng từ đồ thị suy ra giao điểm của đồ thị hàm số với trục $Oy$ là điểm có tọa độ $(0; 2)$.
+Vậy hàm số có đồ thị như hình trên là $y = \frac{x^2 + x + 2}{x + 1}$.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/4c473b53-b793-4026-bf61-529303a0d802.png
+2c229df3-26a7-4968-a7e6-bbace912ed18,null,null,null,Hàm số $y = x^3 - 3x - 2025$ nghịch biến trên khoảng,"{""choices"":{""A"":""$(-1; 1)$"",""B"":""$(0; 3)$"",""C"":""$(-\\infty; -1)$"",""D"":""$(1; 3)$""}}","{""choice"":""A""}","Chọn A
+Hàm số có tập xác định là $\mathbb{R}$.
+Ta có: $y' = 3x^2 - 3$; $y' = 0 \Leftrightarrow \left[\begin{array}{l} x = 1 \\ x = -1 \end{array}\right.$.
+Bảng xét dấu:
+Theo bảng xét dấu: $y' < 0, \forall x \in (-1; 1) \Rightarrow$ Hàm số nghịch biến trên khoảng $(-1; 1)$.",null
+ab908f0c-e64b-4955-9efa-56c8555fd2df,null,null,null,Giá trị lớn nhất của hàm số $y = -x^3 + 3x + 1$ trên đoạn $[0; 2]$ bằng,"{""choices"":{""A"":""$1$"",""B"":""$-1$"",""C"":""$3$"",""D"":""$5$""}}","{""choice"":""C""}","Chọn C
+Ta có $y = -x^3 + 3x + 1 \Rightarrow y' = -3x^2 + 3 = 0 \Leftrightarrow \left[\begin{array}{l} x = 1 \in [0; 2] \\ x = -1 \notin [0; 2] \end{array}\right.$.
+Mặt khác
+$y(0) = 1$
+$y(1) = 3$
+$y(2) = -1$
+Vậy giá trị lớn nhất của hàm số $y = -x^3 + 3x + 1$ trên đoạn $[0; 2]$ bằng $3$.",null
+1de5e341-2e07-4d88-b8d6-e1f9762d2d7e,null,null,null,"Cho hàm số $y = f(x)$ có bảng biến thiên như hình vẽ:
+
+Tổng số đường tiệm cận đứng của đồ thị hàm số $y = f(x)$ là:","{""choices"":{""A"":""$0$"",""B"":""$1$"",""C"":""$2$"",""D"":""$3$""}}","{""choice"":""A""}","Chọn A
+Tập xác định: $\mathbb{R} \setminus \{1\}$.
+Ta có $\begin{cases} \lim_{x \to 1^-} f(x) = 2 \\ \lim_{x \to 1^+} f(x) = 4 \end{cases}$ nên đồ thị hàm số không có một tiệm cận đứng nào.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/3a45eb64-4c9e-4cb5-a170-6d08a15a1f7b.png
+f8402732-ec11-4143-8dd8-7810cac556d1,null,null,null,"Đồ thị của hàm số nào dưới đây có dạng như đường cong trong hình bên dưới?
+","{""choices"":{""A"":""$y = \\frac{x - 1}{x + 2025}$"",""B"":""$y = -x^3 + 3x + 1$"",""C"":""$y = x^3 - 3x^2 + 1$"",""D"":""$y = x^3 - 3x + 1$""}}","{""choice"":""D""}","Chọn D
+Đồ thị là hàm số bậc ba và có hệ số $a > 0 \Rightarrow$ loại A, B.
+Đồ thị hàm số đạt cực trị tại $x = 1$, $x = -1 \Rightarrow$ chọn D.",https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/cfcd8081-b57c-42ed-9a46-a0a40fdb33ae.png
+532bb28d-262e-476d-9a2f-ae021356247b,null,null,null,Số tiệm cận đứng của đồ thị hàm số $y = \frac{\sqrt{x+16} - 4}{x^2 + x}$ là,"{""choices"":{""A"":""$0$"",""B"":""$3$"",""C"":""$2$"",""D"":""$1$""}}","{""choice"":""D""}","Tập xác định: $D = [-16; +\infty) \setminus \{-1; 0\}$
+Ta có:
+$\lim_{x \to 0^+} \frac{\sqrt{x+16}-4}{x^2+x} = \lim_{x \to 0^+} \frac{x}{x(x+1)(\sqrt{x+16}+4)} = \lim_{x \to 0^+} \frac{1}{(x+1)(\sqrt{x+16}+4)} = \frac{1}{8}$
+$\lim_{x \to 0^-} \frac{\sqrt{x+16}-4}{x^2+x} = \lim_{x \to 0^-} \frac{x}{x(x+1)(\sqrt{x+16}+4)} = \lim_{x \to 0^-} \frac{1}{(x+1)(\sqrt{x+16}+4)} = \frac{1}{8}$
+Do đó $x = 0$ không phải là tiệm cận đứng.
+$\lim_{x \to -1^-} \frac{\sqrt{x+16}-4}{x^2+x} = +\infty$ do đó $x = -1$ là tiệm cận đứng.
+Vậy: Số tiệm cận đứng của đồ thị hàm số là 1.",null
+4de7af6f-fd1f-4424-b7aa-36c1de3ed469,null,null,null,"Hàm số $y = x^3 - 5x^2 + 3x + 1$ đạt cực trị tại các điểm $x_1, x_2$. Tổng $x_1 + x_2$ có giá trị bằng","{""choices"":{""A"":""$-1$"",""B"":""$-\\frac{10}{3}$"",""C"":""$1$"",""D"":""$\\frac{10}{3}$""}}","{""choice"":""D""}","TXĐ $D = \mathbb{R}$.
+Ta có: $y' = 3x^2 - 10x + 3$. Phương trình $y' = 0$ có hai nghiệm $x_1, x_2$. Theo tính chất của hàm số bậc ba ta suy ra hàm số đã đạt cực trị tại các điểm $x_1, x_2$ và $x_1 + x_2 = \frac{10}{3}$.",null
+ddbc333f-cbf4-4d3f-a5ff-01d3d35e64fa,null,null,null,Đường thẳng nào dưới đây là tiệm cận ngang của đồ thị hàm số $y=\frac{4x-5}{2x-1}$?,"{""choices"":{""A"":""$y=-2$"",""B"":""$y=4$"",""C"":""$y=\\frac{1}{2}$"",""D"":""$y=2$""}}","{""choice"":""D""}",Ta có $\lim_{x\rightarrow\pm\infty}\frac{4x-5}{2x-1}=2$. Vậy đường tiệm cận ngang của đồ thị hàm số là $y=2$.,null
+46039192-595b-4976-bf52-ea596bb11597,null,null,null,"Cho hàm số $y=f(x)$ xác định và liên tục trên khoảng $(-\infty;+\infty)$, có bảng biến thiên như hình sau:
+
+Mệnh đề nào sau đây đúng?","{""choices"":{""A"":""Hàm số nghịch biến trên khoảng $(1;+\\infty)$."",""B"":""Hàm số đồng biến trên khoảng $(-\\infty;-2)$."",""C"":""Hàm số nghịch biến trên khoảng $(-\\infty;3)$."",""D"":""Hàm số đồng biến trên khoảng $(-1;+\\infty)$.""}}","{""choice"":""B""}",Từ bảng biến thiên ta thấy hàm số đồng biến trên khoảng $(-\infty;-2)$.,https://ktubnwthhvlngueczmmc.supabase.co/storage/v1/object/public/question-images/b1287232-ecd5-44e2-a001-65f07fde3c91.png
