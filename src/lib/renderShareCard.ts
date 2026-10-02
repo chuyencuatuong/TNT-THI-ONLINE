@@ -30,6 +30,13 @@ export type ShareCardData =
       kind: "streak";
       days: number;
       levelLabel: string;
+    }
+  | {
+      /** Kết quả 1 đề công khai (02/10/2026) — kèm link mời bạn làm thử. */
+      kind: "result";
+      /** "7,25" — null khi học sinh chọn ẩn điểm. */
+      scoreText: string | null;
+      examTitle: string;
     };
 
 const CARD_SIZE = 1080;
@@ -119,7 +126,7 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
 function drawGlyphWatermarks(ctx: CanvasRenderingContext2D, kind: ShareCardData["kind"]) {
   ctx.save();
   ctx.fillStyle = "rgba(201,151,63,0.16)";
-  const [g1, g2] = kind === "progress" ? ["∑", "√x"] : ["π", "ƒ(x)"];
+  const [g1, g2] = kind === "progress" ? ["∑", "√x"] : kind === "result" ? ["∫", "x²"] : ["π", "ƒ(x)"];
 
   ctx.save();
   ctx.font = `800 480px ${FONT_FAMILY}`;
@@ -495,6 +502,33 @@ export async function drawShareCard(
     const sparkline = data.sparkline.length >= 2 ? data.sparkline : [data.sparkline[0] ?? 0, data.sparkline[0] ?? 0];
     drawSparkline(ctx, sparkline, CARD_SIZE / 2, numY + 110);
     drawExamPill(ctx, data.examTitle, CARD_SIZE / 2, numY + 340);
+  } else if (data.kind === "result") {
+    drawEyebrow(ctx, "VỪA LÀM XONG ĐỀ", 274);
+    const numY = 520;
+    if (data.scoreText) {
+      const numCenterX = CARD_SIZE / 2 - 50;
+      const numW = drawGradientNumber(ctx, data.scoreText, numCenterX, numY, 250);
+      ctx.save();
+      ctx.font = `700 56px ${FONT_FAMILY}`;
+      ctx.fillStyle = COLOR.cream;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText("/10", numCenterX + numW / 2 + 14, numY - 6);
+      ctx.restore();
+    } else {
+      drawGradientNumber(ctx, "?", CARD_SIZE / 2, numY, 260);
+    }
+    ctx.save();
+    ctx.font = `500 38px ${FONT_FAMILY}`;
+    ctx.fillStyle = "rgba(246,236,216,0.85)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(data.scoreText ? "Còn cậu được bao nhiêu?" : "Cậu làm thử được bao nhiêu điểm?", CARD_SIZE / 2, numY + 80);
+    ctx.font = `500 30px ${FONT_FAMILY}`;
+    ctx.fillStyle = "rgba(246,236,216,0.6)";
+    ctx.fillText("Đề miễn phí · nộp xong có báo cáo năng lực", CARD_SIZE / 2, numY + 130);
+    ctx.restore();
+    drawExamPill(ctx, data.examTitle, CARD_SIZE / 2, numY + 250);
   } else {
     drawEyebrow(ctx, "CHUỖI ÔN TẬP", 274);
 

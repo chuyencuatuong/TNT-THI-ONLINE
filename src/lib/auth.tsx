@@ -21,9 +21,9 @@ interface AuthState {
    */
   profileLoading: boolean;
   /** Đăng nhập bằng email + mật khẩu đã có sẵn tài khoản. */
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string, captchaToken?: string | null) => Promise<{ error: string | null }>;
   /** Tạo tài khoản mới bằng email + mật khẩu (không gửi email xác nhận). */
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, captchaToken?: string | null) => Promise<{ error: string | null }>;
   /** Đổi mật khẩu khi đã đăng nhập (không cần email). */
   changePassword: (newPassword: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -36,7 +36,7 @@ interface AuthState {
    * đề công khai mà không cần đăng ký. Đã có phiên (khách hoặc tài khoản) thì
    * không làm gì. Cần bật "Allow anonymous sign-ins" trong Supabase.
    */
-  startGuestSession: (source?: string | null) => Promise<{ error: string | null }>;
+  startGuestSession: (source?: string | null, captchaToken?: string | null) => Promise<{ error: string | null }>;
   /**
    * Khách tạo tài khoản: gắn email + mật khẩu vào CHÍNH user ẩn danh hiện tại
    * (Supabase giữ nguyên user id) nên mọi bài đã làm tự thuộc tài khoản mới.
@@ -113,13 +113,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  // captchaToken: chỉ có khi bật Turnstile (src/lib/turnstile.ts).
+  async function signIn(email: string, password: string, captchaToken?: string | null) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
+    });
     return { error: error?.message ?? null };
   }
 
-  async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password });
+  async function signUp(email: string, password: string, captchaToken?: string | null) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
+    });
     return { error: error?.message ?? null };
   }
 
@@ -132,11 +141,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
-  async function startGuestSession(source?: string | null) {
+  async function startGuestSession(source?: string | null, captchaToken?: string | null) {
     const { data: current } = await supabase.auth.getSession();
     let userId = current.session?.user.id ?? null;
     if (!userId) {
-      const { data, error } = await supabase.auth.signInAnonymously();
+      const { data, error } = await supabase.auth.signInAnonymously(
+        captchaToken ? { options: { captchaToken } } : undefined,
+      );
       if (error || !data.user) {
         return { error: error?.message ?? "Không tạo được phiên làm bài." };
       }

@@ -1,5 +1,8 @@
 /**
- * Tích hợp AI (Gemini) — gọi thẳng từ trình duyệt bằng free tier.
+ * Tích hợp AI (Gemini) — gọi qua Supabase Edge Function "gemini-proxy"
+ * (02/10/2026): khoá Gemini nằm ở secret phía máy chủ, chỉ tài khoản giáo viên
+ * gọi được. Trước đây khoá VITE_GEMINI_API_KEY nằm lộ trong mã JS gửi xuống
+ * trình duyệt. Mã hàm: supabase/functions/gemini-proxy/index.ts.
  * Hai việc AI hỗ trợ, đúng như yêu cầu ban đầu:
  *  1) Gợi ý gán dạng bài khi giáo viên nhập câu hỏi mới (giáo viên luôn là người
  *     duyệt/xác nhận cuối cùng — AI không tự ý ghi đè ngân hàng câu hỏi).
@@ -33,9 +36,50 @@ import {
 // y hệt như trước đây.
 import { buildStructureScaffold, detectExamStructure, type DetectedQuestion, type StructurePage } from "./examGrammar";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as
-  | string
-  | undefined;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const GEMINI_PROXY_URL = SUPABASE_URL ? `${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/gemini-proxy` : null;
+
+/** Phiên đăng nhập hiện tại (import động để file này vẫn chạy được trong test, nơi không có Supabase). */
+async function currentAccessToken(): Promise<string | null> {
+  try {
+    const { supabase } = await import("./supabaseClient");
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Lỗi do chính hàm gemini-proxy trả (không phải lỗi của Google). */
+function describeProxyError(status: number, bodyText: string): string | null {
+  let code: string | null = null;
+  try {
+    code = (JSON.parse(bodyText) as { proxy_error?: string }).proxy_error ?? null;
+  } catch {
+    code = null;
+  }
+  if (!code) {
+    if (status === 404 && /function/i.test(bodyText)) {
+      return "Chưa triển khai Edge Function \"gemini-proxy\" trên Supabase — xem hướng dẫn ở đầu file supabase/functions/gemini-proxy/index.ts.";
+    }
+    return null;
+  }
+  switch (code) {
+    case "not_signed_in":
+      return "Phiên đăng nhập đã hết hạn. Tải lại trang rồi đăng nhập lại để dùng AI.";
+    case "not_teacher":
+      return "Chỉ tài khoản giáo viên mới dùng được AI.";
+    case "missing_gemini_key":
+      return "Máy chủ chưa có khoá Gemini: vào Supabase > Edge Functions > Secrets, thêm GEMINI_API_KEY.";
+    case "too_large":
+      return "Dữ liệu gửi lên AI quá lớn (trên 25MB). Chia nhỏ file hoặc giảm số trang mỗi lượt.";
+    case "bad_model":
+      return "Tên model AI không hợp lệ — kiểm tra lại VITE_GEMINI_MODEL.";
+    default:
+      return `Máy chủ AI từ chối yêu cầu (${code}).`;
+  }
+}
 // Cho phép ghi đè bằng biến môi trường VITE_GEMINI_MODEL mà không cần sửa code
 // — hữu ích vì tên model Gemini đổi khá thường xuyên (bản mặc định bên dưới
 // chỉ chính xác tại thời điểm viết, nên kiểm tra lại tên model khả dụng cho
@@ -90,10 +134,6 @@ const GEMINI_THINKING_LEVEL: ThinkingLevel | null = resolveThinkingLevel(
   import.meta.env.VITE_GEMINI_THINKING_LEVEL as string | undefined,
 );
 
-function geminiEndpoint(model: string): string {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-}
-
 type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } };
@@ -147,7 +187,7 @@ function describeGeminiHttpError(status: number): string {
     return "Không tìm thấy model AI (lỗi 404) — có thể tên model đang cấu hình không đúng hoặc chưa khả dụng cho API key này. Kiểm tra lại VITE_GEMINI_MODEL hoặc để trống dùng mặc định.";
   }
   if (status === 401 || status === 403) {
-    return "API key không hợp lệ hoặc không có quyền gọi model này (lỗi 401/403) — kiểm tra lại VITE_GEMINI_API_KEY.";
+    return "Khoá Gemini không hợp lệ hoặc không có quyền gọi model này (lỗi 401/403) — kiểm tra lại secret GEMINI_API_KEY trên Supabase.";
   }
   if (status === 400) {
     return "Yêu cầu gửi lên AI không hợp lệ (lỗi 400) — có thể do dữ liệu ảnh bị lỗi khi render trang PDF.";
@@ -203,8 +243,12 @@ async function callGeminiPartsDetailed(
   benchmark?: ImportBenchmarkRecorder,
   benchmarkLabel?: string,
 ): Promise<GeminiCallResult> {
-  if (!GEMINI_API_KEY) {
-    return { text: null, errorMessage: "Thiếu VITE_GEMINI_API_KEY — chưa cấu hình API key cho AI." };
+  if (!GEMINI_PROXY_URL || !SUPABASE_ANON_KEY) {
+    return { text: null, errorMessage: "Thiếu VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — chưa gọi được máy chủ AI." };
+  }
+  const accessToken = await currentAccessToken();
+  if (!accessToken) {
+    return { text: null, errorMessage: "Cần đăng nhập tài khoản giáo viên để dùng AI." };
   }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
@@ -225,16 +269,23 @@ async function callGeminiPartsDetailed(
     } satisfies GeminiCallMetric);
   }
   try {
-    const res = await fetch(`${geminiEndpoint(model)}?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(GEMINI_PROXY_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
       body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens,
-          // GEMINI_THINKING_LEVEL = null (mặc định, chưa set biến môi trường) → KHÔNG thêm field này, giữ nguyên hành vi hiện tại.
-          ...(GEMINI_THINKING_LEVEL ? { thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL } } : {}),
+        model,
+        payload: {
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens,
+            // GEMINI_THINKING_LEVEL = null (mặc định, chưa set biến môi trường) → KHÔNG thêm field này, giữ nguyên hành vi hiện tại.
+            ...(GEMINI_THINKING_LEVEL ? { thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL } } : {}),
+          },
         },
       }),
       signal: controller.signal,
@@ -242,6 +293,11 @@ async function callGeminiPartsDetailed(
     if (!res.ok) {
       const bodyText = await res.text();
       console.error(`Gemini API lỗi (model ${model}):`, res.status, bodyText);
+      const proxyMessage = describeProxyError(res.status, bodyText);
+      if (proxyMessage) {
+        recordAttempt(false, null);
+        return { text: null, errorMessage: proxyMessage };
+      }
       // 503/5xx là quá tải TẠM THỜI phía Google — đáng thử lại cùng model vài
       // giây sau, thường sẽ qua.
       // 429 (RESOURCE_EXHAUSTED) THỰC TẾ gặp 25/08/2026 lại là hết hạn mức

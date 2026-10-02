@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { chunkArray } from "./chunk";
 import {
   combineScores,
   maxScoreOf,
@@ -594,10 +595,17 @@ export async function getExamPaper(
  * Facebook) là mất hết câu đã chọn. Giờ: lượt chưa nộp, chưa hết giờ -> dùng
  * lại, khôi phục đáp án mới nhất của từng câu từ answer_events.
  */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isUuid(value: string | null | undefined): value is string {
+  return !!value && UUID_PATTERN.test(value);
+}
+
 export async function startOrResumeAttempt(
   exam: Pick<ExamRow, "id" | "duration_minutes">,
   studentId: string,
   entrySource?: string | null,
+  /** Token link chia sẻ (?ref=, migration_024) — máy chủ tự bỏ nếu không hợp lệ. */
+  refShare?: string | null,
 ): Promise<{ attempt: ExamAttemptRow; answers: Record<string, unknown>; resumed: boolean }> {
   const { data: open } = await supabase
     .from("exam_attempts")
@@ -639,6 +647,7 @@ export async function startOrResumeAttempt(
       student_id: studentId,
       attempt_number: (count ?? 0) + 1,
       ...(entrySource ? { entry_source: entrySource.slice(0, 60) } : {}),
+      ...(refShare && isUuid(refShare) ? { ref_share: refShare } : {}),
     })
     .select()
     .single();
@@ -2746,7 +2755,7 @@ export async function updateGuestInfo(profileId: string, info: GuestInfoInput): 
 
 /** 1 lượt làm từ link công khai, kèm thông tin người làm — cho giáo viên. */
 export interface PublicAttemptRow {
-  attempt: ExamAttemptRow & { entry_source: string | null };
+  attempt: ExamAttemptRow & { entry_source: string | null; ref_share?: string | null };
   student: Profile;
   score: AttemptScoreRow | null;
 }
@@ -2773,6 +2782,81 @@ export async function listPublicAttemptsForExam(examId: string): Promise<PublicA
     if (!r.student || (!r.student.is_guest && !r.entry_source)) continue;
     const { score, student, ...attempt } = r;
     rows.push({ attempt, student, score: Array.isArray(score) ? score[0] ?? null : score });
+  }
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Link chia sẻ kết quả + đo lan truyền (migration_024, 02/10/2026)
+// ---------------------------------------------------------------------------
+
+/** Tóm lược công khai của 1 link chia sẻ (ai cũng đọc được, kể cả chưa đăng nhập). */
+export interface SharedResult {
+  slug: string;
+  exam_title: string;
+  given_name: string;
+  show_score: boolean;
+  total_score: number | null;
+  submitted_on: string | null;
+}
+
+export async function getSharedResult(token: string): Promise<SharedResult | null> {
+  if (!isUuid(token)) return null;
+  const { data, error } = await supabase.rpc("get_shared_result", { p_token: token });
+  if (error) {
+    if (isMissingRpcError(error)) return null;
+    throw error;
+  }
+  const r = (data ?? null) as SharedResult | null;
+  return r ? { ...r, total_score: r.total_score === null ? null : Number(r.total_score) } : null;
+}
+
+export interface AttemptShareRow {
+  token: string;
+  attempt_id: string;
+  created_by: string;
+  show_score: boolean;
+  created_at: string;
+  revoked_at: string | null;
+}
+
+/** Link đang hoạt động của 1 lượt làm (null nếu chưa tạo hoặc đã thu hồi). */
+export async function getActiveAttemptShare(attemptId: string): Promise<AttemptShareRow | null> {
+  const { data, error } = await supabase
+    .from("attempt_shares")
+    .select("*")
+    .eq("attempt_id", attemptId)
+    .is("revoked_at", null)
+    .maybeSingle();
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
+  return (data ?? null) as AttemptShareRow | null;
+}
+
+export async function createAttemptShare(attemptId: string, showScore: boolean): Promise<string> {
+  const { data, error } = await supabase.rpc("create_attempt_share", { p_attempt_id: attemptId, p_show_score: showScore });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function revokeAttemptShare(attemptId: string): Promise<void> {
+  const { error } = await supabase.rpc("revoke_attempt_share", { p_attempt_id: attemptId });
+  if (error) throw error;
+}
+
+/** Giáo viên: mọi link chia sẻ của các lượt làm 1 đề (kể cả đã thu hồi). */
+export async function listAttemptSharesForAttempts(attemptIds: string[]): Promise<AttemptShareRow[]> {
+  if (attemptIds.length === 0) return [];
+  const rows: AttemptShareRow[] = [];
+  for (const ids of chunkArray(attemptIds, 150)) {
+    const { data, error } = await supabase.from("attempt_shares").select("*").in("attempt_id", ids);
+    if (error) {
+      if (isMissingTableError(error)) return [];
+      throw error;
+    }
+    rows.push(...((data ?? []) as AttemptShareRow[]));
   }
   return rows;
 }

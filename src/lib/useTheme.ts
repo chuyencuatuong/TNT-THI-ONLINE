@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type ThemeMode = "light" | "dark";
 
@@ -39,4 +39,22 @@ export function useTheme() {
   }, [theme, setTheme]);
 
   return { theme, toggleTheme };
+}
+
+/**
+ * Theo dõi theme ĐANG áp dụng trên <html> (02/10/2026) — dùng cho biểu đồ
+ * cần đổi màu chữ/màu cột theo theme. Khác useTheme(): không giữ state riêng,
+ * nên đổi theme ở bất kỳ nút nào (thanh bên, header) cũng cập nhật theo.
+ */
+export function useDocumentTheme(): ThemeMode {
+  const [theme, setThemeState] = useState<ThemeMode>(readInitialTheme);
+  useEffect(() => {
+    const el = document.documentElement;
+    const sync = () => setThemeState(el.getAttribute("data-theme") === "dark" ? "dark" : "light");
+    const obs = new MutationObserver(sync);
+    obs.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
+    sync();
+    return () => obs.disconnect();
+  }, []);
+  return theme;
 }
