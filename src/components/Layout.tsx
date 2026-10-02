@@ -39,11 +39,35 @@ export function Layout() {
     <div className="app-shell">
       <div className={`page-tint ${tinted ? "page-tint--active" : ""}`} />
       <header className="app-header">
-        <Link to="/" className="app-logo">
+        <Link to={profile?.is_guest ? "/thi" : "/"} className="app-logo">
           <img src={logoMark} alt="TNT" />
           Toán học TNT
         </Link>
-        {profile && (
+        {profile?.is_guest && (
+          // Khách làm đề công khai (đăng nhập ẩn danh): không có menu học sinh,
+          // không có nút đăng xuất (đăng xuất là mất luôn bài vừa làm).
+          <div className="app-guest-block">
+            <span className="app-guest-badge">Chế độ khách</span>
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-label={theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
+        {profile && !profile.is_guest && (
           <>
             {/* Nút hamburger là phần tử ĐỘC LẬP với .app-nav (không nằm bên
                 trong) — để luôn bấm được kể cả khi menu đang đóng/ẩn. Xem

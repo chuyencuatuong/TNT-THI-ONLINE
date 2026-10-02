@@ -15,9 +15,13 @@ import { clamp, isWideViewport, scrollMotionAllowed, useScrollFrame } from "./sc
 export function ActionChapter({
   actions,
   onOpenQuestions,
+  lockedLink,
 }: {
   actions: ReportAction[];
   onOpenQuestions: (questionIds: string[]) => void;
+  /** Khách (chưa có tài khoản): việc dẫn sang trang học sinh được thay bằng
+   * nút này (vd "Lưu hồ sơ để mở"), vì các trang đó cần tài khoản. */
+  lockedLink?: { label: string; onClick: () => void };
 }) {
   const hostRef = useRef<HTMLOListElement>(null);
   const [listRef, inView] = useInView<HTMLDivElement>();
@@ -60,6 +64,15 @@ export function ActionChapter({
                   onClick={() => onOpenQuestions(a.questionIds ?? [])}
                 >
                   {a.ctaLabel}
+                  <ArrowRightIcon />
+                </button>
+              ) : lockedLink ? (
+                <button
+                  type="button"
+                  className={`student-intelligence-button${i === 0 ? " student-intelligence-button--primary" : ""}`}
+                  onClick={lockedLink.onClick}
+                >
+                  {lockedLink.label}
                   <ArrowRightIcon />
                 </button>
               ) : (
