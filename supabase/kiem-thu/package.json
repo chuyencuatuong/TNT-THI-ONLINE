@@ -1,0 +1,13 @@
+{
+  "name": "tnt-kiem-thu-sql",
+  "private": true,
+  "type": "module",
+  "description": "Kiểm thử SQL bằng Postgres trong bộ nhớ (PGlite). Tách riêng khỏi package.json gốc để không ảnh hưởng npm ci khi deploy.",
+  "scripts": {
+    "test": "tsx parity.mts && tsx e2e.mts && tsx guest.mts"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "tsx": "^4.23.15"
+  }
+}

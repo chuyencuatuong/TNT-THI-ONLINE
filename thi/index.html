@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Làm đề Toán miễn phí · Toán học TNT</title>
+    <!-- Trang landing đề công khai (/thi/?de=<slug>) — entry riêng để link dán
+         lên Facebook/Zalo có ảnh + tiêu đề xem trước (xem vite.config.ts).
+         __SITE_URL__ được thay bằng địa chỉ thật lúc build. -->
+    <meta name="description" content="Làm đề Toán miễn phí, không cần tài khoản. TNT không chỉ chấm điểm mà cho em biết mình đang ở đâu, mất điểm vì sao và nên làm gì tiếp." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Toán học TNT" />
+    <meta property="og:title" content="Không chỉ biết điểm. Biết mình đang ở đâu." />
+    <meta property="og:description" content="Làm đề Toán miễn phí, không cần tài khoản. Nộp xong nhận báo cáo: vị trí, nguyên nhân mất điểm, 3 việc cần làm." />
+    <meta property="og:image" content="__SITE_URL__/og-thi.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Chế độ tối (24/08/2026) — gắn data-theme lên <html> TRƯỚC KHI React
+         mount, dựa trên lựa chọn đã lưu (localStorage) hoặc prefers-color-scheme
+         của hệ điều hành nếu chưa từng chọn. Chạy sớm ở đây (thay vì trong React,
+         xem src/lib/useTheme.ts) để tránh nháy sáng rồi mới đổi tối ngay khi tải
+         trang. Bọc try/catch vì localStorage có thể bị chặn (chế độ riêng tư...). -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("theme");
+          var theme =
+            saved === "dark" || saved === "light"
+              ? saved
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          // Mặc định sáng nếu không đọc được localStorage/matchMedia.
+        }
+      })();
+    </script>
+    <!-- Khôi phục lại path ban đầu sau khi 404.html redirect về đây (xem 404.html) -->
+    <script>
+      (function (l) {
+        if (l.search[1] === "/") {
+          var decoded = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) {
+              return s.replace(/~and~/g, "&");
+            })
+            .join("?");
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })(window.location);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
