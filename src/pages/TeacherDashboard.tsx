@@ -33,6 +33,7 @@ import { MASTERY_COLOR, summarizeClassRecurringGroups, type RecurringGroupInput 
 import type { TopicTrendGroup } from "../lib/api";
 import { AVATAR_PALETTE, initialsOf } from "../lib/avatar";
 import { resolveTier, TIER_LABELS } from "../lib/studentTier";
+import { useDocumentTheme } from "../lib/useTheme";
 import {
   computeNudge,
   EMPTY_JOURNAL_SUMMARY,
@@ -87,6 +88,29 @@ interface StudentSummary {
  * thiết kế — ô đó cần 1 quy tắc nghiệp vụ (thế nào là "cần chú ý"?) chưa được
  * thầy Tường chốt, khác với số đếm buổi ôn tập không cần quy tắc gì cả.
  */
+/** Nhãn trục chữ 1 dòng, cắt bằng "…" (Recharts mặc định tự xuống dòng làm nhãn chồng nhau). */
+function AxisLabel({ x, y, payload, fill, maxChars }: { x?: number; y?: number; payload?: { value: string }; fill: string; maxChars: number }) {
+  const full = String(payload?.value ?? "");
+  const text = full.length > maxChars ? `${full.slice(0, maxChars - 1).trimEnd()}…` : full;
+  return (
+    <text x={x} y={y} dy={4} textAnchor="end" fill={fill} fontSize={12}>
+      <title>{full}</title>
+      {text}
+    </text>
+  );
+}
+
+function useNarrow(query = "(max-width: 640px)") {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return narrow;
+}
+
 export function TeacherDashboard() {
   const [summaries, setSummaries] = useState<StudentSummary[]>([]);
   const [chapterStatsByStudent, setChapterStatsByStudent] = useState<Map<string, ChapterStat[]>>(
@@ -127,6 +151,9 @@ export function TeacherDashboard() {
   // null = chưa chọn, mặc định rơi về chương đầu tiên có dữ liệu (xem
   // drilldownTopicId bên dưới) để không hiện màn hình trống ngay khi bấm.
   const [drilldownTopicId, setDrilldownTopicId] = useState<string | null>(null);
+  const [studentQuery, setStudentQuery] = useState("");
+  const theme = useDocumentTheme();
+  const narrow = useNarrow();
 
   useEffect(() => {
     (async () => {
@@ -234,12 +261,13 @@ export function TeacherDashboard() {
       .map((s) => ({ lesson_name: s.lesson_name, accuracy: lessonAccuracyPercent(s) ?? 0 }));
   }, [selectedLessonStats, classLessonStats, activeDrilldownTopicId]);
 
-  const chapterAverage =
-    chapterChartData.length > 0
-      ? Math.round(
-          chapterChartData.reduce((sum, c) => sum + c.accuracy, 0) / chapterChartData.length,
-        )
-      : null;
+
+  // Độ chính xác trung bình các chương của LỚP đang lọc (ô thống kê đầu trang,
+  // không đổi theo học sinh đang chọn).
+  const classChapterAverage = useMemo(() => {
+    const rows = classStats.filter((s) => s.maxScore > 0).map((s) => accuracyPercent(s) ?? 0);
+    return rows.length > 0 ? Math.round(rows.reduce((a, b) => a + b, 0) / rows.length) : null;
+  }, [classStats]);
 
   const comparisonData = useMemo(
     () => buildComparisonRows(classStats, selectedStats),
@@ -311,304 +339,277 @@ export function TeacherDashboard() {
 
   if (loading) return <div className="page-loading">Đang tải...</div>;
 
+  const scope = selectedClass ? selectedClass.name : "Tất cả lớp";
+  const q = studentQuery.trim().toLowerCase();
+  const listedStudents = q
+    ? filteredSummaries.filter((s) => s.profile.full_name.toLowerCase().includes(q))
+    : filteredSummaries;
+  const chart = {
+    student: theme === "dark" ? "#e2545e" : "#9c1420",
+    cls: theme === "dark" ? "#5b8c7f" : "#3e6259",
+    grid: theme === "dark" ? "#3a332a" : "#e8ddc9",
+    tick: theme === "dark" ? "#c9bfb2" : "#5e6b76",
+  };
+  const tickStyle = { fill: chart.tick, fontSize: 12 };
+  const axisWidth = narrow ? 118 : 230;
+  const axisChars = narrow ? 16 : 34;
+  const chapterRows = selectedSummary
+    ? comparisonData.map((r) => ({ ...r, studentAccuracy: r.studentAccuracy ?? 0 }))
+    : chapterChartData.map((c) => ({ topic_id: c.topic_id, topic_name: c.topic_name, classAccuracy: c.accuracy }));
+  const chartHeight = (rows: number, perRow: number) => Math.max(240, rows * perRow + 40);
+
   return (
-    <div className="teacher-page">
-      <div className="page-header-row">
+    <div className="teacher-page tdash">
+      <header className="tdash-head">
         <div>
-          <h2 style={{ marginBottom: 4 }}>Tổng quan {selectedClass ? selectedClass.name : "lớp"}</h2>
-          <div className="empty-hint" style={{ padding: 0 }}>
-            Cập nhật lúc {loadedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })},{" "}
-            {loadedAt.toLocaleDateString("vi-VN")}
-          </div>
+          <span className="tdash-eyebrow">Tổng quan</span>
+          <h1 className="tdash-title">{scope}</h1>
+          <p className="tdash-sub">
+            {filteredSummaries.length} học sinh · cập nhật lúc{" "}
+            {loadedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}, {loadedAt.toLocaleDateString("vi-VN")}
+          </p>
         </div>
-      </div>
-
-      {classes.length > 0 && (
-        <div className="dash-filter-row">
-          <span className="dash-filter-label">Xem theo:</span>
-          <button
-            className={`class-filter-chip ${selectedClassId === null ? "class-filter-chip--active" : ""}`}
-            onClick={() => selectClassFilter(null)}
-          >
-            Tất cả ({summaries.length} HS)
-          </button>
-          {classes.map((c) => (
-            <button
-              key={c.id}
-              className={`class-filter-chip ${selectedClassId === c.id ? "class-filter-chip--active" : ""}`}
-              onClick={() => selectClassFilter(c.id)}
-            >
-              {c.name} ({summaries.filter((s) => s.profile.class_id === c.id).length} HS)
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="student-stat-strip">
-        <div className="student-stat-cell">
-          <div className="student-stat-cell-label">Học sinh đang theo dõi</div>
-          <div className="student-stat-cell-value">{filteredSummaries.length}</div>
-        </div>
-        <div className="student-stat-cell">
-          <div className="student-stat-cell-label">Tổng lượt làm bài</div>
-          <div className="student-stat-cell-value">{totalAttempts}</div>
-        </div>
-        <div className="student-stat-cell">
-          <div className="student-stat-cell-label">Điểm trung bình{selectedClass ? " lớp" : ""}</div>
-          <div className="student-stat-cell-value student-stat-cell-value--muted">
-            {classAverageScore === null ? "—" : classAverageScore.toFixed(2)}
-          </div>
-        </div>
-        <div className="student-stat-cell">
-          <div className="student-stat-cell-label">Buổi ôn tập tuần này</div>
-          <div className="student-stat-cell-value student-stat-cell-value--muted">
-            {reviewSessionsThisWeek === null ? "—" : reviewSessionsThisWeek}
-          </div>
-        </div>
-        <div className="student-stat-cell">
-          <div className="student-stat-cell-label">Câu sai chưa ôn xong</div>
-          <div className="student-stat-cell-value">{journalClassTotals.total}</div>
-          {journalClassTotals.needAttention > 0 && (
-            <div className="student-stat-cell-sub">
-              {journalClassTotals.needAttention} HS cần nhắc
-            </div>
+        <div className="tdash-head-actions">
+          {classes.length > 0 && (
+            <label className="tdash-select">
+              <span>Lớp</span>
+              <select value={selectedClassId ?? ""} onChange={(e) => selectClassFilter(e.target.value || null)}>
+                <option value="">Tất cả ({summaries.length} HS)</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({summaries.filter((s) => s.profile.class_id === c.id).length} HS)
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
+          <Link className="btn-secondary" to="/giao-vien/lop-hoc">
+            Quản lý lớp
+          </Link>
+        </div>
+      </header>
+
+      <div className="tdash-kpis">
+        <div className="tdash-kpi">
+          <span className="tdash-kpi-label">Học sinh</span>
+          <b className="tdash-kpi-value">{filteredSummaries.length}</b>
+          <span className="tdash-kpi-sub">{totalAttempts} lượt làm bài</span>
+        </div>
+        <div className="tdash-kpi">
+          <span className="tdash-kpi-label">Điểm trung bình</span>
+          <b className="tdash-kpi-value">{classAverageScore === null ? "—" : classAverageScore.toFixed(2)}</b>
+          <span className="tdash-kpi-sub">thang 10, mọi lượt đã chấm</span>
+        </div>
+        <div className="tdash-kpi">
+          <span className="tdash-kpi-label">Độ chính xác theo chương</span>
+          <b className="tdash-kpi-value">
+            {classChapterAverage ?? "—"}
+            {classChapterAverage !== null && <small>%</small>}
+          </b>
+          <span className="tdash-kpi-sub">trung bình {classStats.filter((c) => c.maxScore > 0).length} chương có dữ liệu</span>
+        </div>
+        <div className="tdash-kpi">
+          <span className="tdash-kpi-label">Buổi ôn tập 7 ngày</span>
+          <b className="tdash-kpi-value">{reviewSessionsThisWeek === null ? "—" : reviewSessionsThisWeek}</b>
+          <span className="tdash-kpi-sub">tất cả học sinh</span>
+        </div>
+        <div className={`tdash-kpi${journalClassTotals.needAttention > 0 ? " tdash-kpi--warn" : ""}`}>
+          <span className="tdash-kpi-label">Câu sai chưa ôn xong</span>
+          <b className="tdash-kpi-value">{journalClassTotals.total}</b>
+          <span className="tdash-kpi-sub">
+            {journalClassTotals.needAttention > 0 ? `${journalClassTotals.needAttention} HS cần nhắc` : "không ai cần nhắc"}
+          </span>
         </div>
       </div>
 
-      <div className="teacher-dashboard-3col">
-        <section className="dashboard-col dashboard-col--students hover-card">
-          <h3>Học sinh</h3>
+      <div className="tdash-grid">
+        <section className="tdash-card tdash-students" aria-labelledby="tdash-students-title">
+          <div className="tdash-card-head">
+            <h2 className="tdash-card-title" id="tdash-students-title">
+              Học sinh
+            </h2>
+            <span className="tdash-card-meta">Bấm để xem biểu đồ</span>
+          </div>
+          {filteredSummaries.length > 6 && (
+            <input
+              className="tdash-search"
+              type="search"
+              placeholder="Tìm học sinh…"
+              value={studentQuery}
+              onChange={(e) => setStudentQuery(e.target.value)}
+              aria-label="Tìm học sinh"
+            />
+          )}
           {filteredSummaries.length === 0 ? (
             <p className="empty-hint">
               {summaries.length === 0
                 ? "Chưa có học sinh nào đăng ký. Gửi link website cho học sinh để họ đăng nhập bằng email."
-                : "Lớp này chưa có học sinh nào — vào \"Quản lý lớp\" để thêm."}
+                : "Lớp này chưa có học sinh nào. Vào \"Quản lý lớp\" để thêm."}
             </p>
           ) : (
-            <ul className="student-picker-list">
-              <li>
-                <button
-                  className={`student-picker-item ${selectedId === null ? "student-picker-item--active" : ""}`}
-                  onClick={() => setSelectedId(null)}
-                >
-                  <span className="student-picker-item-text">
-                    <strong>Tổng quan {selectedClass ? selectedClass.name : "cả lớp"}</strong>
-                    <span className="empty-hint" style={{ padding: 0 }}>{filteredSummaries.length} học sinh</span>
-                  </span>
-                </button>
-              </li>
-              {filteredSummaries.map((s, i) => {
-                const palette = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+            <ul className="tdash-student-list">
+              {listedStudents.map((s) => {
+                const palette = AVATAR_PALETTE[filteredSummaries.indexOf(s) % AVATAR_PALETTE.length];
                 const { tier } = resolveTier(s.profile.manual_tier, s.averageScore);
+                const active = selectedId === s.profile.id;
                 return (
-                  <li key={s.profile.id}>
+                  <li key={s.profile.id} className={`tdash-student${active ? " is-active" : ""}`}>
                     <button
-                      className={`student-picker-item ${selectedId === s.profile.id ? "student-picker-item--active" : ""}`}
-                      onClick={() => setSelectedId(s.profile.id)}
+                      type="button"
+                      className="tdash-student-pick"
+                      aria-pressed={active}
+                      onClick={() => setSelectedId(active ? null : s.profile.id)}
                     >
-                      <span
-                        className="student-avatar"
-                        style={{ background: palette.bg, color: palette.text }}
-                      >
+                      <span className="student-avatar" style={{ background: palette.bg, color: palette.text }}>
                         {initialsOf(s.profile.full_name)}
                       </span>
-                      <span className="student-picker-item-text">
-                        <strong>{s.profile.full_name}</strong>
-                        <span className="empty-hint" style={{ padding: 0 }}>
+                      <span className="tdash-student-text">
+                        <b>{s.profile.full_name}</b>
+                        <small>
                           {s.attemptCount} lượt · TB {s.averageScore?.toFixed(2) ?? "—"}
-                        </span>
+                        </small>
                       </span>
-                      {tier && (
-                        <span className={`tier-badge ${TIER_BADGE_CLASS[tier]}`} style={{ marginLeft: "auto" }}>
-                          {TIER_LABELS[tier]}
-                        </span>
-                      )}
+                      {tier && <span className={`tier-badge ${TIER_BADGE_CLASS[tier]}`}>{TIER_LABELS[tier]}</span>}
                     </button>
-                    <Link className="student-picker-detail-link" to={`/giao-vien/hoc-sinh/${s.profile.id}`}>
-                      Xem chi tiết →
+                    <Link
+                      className="tdash-student-open"
+                      to={`/giao-vien/hoc-sinh/${s.profile.id}`}
+                      aria-label={`Mở hồ sơ ${s.profile.full_name}`}
+                      title="Mở hồ sơ học sinh"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M6 3.5 10.5 8 6 12.5" />
+                      </svg>
                     </Link>
                   </li>
                 );
               })}
+              {listedStudents.length === 0 && <li className="empty-hint">Không có học sinh nào khớp “{studentQuery}”.</li>}
             </ul>
           )}
         </section>
 
-        <section className="dashboard-col hover-card">
-          <div className="teacher-chart-header">
+        <section className="tdash-card tdash-chart" aria-labelledby="tdash-chart-title">
+          <div className="tdash-card-head">
             <div>
-              <h3 style={{ marginBottom: 2 }}>Năng lực theo chương</h3>
-              <div className="empty-hint" style={{ padding: 0 }}>
-                {selectedSummary ? selectedSummary.profile.full_name : "Cả lớp"}
+              <h2 className="tdash-card-title" id="tdash-chart-title">
+                Năng lực theo chương
+              </h2>
+              <span className="tdash-card-meta">
+                {selectedSummary ? (
+                  <>
+                    <b>{selectedSummary.profile.full_name}</b> so với {selectedClass ? selectedClass.name : "cả lớp"}
+                    <button type="button" className="tdash-clear" onClick={() => setSelectedId(null)}>
+                      Bỏ chọn
+                    </button>
+                  </>
+                ) : (
+                  `Trung bình ${scope.toLowerCase() === "tất cả lớp" ? "tất cả học sinh" : scope}`
+                )}
+              </span>
+            </div>
+            {chapterChartData.length > 0 && (
+              <div className="tdash-seg" role="tablist" aria-label="Kiểu biểu đồ">
+                {(
+                  [
+                    ["cot", "Theo chương"],
+                    ["radar", "Radar"],
+                    ["bai", "Theo bài"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={chapterView === key}
+                    className={chapterView === key ? "is-active" : ""}
+                    onClick={() => setChapterView(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {chapterAverage !== null && (
-                <div className="teacher-chart-badge">
-                  {chapterAverage}
-                  <span className="teacher-chart-badge-unit">%</span>
-                </div>
-              )}
-              {chapterChartData.length > 0 && (
-                <div className="chart-view-toggle">
-                  <button
-                    type="button"
-                    className={chapterView === "cot" ? "chart-view-toggle--active" : ""}
-                    onClick={() => setChapterView("cot")}
-                  >
-                    Cột
-                  </button>
-                  <button
-                    type="button"
-                    className={chapterView === "radar" ? "chart-view-toggle--active" : ""}
-                    onClick={() => setChapterView("radar")}
-                  >
-                    Radar
-                  </button>
-                  <button
-                    type="button"
-                    className={chapterView === "bai" ? "chart-view-toggle--active" : ""}
-                    onClick={() => setChapterView("bai")}
-                  >
-                    Theo Bài
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
           </div>
+
           {chapterView === "bai" && chapterChartData.length > 0 && (
-            <div className="filter-row" style={{ marginBottom: 10 }}>
-              <label style={{ margin: 0 }}>Chương:</label>
-              <select
-                value={activeDrilldownTopicId ?? ""}
-                onChange={(e) => setDrilldownTopicId(e.target.value || null)}
-              >
+            <label className="tdash-select tdash-select--inline">
+              <span>Chương</span>
+              <select value={activeDrilldownTopicId ?? ""} onChange={(e) => setDrilldownTopicId(e.target.value || null)}>
                 {chapterChartData.map((c) => (
                   <option key={c.topic_id} value={c.topic_id}>
                     {c.topic_name}
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
           )}
+
           {chapterChartData.length === 0 ? (
             <p className="empty-hint">
-              Chưa có dữ liệu chương nào — cần học sinh làm ít nhất 1 đề có câu đã được gán chương
-              (mục 19, Đợt 1).
+              Chưa có dữ liệu chương. Cần học sinh làm ít nhất 1 đề có câu đã gán chương.
             </p>
           ) : chapterView === "bai" ? (
             lessonChartData.length === 0 ? (
-              <p className="empty-hint">
-                Chưa có dữ liệu Bài nào trong chương này — cần câu hỏi được AI gợi ý/giáo viên gán
-                Bài khi nhập đề (xem "Nhập đề thi").
-              </p>
+              <p className="empty-hint">Chương này chưa có câu nào gán Bài. Gán Bài khi nhập đề để xem chi tiết.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(220, lessonChartData.length * 42)}>
-                <BarChart data={lessonChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 100]} unit="%" />
-                  <YAxis
-                    type="category"
-                    dataKey="lesson_name"
-                    width={150}
-                    tickFormatter={truncateLessonLabel}
-                  />
+              <ResponsiveContainer width="100%" height={chartHeight(lessonChartData.length, 36)}>
+                <BarChart data={lessonChartData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+                  <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} unit="%" tick={tickStyle} stroke={chart.grid} />
+                  <YAxis type="category" dataKey="lesson_name" width={axisWidth} tick={<AxisLabel fill={chart.tick} maxChars={axisChars} />} stroke={chart.grid} interval={0} />
                   <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-                  <Bar dataKey="accuracy" fill="#9c1420" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="accuracy" name={selectedSummary ? selectedSummary.profile.full_name : "Cả lớp"} fill={selectedSummary ? chart.student : chart.cls} radius={[0, 4, 4, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             )
           ) : chapterView === "radar" ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <RadarChart data={chapterChartData} outerRadius="72%">
-                <PolarGrid />
-                <PolarAngleAxis
-                  dataKey="topic_name"
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(name: string) => truncateChapterLabel(name, 12)}
-                />
-                <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+            <ResponsiveContainer width="100%" height={360}>
+              <RadarChart data={chapterRows} outerRadius="70%">
+                <PolarGrid stroke={chart.grid} />
+                <PolarAngleAxis dataKey="topic_name" tick={tickStyle} tickFormatter={(name: string) => truncateChapterLabel(name, 16)} />
+                <PolarRadiusAxis domain={[0, 100]} tick={{ ...tickStyle, fontSize: 10 }} stroke={chart.grid} />
                 <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-                <Radar dataKey="accuracy" stroke="#9c1420" fill="#9c1420" fillOpacity={0.25} />
+                <Radar dataKey="classAccuracy" name="Cả lớp" stroke={chart.cls} fill={chart.cls} fillOpacity={selectedSummary ? 0.12 : 0.28} />
+                {selectedSummary && (
+                  <Radar dataKey="studentAccuracy" name={selectedSummary.profile.full_name} stroke={chart.student} fill={chart.student} fillOpacity={0.22} />
+                )}
+                {selectedSummary && <Legend />}
               </RadarChart>
             </ResponsiveContainer>
           ) : (
-            <ResponsiveContainer width="100%" height={Math.max(220, chapterChartData.length * 42)}>
-              <BarChart data={chapterChartData} layout="vertical" margin={{ left: 40, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 100]} unit="%" />
-                <YAxis
-                  type="category"
-                  dataKey="topic_name"
-                  width={150}
-                  tickFormatter={truncateChapterLabel}
-                />
+            <ResponsiveContainer width="100%" height={chartHeight(chapterRows.length, selectedSummary ? 46 : 36)}>
+              <BarChart data={chapterRows} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }} barGap={2}>
+                <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} unit="%" tick={tickStyle} stroke={chart.grid} />
+                <YAxis type="category" dataKey="topic_name" width={axisWidth} tick={<AxisLabel fill={chart.tick} maxChars={axisChars} />} stroke={chart.grid} interval={0} />
                 <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-                <Bar dataKey="accuracy" fill="#9c1420" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </section>
-
-        <section className="dashboard-col hover-card">
-          <div className="teacher-chart-header">
-            <div>
-              <h3 style={{ marginBottom: 2 }}>
-                {selectedSummary ? "So với trung bình cả lớp" : "Trung bình cả lớp theo chương"}
-              </h3>
-              {selectedSummary && (
-                <div className="empty-hint" style={{ padding: 0 }}>{selectedSummary.profile.full_name}</div>
-              )}
-            </div>
-          </div>
-          {comparisonData.length === 0 ? (
-            <p className="empty-hint">Chưa có dữ liệu chương nào để so sánh.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={Math.max(220, comparisonData.length * 42)}>
-              <BarChart data={comparisonData} layout="vertical" margin={{ left: 40, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 100]} unit="%" />
-                <YAxis
-                  type="category"
-                  dataKey="topic_name"
-                  width={150}
-                  tickFormatter={truncateChapterLabel}
-                />
-                <Tooltip formatter={(v: number) => `${v.toFixed(0)}%`} />
-                <Legend />
                 {selectedSummary && (
-                  <Bar
-                    dataKey="studentAccuracy"
-                    name={selectedSummary.profile.full_name}
-                    fill="#9c1420"
-                    radius={[0, 4, 4, 0]}
-                  />
+                  <Bar dataKey="studentAccuracy" name={selectedSummary.profile.full_name} fill={chart.student} radius={[0, 4, 4, 0]} barSize={14} />
                 )}
-                <Bar dataKey="classAccuracy" name="Cả lớp" fill="#3e6259" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="classAccuracy" name={selectedClass ? selectedClass.name : "Cả lớp"} fill={chart.cls} radius={[0, 4, 4, 0]} barSize={selectedSummary ? 14 : 18} />
+                {selectedSummary && <Legend wrapperStyle={{ fontSize: 13 }} />}
               </BarChart>
             </ResponsiveContainer>
           )}
         </section>
       </div>
 
-      {/* Theo dõi xử lý câu sai (14/09/2026) — trước đợt này giáo viên KHÔNG có
-          chỗ nào nhìn được nhật ký câu sai của học sinh, dù dữ liệu đã ghi từ
-          migration_008. Cột Lần 1/2/3 là số câu đang ở từng chặng Leitner
-          (streak 0/1/2) — xem src/lib/journalProgress.ts. */}
-      <div className="hover-card" style={{ marginTop: "var(--space-5)" }}>
-        <div className="teacher-chart-header">
+      {/* Theo dõi xử lý câu sai (14/09/2026). Cột Lần 1/2/3 là số câu đang ở
+          từng chặng Leitner (streak 0/1/2) — xem src/lib/journalProgress.ts. */}
+      <section className="tdash-card" aria-labelledby="tdash-journal-title">
+        <div className="tdash-card-head">
           <div>
-            <h3 style={{ marginBottom: 2 }}>Xử lý câu sai {selectedClass ? `— ${selectedClass.name}` : "— tất cả lớp"}</h3>
-            <div className="empty-hint" style={{ padding: 0 }}>
-              Mỗi câu phải làm đúng ở 3 buổi ôn tập riêng biệt liên tiếp mới được rút khỏi nhật ký.
-              Lần 1 = chưa đúng buổi nào · Lần 2 = đã đúng 1 buổi · Lần 3 = đã đúng 2 buổi, chỉ còn
-              1 buổi nữa.
-            </div>
+            <h2 className="tdash-card-title" id="tdash-journal-title">
+              Xử lý câu sai · {scope}
+            </h2>
+            <span className="tdash-card-meta">
+              Mỗi câu phải làm đúng ở 3 buổi ôn riêng biệt liên tiếp mới được rút khỏi nhật ký.
+            </span>
           </div>
           <div className="journal-legend">
             {([1, 2, 3] as JournalStage[]).map((st) => (
-              <span key={st} className={`journal-legend-item journal-legend-item--${st}`}>
+              <span key={st} className={`journal-legend-item journal-legend-item--${st}`} title={JOURNAL_STAGE_HINTS[st]}>
                 {JOURNAL_STAGE_LABELS[st]}: {journalClassTotals.byStage[st - 1]}
               </span>
             ))}
@@ -623,39 +624,21 @@ export function TeacherDashboard() {
               <thead>
                 <tr>
                   <th>Học sinh</th>
+                  <th>Trạng thái</th>
                   <th className="journal-num">Còn lại</th>
                   <th className="journal-num" title={JOURNAL_STAGE_HINTS[1]}>Lần 1</th>
                   <th className="journal-num" title={JOURNAL_STAGE_HINTS[2]}>Lần 2</th>
                   <th className="journal-num" title={JOURNAL_STAGE_HINTS[3]}>Lần 3</th>
-                  <th className="journal-num">Lần ôn gần nhất</th>
-                  <th>Trạng thái</th>
-                  <th />
+                  <th className="journal-num">Ôn gần nhất</th>
                 </tr>
               </thead>
               <tbody>
                 {journalRows.map((row) => (
                   <tr key={row.profile.id} className={`journal-row journal-row--${row.nudge.level}`}>
-                    <td>{row.profile.full_name}</td>
-                    <td className="journal-num">
-                      <strong>{row.summary.total}</strong>
-                    </td>
-                    {([1, 2, 3] as JournalStage[]).map((st) => (
-                      <td key={st} className="journal-num">
-                        <span
-                          className={`journal-cell journal-cell--${st}${
-                            row.summary.byStage[st - 1] === 0 ? " journal-cell--zero" : ""
-                          }`}
-                        >
-                          {row.summary.byStage[st - 1]}
-                        </span>
-                      </td>
-                    ))}
-                    <td className="journal-num">
-                      {row.nudge.daysSinceReview === null
-                        ? "Chưa ôn"
-                        : row.nudge.daysSinceReview === 0
-                          ? "Hôm nay"
-                          : `${row.nudge.daysSinceReview} ngày trước`}
+                    <td>
+                      <Link className="tdash-name-link" to={`/giao-vien/hoc-sinh/${row.profile.id}`}>
+                        {row.profile.full_name}
+                      </Link>
                     </td>
                     <td>
                       <span className={`journal-badge journal-badge--${row.nudge.level}`}>
@@ -668,10 +651,22 @@ export function TeacherDashboard() {
                               : "Sạch nhật ký"}
                       </span>
                     </td>
-                    <td>
-                      <Link className="btn-link" to={`/giao-vien/hoc-sinh/${row.profile.id}`}>
-                        Chi tiết →
-                      </Link>
+                    <td className="journal-num">
+                      <strong>{row.summary.total}</strong>
+                    </td>
+                    {([1, 2, 3] as JournalStage[]).map((st) => (
+                      <td key={st} className="journal-num">
+                        <span className={`journal-cell journal-cell--${st}${row.summary.byStage[st - 1] === 0 ? " journal-cell--zero" : ""}`}>
+                          {row.summary.byStage[st - 1]}
+                        </span>
+                      </td>
+                    ))}
+                    <td className="journal-num">
+                      {row.nudge.daysSinceReview === null
+                        ? "Chưa ôn"
+                        : row.nudge.daysSinceReview === 0
+                          ? "Hôm nay"
+                          : `${row.nudge.daysSinceReview} ngày trước`}
                     </td>
                   </tr>
                 ))}
@@ -679,39 +674,37 @@ export function TeacherDashboard() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="hover-card" style={{ marginTop: "var(--space-5)" }}>
-        <h3>Chương yếu lặp lại nhiều đề (cả lớp)</h3>
-        <p className="empty-hint">
-          Với mỗi Chương, tính % học sinh có 2 lần làm bài gần nhất (đủ dữ liệu để chẩn đoán) đều
-          ở mức "Có lỗ hổng kiến thức" hoặc "Có dấu hiệu mất gốc" — gợi ý Chương nào nên ưu tiên
-          dạy ôn tập lại cho {selectedClass ? selectedClass.name : "cả lớp"}. Xem chi tiết lỗi lặp
-          lại theo từng học sinh ở trang "Xem chi tiết" của học sinh đó.
-        </p>
-        {classRecurringTopics.length === 0 ? (
-          <p className="empty-hint">
-            Chưa phát hiện Chương nào bị lặp lại lỗi sai ở nhiều học sinh — dấu hiệu tốt.
-          </p>
-        ) : (
-          <div className="diagnosis-list">
-            {classRecurringTopics.map((t) => (
-              <div key={t.id} className="diagnosis-card">
-                <div className="diagnosis-card-header">
-                  <span>{t.name}</span>
-                  <span className="diagnosis-badge" style={{ background: MASTERY_COLOR.mat_goc }}>
-                    {t.recurringPercent}%
-                  </span>
-                </div>
-                <p className="diagnosis-note">
-                  {t.recurringCount}/{t.studentCount} học sinh có dữ liệu đang lặp lại lỗi sai ở
-                  chương này.
-                </p>
-              </div>
-            ))}
+      <section className="tdash-card" aria-labelledby="tdash-recurring-title">
+        <div className="tdash-card-head">
+          <div>
+            <h2 className="tdash-card-title" id="tdash-recurring-title">
+              Chương yếu lặp lại nhiều đề · {scope}
+            </h2>
+            <span className="tdash-card-meta">
+              % học sinh có 2 lần làm gần nhất đều ở mức "Có lỗ hổng" hoặc "Mất gốc" ở chương đó. Chương nào cao nên ôn lại cho cả lớp.
+            </span>
           </div>
+        </div>
+        {classRecurringTopics.length === 0 ? (
+          <p className="empty-hint">Chưa có chương nào lặp lại lỗi ở nhiều học sinh.</p>
+        ) : (
+          <ul className="tdash-recurring">
+            {classRecurringTopics.map((t) => (
+              <li key={t.id}>
+                <span className="tdash-recurring-name">{t.name}</span>
+                <span className="tdash-recurring-bar" aria-hidden="true">
+                  <i style={{ width: `${t.recurringPercent}%`, background: MASTERY_COLOR.mat_goc }} />
+                </span>
+                <span className="tdash-recurring-num">
+                  <b>{t.recurringPercent}%</b> · {t.recurringCount}/{t.studentCount} HS
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }

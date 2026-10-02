@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import * as api from "../lib/api";
 import { groupExamsByFolder } from "../lib/examLibrary";
+import { RowMenu } from "../components/RowMenu";
 import type { ExamRow, ExamTag } from "../lib/types";
 
 function ExamCard({ exam, onDeleted }: { exam: ExamRow; onDeleted: (examId: string) => void }) {
@@ -28,23 +29,24 @@ function ExamCard({ exam, onDeleted }: { exam: ExamRow; onDeleted: (examId: stri
         {(exam.assigned_unlock_at || exam.assigned_lock_at) && (
           <span className="tag tag--accent">Được chỉ định</span>
         )}
+        {exam.is_public && <span className="tag tag--pine">Công khai</span>}
       </div>
       {exam.description && <p className="card-desc">{exam.description}</p>}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Link className="btn-secondary" to={`/giao-vien/de-thi/${exam.id}`}>
+      <div className="exam-card-actions">
+        <Link className="btn-secondary btn-sm" to={`/giao-vien/de-thi/${exam.id}/thong-ke`}>
+          Thống kê
+        </Link>
+        <Link className="btn-secondary btn-sm" to={`/giao-vien/de-thi/${exam.id}`}>
           Chỉnh sửa
         </Link>
-        <Link className="btn-secondary" to={`/giao-vien/de-thi/${exam.id}/thong-ke`}>
-          Xem thống kê
-        </Link>
         {exam.drive_link && (
-          <a className="btn-secondary" href={exam.drive_link} target="_blank" rel="noreferrer">
-            Tải đề
+          <a className="btn-link btn-sm" href={exam.drive_link} target="_blank" rel="noreferrer">
+            Tải đề gốc
           </a>
         )}
-        <button type="button" className="btn-link btn-danger" onClick={handleDelete}>
-          Xoá đề
-        </button>
+        <span className="exam-card-actions-end">
+          <RowMenu items={[{ label: "Xoá đề", onClick: () => void handleDelete(), danger: true }]} />
+        </span>
       </div>
     </div>
   );

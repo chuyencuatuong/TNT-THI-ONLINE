@@ -4,6 +4,8 @@ import { useAuth } from "../lib/auth";
 import { GENDER_LABELS, type Gender } from "../lib/types";
 import { VIETNAM_PROVINCES } from "../lib/vietnamProvinces";
 import logoFull from "../assets/logo-full.png";
+import { TurnstileBox } from "../components/TurnstileBox";
+import { TURNSTILE_SITE_KEY } from "../lib/turnstile";
 
 function translateError(raw: string): string {
   const msg = raw.toLowerCase();
@@ -15,6 +17,9 @@ function translateError(raw: string): string {
   }
   if (msg.includes("password") && msg.includes("least")) {
     return "Mật khẩu quá ngắn — cần ít nhất 6 ký tự.";
+  }
+  if (msg.includes("captcha")) {
+    return "Chưa xác minh xong ô kiểm tra chống máy. Đợi ô xác minh hiện dấu tích rồi bấm lại.";
   }
   if (msg.includes("unable to validate email") || msg.includes("invalid email")) {
     return "Email không hợp lệ, vui lòng kiểm tra lại.";
@@ -41,6 +46,8 @@ export function LoginPage() {
   const [schoolName, setSchoolName] = useState("");
   const [gender, setGender] = useState<Gender | "">("");
   const [province, setProvince] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,11 +58,20 @@ export function LoginPage() {
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Đợi ô xác minh bên dưới hiện dấu tích rồi bấm lại nhé.");
+      return;
+    }
+
     setBusy(true);
     const { error } =
-      mode === "signin" ? await signIn(email, password) : await signUp(email, password);
+      mode === "signin" ? await signIn(email, password, captchaToken) : await signUp(email, password, captchaToken);
     setBusy(false);
-    if (error) setError(translateError(error));
+    if (error) {
+      setError(translateError(error));
+      // Token chỉ dùng 1 lần — lấy token mới cho lần bấm tiếp theo.
+      setCaptchaReset((n) => n + 1);
+    }
   }
 
   async function handleCreateProfile(e: React.FormEvent) {
@@ -209,6 +225,7 @@ export function LoginPage() {
             required
           />
         )}
+        <TurnstileBox onToken={setCaptchaToken} resetSignal={captchaReset} />
         <button className="btn-primary" type="submit" disabled={busy}>
           {busy
             ? "Đang xử lý..."

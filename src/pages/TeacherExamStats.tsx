@@ -20,8 +20,8 @@ const TAB_LABELS: Record<StatsTab, string> = {
 };
 
 /** Xuất danh sách lượt làm từ link công khai ra CSV (mở được bằng Excel). */
-function downloadPublicAttemptsCsv(examTitle: string, rows: PublicAttemptRow[]) {
-  const header = ["Họ tên", "Trường", "Tỉnh/Thành", "Lớp", "Email", "Nguồn", "Bắt đầu", "Nộp lúc", "Điểm", "Đã tạo tài khoản"];
+function downloadPublicAttemptsCsv(examTitle: string, rows: PublicAttemptRow[], sharerOf: (r: PublicAttemptRow) => string | null) {
+  const header = ["Họ tên", "Trường", "Tỉnh/Thành", "Lớp", "Email", "Nguồn", "Từ link chia sẻ của", "Bắt đầu", "Nộp lúc", "Điểm", "Đã tạo tài khoản"];
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const lines = rows.map((r) =>
     [
@@ -31,6 +31,7 @@ function downloadPublicAttemptsCsv(examTitle: string, rows: PublicAttemptRow[]) 
       r.student.class_label,
       r.student.contact_email,
       r.attempt.entry_source,
+      sharerOf(r),
       new Date(r.attempt.started_at).toLocaleString("vi-VN"),
       r.attempt.submitted_at ? new Date(r.attempt.submitted_at).toLocaleString("vi-VN") : "",
       r.score ? r.score.total_score.toFixed(2) : "",
@@ -72,6 +73,7 @@ export function TeacherExamStats() {
   const [progress, setProgress] = useState<ExamProgressRow[]>([]);
   const [wrongStats, setWrongStats] = useState<ExamQuestionWrongStat[]>([]);
   const [publicRows, setPublicRows] = useState<PublicAttemptRow[]>([]);
+  const [shares, setShares] = useState<api.AttemptShareRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -122,7 +124,13 @@ export function TeacherExamStats() {
     async function load() {
       try {
         const rows = await api.listPublicAttemptsForExam(examId!);
-        if (!cancelled) setPublicRows(rows);
+        if (cancelled) return;
+        setPublicRows(rows);
+        // Link chia sẻ (migration_024) — lỗi thì bỏ qua, bảng vẫn hiện.
+        api
+          .listAttemptSharesForAttempts(rows.map((r) => r.attempt.id))
+          .then((sh) => !cancelled && setShares(sh))
+          .catch((err) => console.error("Không tải được link chia sẻ:", err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -135,6 +143,29 @@ export function TeacherExamStats() {
       window.clearInterval(id);
     };
   }, [examId, tab]);
+
+  // ----- Lan truyền: lượt làm đến từ link chia sẻ của ai -------------------------
+  const rowByAttempt = new Map(publicRows.map((r) => [r.attempt.id, r]));
+  const shareByToken = new Map(shares.map((sh) => [sh.token, sh]));
+  const sharerOf = (r: PublicAttemptRow): string | null => {
+    if (!r.attempt.ref_share) return null;
+    const sh = shareByToken.get(r.attempt.ref_share);
+    const src = sh ? rowByAttempt.get(sh.attempt_id) : null;
+    return src ? src.student.full_name : "một bạn";
+  };
+  const viaShare = publicRows.filter((r) => r.attempt.ref_share);
+  const topSharers = (() => {
+    const counts = new Map<string, number>();
+    for (const r of viaShare) counts.set(r.attempt.ref_share!, (counts.get(r.attempt.ref_share!) ?? 0) + 1);
+    return [...counts.entries()]
+      .map(([token, n]) => {
+        const sh = shareByToken.get(token);
+        const src = sh ? rowByAttempt.get(sh.attempt_id) : null;
+        return { token, n, name: src?.student.full_name ?? "Một bạn", school: src?.student.school_name ?? null };
+      })
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 5);
+  })();
 
   const doneCount = progress.filter((r) => r.attempt?.submitted_at).length;
   const inProgressCount = progress.filter((r) => r.attempt && !r.attempt.submitted_at).length;
@@ -182,6 +213,7 @@ export function TeacherExamStats() {
                     <th>Trạng thái</th>
                     <th>Bắt đầu lúc</th>
                     <th>Điểm</th>
+                    <th>Báo cáo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -197,6 +229,15 @@ export function TeacherExamStats() {
                           {row.attempt ? new Date(row.attempt.started_at).toLocaleString("vi-VN") : "—"}
                         </td>
                         <td>{row.score ? row.score.total_score.toFixed(2) : "—"}</td>
+                        <td>
+                          {row.attempt?.submitted_at ? (
+                            <Link className="btn-link" to={`/giao-vien/bai-lam/${row.attempt.id}`}>
+                              Mở báo cáo
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -225,12 +266,42 @@ export function TeacherExamStats() {
             <p className="empty-hint">Chưa có lượt làm nào từ link công khai.</p>
           ) : (
             <>
+              <div className="tdash-kpis" style={{ margin: "8px 0 16px" }}>
+                <div className="tdash-kpi">
+                  <span className="tdash-kpi-label">Lượt làm</span>
+                  <b className="tdash-kpi-value">{publicRows.length}</b>
+                  <span className="tdash-kpi-sub">đã nộp {publicRows.filter((r) => r.attempt.submitted_at).length}</span>
+                </div>
+                <div className="tdash-kpi">
+                  <span className="tdash-kpi-label">Đã tạo tài khoản</span>
+                  <b className="tdash-kpi-value">{new Set(publicRows.filter((r) => !r.student.is_guest).map((r) => r.student.id)).size}</b>
+                  <span className="tdash-kpi-sub">khách chuyển thành học sinh</span>
+                </div>
+                <div className="tdash-kpi">
+                  <span className="tdash-kpi-label">Link chia sẻ đã tạo</span>
+                  <b className="tdash-kpi-value">{shares.length}</b>
+                  <span className="tdash-kpi-sub">{shares.filter((sh) => sh.revoked_at).length} đã thu hồi</span>
+                </div>
+                <div className="tdash-kpi">
+                  <span className="tdash-kpi-label">Lượt làm từ chia sẻ</span>
+                  <b className="tdash-kpi-value">{viaShare.length}</b>
+                  <span className="tdash-kpi-sub">
+                    {publicRows.length > 0 ? `${Math.round((viaShare.length / publicRows.length) * 100)}% tổng lượt` : "—"}
+                  </span>
+                </div>
+                <div className="tdash-kpi">
+                  <span className="tdash-kpi-label">Kéo về nhiều nhất</span>
+                  <b className="tdash-kpi-value" style={{ fontSize: 18 }}>{topSharers[0] ? topSharers[0].name : "—"}</b>
+                  <span className="tdash-kpi-sub">{topSharers[0] ? `${topSharers[0].n} lượt làm` : "chưa có"}</span>
+                </div>
+              </div>
               <div className="page-header-row" style={{ marginBottom: 8 }}>
                 <p className="empty-hint" style={{ padding: 0 }}>
-                  {publicRows.length} lượt · đã nộp {publicRows.filter((r) => r.attempt.submitted_at).length} · đã tạo
-                  tài khoản {new Set(publicRows.filter((r) => !r.student.is_guest).map((r) => r.student.id)).size}
+                  {topSharers.length > 1
+                    ? `Chia sẻ hiệu quả: ${topSharers.map((t) => `${t.name} (${t.n})`).join(", ")}`
+                    : "Bảng tự làm mới mỗi 15 giây."}
                 </p>
-                <button type="button" className="btn-secondary" onClick={() => downloadPublicAttemptsCsv(exam?.title ?? "de", publicRows)}>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => downloadPublicAttemptsCsv(exam?.title ?? "de", publicRows, sharerOf)}>
                   Tải CSV
                 </button>
               </div>
@@ -246,6 +317,7 @@ export function TeacherExamStats() {
                       <th>Nguồn</th>
                       <th>Nộp lúc</th>
                       <th>Điểm</th>
+                      <th>Báo cáo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -259,7 +331,10 @@ export function TeacherExamStats() {
                         <td>{r.student.province ?? "—"}</td>
                         <td>{r.student.class_label ?? "—"}</td>
                         <td>{r.student.contact_email ?? "—"}</td>
-                        <td>{r.attempt.entry_source ?? "—"}</td>
+                        <td>
+                          {r.attempt.entry_source ?? "—"}
+                          {r.attempt.ref_share && <span className="empty-hint" style={{ display: "block", padding: 0, fontSize: 12 }}>từ link của {sharerOf(r)}</span>}
+                        </td>
                         <td>
                           {r.attempt.submitted_at ? (
                             new Date(r.attempt.submitted_at).toLocaleString("vi-VN")
@@ -268,6 +343,15 @@ export function TeacherExamStats() {
                           )}
                         </td>
                         <td>{r.score ? r.score.total_score.toFixed(2) : "—"}</td>
+                        <td>
+                          {r.attempt.submitted_at ? (
+                            <Link className="btn-link" to={`/giao-vien/bai-lam/${r.attempt.id}`}>
+                              Mở báo cáo
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

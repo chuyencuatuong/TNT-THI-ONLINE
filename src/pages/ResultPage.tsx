@@ -28,7 +28,7 @@ import {
 } from "../lib/resultReport";
 import { ResultSlip } from "../components/ResultSlip";
 import { useAuth } from "../lib/auth";
-import type { AttemptScoreRow, ExamAttemptRow, ExamRow } from "../lib/types";
+import type { AttemptScoreRow, ExamAttemptRow, ExamRow, Profile } from "../lib/types";
 import "../components/student-result/student-intelligence.css";
 import "../components/student-result/student-intelligence-report.css";
 import { scrollToSection, useScrollSpy } from "../components/student-result/useScrollSpy";
@@ -42,6 +42,7 @@ import { DiagnosisChapter } from "../components/student-result/DiagnosisChapter"
 import { ChapterTransition } from "../components/student-result/ChapterTransition";
 import { ActionChapter } from "../components/student-result/ActionChapter";
 import { GuestSaveCard } from "../components/student-result/GuestSaveCard";
+import { ShareResultCard } from "../components/student-result/ShareResultCard";
 import { AppendixChapter, type AppendixItem } from "../components/student-result/AppendixChapter";
 import { MobileActionBar } from "../components/student-result/MobileActionBar";
 import { topRootCauseChain } from "../components/student-result/rootCauseChain";
@@ -109,8 +110,16 @@ const NAV_ITEMS: ReportNavItem[] = [
 ];
 const NUMBER_WORDS = ["Không có việc", "Một việc", "Hai việc", "Ba việc"];
 
-export function ResultPage() {
+/**
+ * viewer = "teacher" (02/10/2026): giáo viên mở báo cáo năng lực của 1 học sinh
+ * (/giao-vien/bai-lam/:attemptId) — cùng nội dung học sinh thấy, cộng thanh
+ * "Chế độ giáo viên" có nút quay lại; các việc dẫn sang trang học sinh chỉ hiện
+ * thành ghi chú; không có thẻ lưu hồ sơ / chia sẻ.
+ */
+export function ResultPage({ viewer = "student" }: { viewer?: "student" | "teacher" }) {
   const { profile } = useAuth();
+  const isTeacherView = viewer === "teacher";
+  const [studentProfile, setStudentProfile] = useState<Profile | null>(null);
   const navigate = useNavigate();
   const { attemptId } = useParams<{ attemptId: string }>();
   const [attempt, setAttempt] = useState<(ExamAttemptRow & { exam: ExamRow }) | null>(null);
@@ -138,16 +147,19 @@ export function ResultPage() {
   const scorePlaceholderRef = useRef<HTMLSpanElement>(null);
   const appendixRef = useRef<HTMLElement>(null);
 
+  // Hồ sơ của người làm bài: chính mình (học sinh) hoặc học sinh đang xem (giáo viên).
+  const subject = isTeacherView ? studentProfile : profile;
+  const subjectClassId = subject?.class_id ?? null;
   useEffect(() => {
-    if (!profile?.class_id) {
+    if (!subjectClassId) {
       setClassName(null);
       return;
     }
     api
       .listClasses()
-      .then((classes) => setClassName(classes.find((c) => c.id === profile.class_id)?.name ?? null))
+      .then((classes) => setClassName(classes.find((c) => c.id === subjectClassId)?.name ?? null))
       .catch((err) => console.error("Không lấy được tên lớp:", err));
-  }, [profile?.class_id]);
+  }, [subjectClassId]);
 
   useEffect(() => {
     if (!attemptId) return;
@@ -169,6 +181,18 @@ export function ResultPage() {
   // Dữ liệu phân tích — tải riêng, KHÔNG chặn phần điểm.
   const studentId = attempt?.student_id ?? null;
   const examId = attempt?.exam_id ?? null;
+
+  useEffect(() => {
+    if (!isTeacherView || !studentId) return;
+    let cancelled = false;
+    api
+      .getProfile(studentId)
+      .then((p) => !cancelled && setStudentProfile(p))
+      .catch((err) => console.error("Không lấy được hồ sơ học sinh:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [isTeacherView, studentId]);
   useEffect(() => {
     if (!studentId) return;
     let cancelled = false;
@@ -387,7 +411,7 @@ export function ResultPage() {
   );
 
   // Khách (đề công khai) phải điền thông tin cơ bản trước khi xem kết quả.
-  const isGuest = !!profile?.is_guest;
+  const isGuest = !isTeacherView && !!profile?.is_guest;
   if (isGuest && !profile?.info_completed_at && attemptId) {
     return <Navigate to={`/thi/thong-tin/${attemptId}`} replace />;
   }
@@ -490,12 +514,13 @@ export function ResultPage() {
     document.getElementById("luu-ho-so")?.scrollIntoView({ behavior: "smooth", block: "center" });
   const runFirstAction = () => {
     if (first.kind === "questions") openQuestions(first.questionIds ?? []);
+    else if (isTeacherView) scrollToSection("hanh-dong");
     else if (isGuest) scrollToSaveCard(); // trang học sinh cần tài khoản
     else navigate(first.to ?? "/hoc-sinh");
   };
 
   const navMeta = [
-    { label: "Học sinh", value: profile?.full_name ?? "—" },
+    { label: "Học sinh", value: subject?.full_name ?? "—" },
     ...(className ? [{ label: "Lớp", value: className }] : []),
     ...(attemptTime
       ? [{ label: "Nộp lúc", value: attemptTime.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }) }]
@@ -602,8 +627,36 @@ export function ResultPage() {
     },
   ];
 
+  const canShare =
+    !isTeacherView &&
+    !!attempt &&
+    !!profile &&
+    profile.id === attempt.student_id &&
+    !attempt.invalidated &&
+    !!attempt.exam.is_public &&
+    !!attempt.exam.public_slug;
+
   return (
     <div className="student-intelligence-root student-intelligence-report" ref={hostRef}>
+      {isTeacherView && attempt && (
+        <div className="student-intelligence-teacherbar" role="note">
+          <span className="student-intelligence-teacherbar-who">
+            <small>Chế độ giáo viên · báo cáo học sinh thấy</small>
+            <b>
+              {subject?.full_name ?? "Học sinh"}
+              {className ? ` · ${className}` : subject?.class_label ? ` · ${subject.class_label}` : ""}
+            </b>
+          </span>
+          <span className="student-intelligence-teacherbar-actions">
+            <Link className="student-intelligence-button" to={`/giao-vien/hoc-sinh/${attempt.student_id}`}>
+              Hồ sơ học sinh
+            </Link>
+            <Link className="student-intelligence-button" to={`/giao-vien/de-thi/${attempt.exam_id}/thong-ke`}>
+              Thống kê đề
+            </Link>
+          </span>
+        </div>
+      )}
       <ReportTopBar total={total} chapterLabel={chapterLabel} placeholderRef={scorePlaceholderRef} hostRef={hostRef} />
 
       <div className="student-intelligence-layout">
@@ -682,8 +735,17 @@ export function ResultPage() {
               actions={actions}
               onOpenQuestions={openQuestions}
               lockedLink={isGuest ? { label: "Lưu hồ sơ để mở", onClick: scrollToSaveCard } : undefined}
+              readOnlyNote={isTeacherView ? "Học sinh mở ở tài khoản của em" : undefined}
             />
-            {(isGuest || shownAsGuest) && <GuestSaveCard id="luu-ho-so" />}
+            {!isTeacherView && (isGuest || shownAsGuest) && <GuestSaveCard id="luu-ho-so" />}
+            {canShare && attempt && (
+              <ShareResultCard
+                attemptId={attempt.id}
+                examTitle={attempt.exam.title}
+                slug={attempt.exam.public_slug!}
+                totalScore={total}
+              />
+            )}
           </section>
 
           <section className="student-intelligence-sheet" id="phu-luc" ref={appendixRef} aria-label="Phụ lục" tabIndex={-1}>
@@ -691,9 +753,15 @@ export function ResultPage() {
           </section>
 
           <div className="student-intelligence-report-foot">
-            <Link className="student-intelligence-button" to={isGuest ? "/thi" : "/hoc-sinh"}>
-              {isGuest ? "Xem các đề miễn phí khác" : "Về trang chủ"}
-            </Link>
+            {isTeacherView && attempt ? (
+              <Link className="student-intelligence-button" to={`/giao-vien/hoc-sinh/${attempt.student_id}`}>
+                Về hồ sơ học sinh
+              </Link>
+            ) : (
+              <Link className="student-intelligence-button" to={isGuest ? "/thi" : "/hoc-sinh"}>
+                {isGuest ? "Xem các đề miễn phí khác" : "Về trang chủ"}
+              </Link>
+            )}
           </div>
         </article>
       </div>
@@ -703,7 +771,7 @@ export function ResultPage() {
       {/* Bản in riêng — chỉ hiện khi in/lưu PDF (xem @media print trong styles.css và ResultSlip.tsx). */}
       {attempt && (
         <ResultSlip
-          studentName={profile?.full_name ?? "—"}
+          studentName={subject?.full_name ?? "—"}
           studentClass={className}
           examTitle={attempt.exam.title}
           attemptDateLabel={new Date(attempt.started_at).toLocaleDateString("vi-VN")}

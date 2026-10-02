@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ExamAutopsyPanel } from "../components/ExamAutopsyPanel";
 import { LearningProfile } from "../components/LearningProfile";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import {
   BarChart,
@@ -23,6 +23,7 @@ import {
 import * as api from "../lib/api";
 import type { AttemptDiagnostics, AttemptReviewItem, LessonTrendGroup, TopicTrendGroup } from "../lib/api";
 import { generateReportSummary } from "../lib/ai";
+import { RowMenu } from "../components/RowMenu";
 import { accuracyPercent, truncateChapterLabel } from "../lib/chapterStats";
 import { QuestionReview } from "../components/QuestionReview";
 import { MathText } from "../components/MathText";
@@ -623,7 +624,8 @@ export function TeacherStudentDetail() {
                         <th>TG so với lần trước</th>
                         <th>Giám sát</th>
                         <th>Câu bỏ trống</th>
-                        <th>Xem lại</th>
+                        <th>Xem</th>
+                        <th aria-label="Thao tác khác" />
                       </tr>
                     </thead>
                     <tbody>
@@ -671,30 +673,6 @@ export function TeacherStudentDetail() {
                                   Đã chỉnh
                                 </span>
                               )}
-                              <button
-                                type="button"
-                                className="btn-link"
-                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
-                                onClick={() => void toggleScoreEditor(a.id, a.exam_id)}
-                              >
-                                {isEditorOpen ? "Đóng sửa điểm" : "Sửa điểm"}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-link btn-danger"
-                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
-                                onClick={() => toggleInvalidated(a.id, a.invalidated)}
-                              >
-                                {a.invalidated ? "Bỏ huỷ" : "Hủy lượt này"}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-link btn-danger"
-                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
-                                onClick={() => handleDeleteAttempt(a.id, g.examTitle, a.attempt_number)}
-                              >
-                                Xoá kết quả này
-                              </button>
                             </td>
                             <td>
                               {scoreVsFirst === null ? (
@@ -746,35 +724,34 @@ export function TeacherStudentDetail() {
                               })()}
                             </td>
                             <td>
-                              <button
-                                type="button"
-                                className="btn-link"
-                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
-                                onClick={() => toggleReview(a.id, a.exam_id, "wrong")}
-                              >
-                                {isWrongOpen ? "Ẩn câu sai" : "Xem câu sai"}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-link"
-                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
-                                onClick={() => toggleReview(a.id, a.exam_id, "full")}
-                              >
-                                {isFullOpen ? "Ẩn cả bài" : "Xem cả bài"}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-link"
-                                style={{ display: "block", fontSize: 11, padding: "2px 0" }}
-                                onClick={() => toggleDiagnosis(a.id, a.exam_id)}
-                              >
-                                {isDiagnosisOpen ? "Ẩn chẩn đoán" : "Xem chẩn đoán"}
-                              </button>
+                              <div className="view-actions">
+                                <Link className="btn-secondary btn-sm" to={`/giao-vien/bai-lam/${a.id}`}>
+                                  Báo cáo năng lực
+                                </Link>
+                                <button type="button" className="view-toggle" aria-pressed={isWrongOpen} onClick={() => toggleReview(a.id, a.exam_id, "wrong")}>
+                                  Câu sai
+                                </button>
+                                <button type="button" className="view-toggle" aria-pressed={isFullOpen} onClick={() => toggleReview(a.id, a.exam_id, "full")}>
+                                  Cả bài
+                                </button>
+                                <button type="button" className="view-toggle" aria-pressed={isDiagnosisOpen} onClick={() => toggleDiagnosis(a.id, a.exam_id)}>
+                                  Chẩn đoán
+                                </button>
+                              </div>
+                            </td>
+                            <td>
+                              <RowMenu
+                                items={[
+                                  { label: isEditorOpen ? "Đóng sửa điểm" : "Sửa điểm", onClick: () => void toggleScoreEditor(a.id, a.exam_id) },
+                                  { label: a.invalidated ? "Bỏ huỷ lượt này" : "Huỷ lượt này", onClick: () => toggleInvalidated(a.id, a.invalidated), danger: !a.invalidated },
+                                  { label: "Xoá kết quả này", onClick: () => handleDeleteAttempt(a.id, g.examTitle, a.attempt_number), danger: true },
+                                ]}
+                              />
                             </td>
                           </tr>
                           {isEditorOpen && (
                             <tr>
-                              <td colSpan={11} className="proctoring-detail-cell">
+                              <td colSpan={12} className="proctoring-detail-cell">
                                 {loadingEditor || !editorData ? (
                                   <span className="empty-hint">Đang tải bài làm...</span>
                                 ) : (
@@ -796,7 +773,7 @@ export function TeacherStudentDetail() {
                           )}
                           {isOpen && (
                             <tr>
-                              <td colSpan={11} className="proctoring-detail-cell">
+                              <td colSpan={12} className="proctoring-detail-cell">
                                 {loadingViolations && !violationEvents[a.id] ? (
                                   <span className="empty-hint">Đang tải...</span>
                                 ) : (violationEvents[a.id] ?? []).length === 0 ? (
@@ -818,7 +795,7 @@ export function TeacherStudentDetail() {
                           )}
                           {(isWrongOpen || isFullOpen) && (
                             <tr>
-                              <td colSpan={11} className="proctoring-detail-cell">
+                              <td colSpan={12} className="proctoring-detail-cell">
                                 {(() => {
                                   const cacheKey = `${a.id}:${isFullOpen ? "full" : "wrong"}`;
                                   const items = reviewItems[cacheKey];
@@ -853,7 +830,7 @@ export function TeacherStudentDetail() {
                           )}
                           {isDiagnosisOpen && (
                             <tr>
-                              <td colSpan={11} className="proctoring-detail-cell">
+                              <td colSpan={12} className="proctoring-detail-cell">
                                 {(() => {
                                   const d = diagnosticsByAttempt[a.id];
                                   if (loadingDiagnosis && !d) {

@@ -38,7 +38,7 @@ export function ChapterTransition({
     const wrap = wrapRef.current, card = cardRef.current, bg = bgRef.current;
     const surf = surfaceRef.current, A = aRef.current, B = bRef.current;
     if (!wrap || !card || !bg || !surf || !A || !B) return;
-    const vh = window.innerHeight, vw = window.innerWidth;
+    const vh = window.innerHeight;
     const wr = wrap.getBoundingClientRect();
     const fadeEl = fadeOutRef.current;
     const fade = fadeEl ? clamp((fadeEl.getBoundingClientRect().top - vh * 0.35) / (vh * 0.5)) : 1;
@@ -51,13 +51,16 @@ export function ChapterTransition({
     if (!scrollMotionAllowed()) p = p > 0.4 ? 1 : 0;
     const e = easeInOut(p);
     const c = card.getBoundingClientRect();
-    const t = lerp(c.top + 1, 0, e), l = lerp(c.left + 1, 0, e);
-    const r = lerp(vw - c.right + 1, 0, e), b = lerp(vh - c.bottom + 1, 0, e);
+    // Toạ độ tính theo khung nền (bg) chứ không theo cửa sổ: ở chế độ giáo viên
+    // nền chừa thanh bên trái (styles.css, .app-shell--teacher).
+    const f = bg.getBoundingClientRect();
+    const t = lerp(c.top - f.top + 1, 0, e), l = lerp(c.left - f.left + 1, 0, e);
+    const r = lerp(f.right - c.right + 1, 0, e), b = lerp(f.bottom - c.bottom + 1, 0, e);
     bg.style.clipPath = `inset(${t.toFixed(1)}px ${r.toFixed(1)}px ${b.toFixed(1)}px ${l.toFixed(1)}px round ${lerp(19, 0, e).toFixed(1)}px)`;
     bg.style.opacity = fade.toFixed(3);
     surf.style.opacity = (1 - clamp(p * 2.8)).toFixed(3);
-    A.style.left = `${c.left}px`;
-    A.style.top = `${c.top}px`;
+    A.style.left = `${c.left - f.left}px`;
+    A.style.top = `${c.top - f.top}px`;
     A.style.width = `${c.width}px`;
     A.style.opacity = (1 - clamp(p * 4)).toFixed(3);
     const ob = clamp((p - 0.35) * 2.2);

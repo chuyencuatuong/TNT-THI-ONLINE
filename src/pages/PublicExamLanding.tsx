@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import * as api from "../lib/api";
-import type { PublicExamInfo } from "../lib/api";
+import type { PublicExamInfo, SharedResult } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/useTheme";
+import { TURNSTILE_SITE_KEY } from "../lib/turnstile";
+import { TurnstileBox } from "../components/TurnstileBox";
 import { setupLandingMotion } from "./landingMotion";
+import {
+  ExamLibrarySection,
+  InviteBanner,
+  LandingFooter,
+  examMeta,
+  examParts,
+  formatDateTime,
+  sortLibrary,
+  windowStatus,
+} from "./PublicExamParts";
+import logoMark from "../assets/logo-mark.png";
 import "./PublicExamLanding.css";
 
 /**
@@ -39,34 +52,12 @@ type LoadState =
   | { status: "ready"; exam: PublicExamInfo | null; list: PublicExamInfo[]; notFound: boolean }
   | { status: "error"; message: string };
 
-type WindowStatus = "open" | "not_yet" | "closed";
-
-function windowStatus(exam: PublicExamInfo | null, now: number): WindowStatus {
-  if (!exam) return "open";
-  if (exam.assigned_unlock_at && now < new Date(exam.assigned_unlock_at).getTime()) return "not_yet";
-  if (exam.assigned_lock_at && now > new Date(exam.assigned_lock_at).getTime()) return "closed";
-  return "open";
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-function examParts(exam: PublicExamInfo) {
-  return ["1", "2", "3"]
-    .map((k) => ({ key: k, count: exam.part_counts?.[k] ?? 0 }))
-    .filter((p) => p.count > 0);
-}
-
-function examMeta(exam: PublicExamInfo | null): string {
-  if (!exam) return "Miễn phí · không cần tài khoản";
-  const total = examParts(exam).reduce((s, p) => s + p.count, 0);
-  return exam.duration_minutes ? `${total} câu · ${exam.duration_minutes} phút` : `${total} câu · không giới hạn giờ`;
-}
-
 function translateStartError(message: string): string {
   if (/anonymous sign-ins are disabled/i.test(message)) {
     return "Hệ thống chưa mở chế độ làm bài không cần tài khoản. Em nhắn Fanpage TNT giúp thầy nhé.";
+  }
+  if (/captcha/i.test(message)) {
+    return "Chưa xác minh xong ô kiểm tra chống máy. Đợi ô hiện dấu tích rồi bấm lại nhé.";
   }
   if (/rate limit|too many/i.test(message)) {
     return "Đang có quá nhiều bạn vào cùng lúc. Em đợi khoảng 1 phút rồi bấm lại nhé.";
@@ -78,7 +69,9 @@ export function PublicExamLanding() {
   const [params] = useSearchParams();
   const slug = params.get("de")?.trim() || null;
   const source = (params.get("src") ?? "link").replace(/[^a-z0-9_-]/gi, "").slice(0, 60) || "link";
+  const refToken = api.isUuid(params.get("ref")) ? params.get("ref") : null;
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, profile, startGuestSession } = useAuth();
   const { toggleTheme } = useTheme();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -87,14 +80,19 @@ export function PublicExamLanding() {
   const [modalOpen, setModalOpen] = useState(false);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [shared, setShared] = useState<SharedResult | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
     (async () => {
       try {
-        const exam = slug ? await api.getPublicExam(slug) : null;
-        const list = exam ? [] : await api.listPublicExams();
+        const [exam, list] = await Promise.all([
+          slug ? api.getPublicExam(slug) : Promise.resolve(null),
+          api.listPublicExams(),
+        ]);
         if (!cancelled) setState({ status: "ready", exam, list, notFound: !!slug && !exam });
       } catch (err) {
         if (cancelled) return;
@@ -111,6 +109,36 @@ export function PublicExamLanding() {
       cancelled = true;
     };
   }, [slug]);
+
+  // Đổi sang đề khác trong Kho đề: về đầu trang.
+  const firstSlug = useRef(slug);
+  useEffect(() => {
+    if (firstSlug.current === slug) return;
+    firstSlug.current = slug;
+    window.scrollTo({ top: 0 });
+  }, [slug]);
+
+  // Link "#kho-de" từ chân trang: cuộn tới Kho đề khi dữ liệu đã về.
+  useEffect(() => {
+    if (state.status !== "ready" || location.hash !== "#kho-de") return;
+    window.setTimeout(() => document.getElementById("kho-de")?.scrollIntoView({ behavior: "smooth" }), 80);
+  }, [state.status, location.hash]);
+
+  // Lời mời từ link chia sẻ (?ref=, migration_024).
+  useEffect(() => {
+    if (!refToken) {
+      setShared(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getSharedResult(refToken)
+      .then((r) => !cancelled && setShared(r))
+      .catch((err) => console.error("Không đọc được link chia sẻ:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [refToken]);
 
   const exam = state.status === "ready" ? state.exam : null;
   const parts = useMemo(() => (exam ? examParts(exam) : []), [exam]);
@@ -144,7 +172,7 @@ export function PublicExamLanding() {
 
   function onStart() {
     if (!exam) {
-      document.getElementById("lpDeList")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("kho-de")?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     if (win !== "open") {
@@ -157,7 +185,8 @@ export function PublicExamLanding() {
 
   async function startExam() {
     if (!exam || starting) return;
-    const target = `/lam-bai/${exam.id}?src=${encodeURIComponent(source)}&de=${encodeURIComponent(exam.slug)}`;
+    const refForExam = shared && shared.slug === exam.slug ? refToken : null;
+    const target = `/lam-bai/${exam.id}?src=${encodeURIComponent(source)}&de=${encodeURIComponent(exam.slug)}${refForExam ? `&ref=${refForExam}` : ""}`;
     if (session && profile) {
       if (profile.role === "teacher") {
         setStartError("Bạn đang đăng nhập bằng tài khoản giáo viên. Mở đề ở trang soạn đề để xem trước, hoặc dùng trình duyệt ẩn danh để thử như học sinh.");
@@ -170,12 +199,17 @@ export function PublicExamLanding() {
       setStartError("Tài khoản của em chưa hoàn tất hồ sơ. Vào trang đăng nhập để hoàn tất trước nhé.");
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setStartError("Đợi ô xác minh hiện dấu tích rồi bấm lại nhé.");
+      return;
+    }
     setStarting(true);
-    const { error } = await startGuestSession(source);
+    const { error } = await startGuestSession(source, captchaToken);
     setStarting(false);
     if (error) {
       console.error(error);
       setStartError(translateStartError(error));
+      setCaptchaReset((n) => n + 1);
       return;
     }
     navigate(target);
@@ -276,13 +310,13 @@ export function PublicExamLanding() {
       </div>
     );
   } else {
-    const list = state.status === "ready" ? state.list : [];
+    const list = state.status === "ready" ? sortLibrary(state.list, Date.now()) : [];
     heroAside = (
       <div className="lp-exam-card lp-rise" id="lpExamCard" style={cv({ "--d": "260ms" })}>
         <div className="lp-exam-kicker">{kicker}</div>
         <div className="lp-exam-title">{state.status === "error" ? state.message : "Chọn một đề để bắt đầu"}</div>
         <ul className="lp-exam-list" id="lpDeList">
-          {list.map((e) => (
+          {list.slice(0, 4).map((e) => (
             <li key={e.id}>
               <Link className="lp-exam-item" to={`/thi?de=${encodeURIComponent(e.slug)}&src=${encodeURIComponent(source)}`}>
                 <b>{e.title}</b>
@@ -294,6 +328,11 @@ export function PublicExamLanding() {
             <li className="lp-exam-empty">Hiện chưa có đề công khai nào. Theo dõi Fanpage Toán học TNT để nhận đề mới nhé.</li>
           )}
         </ul>
+        {list.length > 4 && (
+          <a className="lp-exam-all" href="#kho-de">
+            Xem cả kho đề ({list.length} đề)
+          </a>
+        )}
       </div>
     );
   }
@@ -343,6 +382,7 @@ export function PublicExamLanding() {
             </span>
           </li>
         </ul>
+        {!session && <TurnstileBox className="lp-captcha" onToken={setCaptchaToken} resetSignal={captchaReset} />}
         <p className="lp-modal-msg" role="status">
           {startError}
         </p>
@@ -363,14 +403,14 @@ export function PublicExamLanding() {
       <header className="lp-topbar">
         <div className="lp-wrap">
           <a className="lp-brand" href="#lpTop" aria-label="Toán học TNT, về đầu trang">
-            <span className="lp-brand-mark" aria-hidden="true">TNT</span>
+            <img className="lp-brand-logo" src={logoMark} alt="" width={46} height={32} />
             <span className="lp-brand-name"><b>Toán học TNT</b><span>Thi online</span></span>
           </a>
           <nav className="lp-nav" aria-label="Các phần của trang">
+            <a href="#kho-de">Kho đề</a>
             <a href="#du-lieu">Bài làm thành dữ liệu</a>
             <a href="#bao-cao">Báo cáo</a>
             <a href="#mat-diem">Vì sao mất điểm</a>
-            <a href="#quy-trinh">Cách làm</a>
             <a href="#hoi-dap">Hỏi đáp</a>
           </nav>
           <div className="lp-top-actions">
@@ -395,6 +435,7 @@ export function PublicExamLanding() {
           </svg>
           <div className="lp-wrap">
             <div>
+              {shared && exam && shared.slug === exam.slug && <InviteBanner shared={shared} />}
               <span className="lp-chip lp-rise" style={cv({"--d": '0ms'})}><i />{chipText}</span>
               <h1 className="lp-h1 lp-rise" style={cv({"--d": '80ms'})}>Không chỉ biết điểm.<br />
                 <span className="lp-l2">Biết mình đang ở đâu.<svg viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path pathLength={1} d="M3 10 C 80 3 200 2 297 9" stroke="currentColor" strokeWidth={4} strokeLinecap="round" fill="none" /></svg></span>
@@ -697,6 +738,9 @@ export function PublicExamLanding() {
             </div>
           </div>
         </section>
+        {state.status === "ready" && (
+          <ExamLibrarySection list={state.list} currentSlug={exam?.slug ?? null} source={source} />
+        )}
         {/* =====================================================================
          07 — HỎI ĐÁP
          ===================================================================== */}
@@ -721,12 +765,7 @@ export function PublicExamLanding() {
           </div>
         </section>
       </main>
-      <footer className="lp-footer">
-        <div className="lp-wrap">
-          <span><b style={{color: 'var(--ink)'}}>Toán học TNT</b> · Thầy Tường</span>
-          <span>Các hình mẫu trên trang dùng dữ liệu minh họa, không phải bài làm của em.</span>
-        </div>
-      </footer>
+      <LandingFooter currentExam={exam} source={source} />
       <div className="lp-mbar" id="lpMbar">
         <div className="lp-mbar-t"><b>{exam?.title ?? "Đề Toán miễn phí"}</b><span>{metaText} · miễn phí</span></div>
         <button className="lp-btn lp-btn-primary lp-btn-sm" type="button" onClick={onStart}>Làm bài</button>

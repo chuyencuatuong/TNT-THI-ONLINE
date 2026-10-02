@@ -12,9 +12,12 @@ import { downloadCanvasAsPng, drawShareCard, type ShareCardData } from "../lib/r
 export function ShareCardModal({
   data,
   onClose,
+  hint,
 }: {
   data: ShareCardData;
   onClose: () => void;
+  /** Dòng gợi ý dưới ảnh; bỏ trống dùng câu mặc định. */
+  hint?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -46,7 +49,8 @@ export function ShareCardModal({
     if (!canvas || !ready) return;
     setDownloading(true);
     try {
-      const filename = data.kind === "progress" ? "tnt-tien-bo.png" : "tnt-chuoi-on-tap.png";
+      const filename =
+        data.kind === "progress" ? "tnt-tien-bo.png" : data.kind === "result" ? "tnt-ket-qua.png" : "tnt-chuoi-on-tap.png";
       await downloadCanvasAsPng(canvas, filename);
     } finally {
       setDownloading(false);
@@ -64,7 +68,7 @@ export function ShareCardModal({
           {!ready && <div className="share-card-loading">Đang tạo thẻ...</div>}
         </div>
         <p className="share-card-hint">
-          Tải ảnh về rồi tự đăng lên Locket, story hoặc bất kỳ đâu em muốn khoe nhé!
+          {hint ?? "Tải ảnh về rồi tự đăng lên Locket, story hoặc bất kỳ đâu em muốn khoe nhé!"}
         </p>
         <button
           type="button"

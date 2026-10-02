@@ -257,6 +257,15 @@ export default function App() {
             </RequireRole>
           }
         />
+        {/* Giáo viên xem Báo cáo năng lực của 1 lượt làm (02/10/2026). */}
+        <Route
+          path="/giao-vien/bai-lam/:attemptId"
+          element={
+            <RequireRole role="teacher">
+              <ResultPage viewer="teacher" />
+            </RequireRole>
+          }
+        />
         <Route
           path="/giao-vien/hoc-sinh/:studentId"
           element={

@@ -16,12 +16,16 @@ export function ActionChapter({
   actions,
   onOpenQuestions,
   lockedLink,
+  readOnlyNote,
 }: {
   actions: ReportAction[];
   onOpenQuestions: (questionIds: string[]) => void;
   /** Khách (chưa có tài khoản): việc dẫn sang trang học sinh được thay bằng
    * nút này (vd "Lưu hồ sơ để mở"), vì các trang đó cần tài khoản. */
   lockedLink?: { label: string; onClick: () => void };
+  /** Giáo viên xem báo cáo của học sinh: việc dẫn sang trang học sinh chỉ hiện
+   * thành ghi chú (giáo viên không mở trang của học sinh được). */
+  readOnlyNote?: string;
 }) {
   const hostRef = useRef<HTMLOListElement>(null);
   const [listRef, inView] = useInView<HTMLDivElement>();
@@ -66,6 +70,8 @@ export function ActionChapter({
                   {a.ctaLabel}
                   <ArrowRightIcon />
                 </button>
+              ) : readOnlyNote ? (
+                <span className="student-intelligence-action-note">{readOnlyNote}</span>
               ) : lockedLink ? (
                 <button
                   type="button"

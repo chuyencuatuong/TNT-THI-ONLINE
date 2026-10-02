@@ -64,6 +64,7 @@ export function ExamTakingPage() {
   const [searchParams] = useSearchParams();
   const entrySource = searchParams.get("src");
   const publicSlug = searchParams.get("de");
+  const refShare = searchParams.get("ref");
   const isGuest = !!profile?.is_guest;
   const homePath = isGuest ? (publicSlug ? `/thi?de=${encodeURIComponent(publicSlug)}` : "/thi") : "/hoc-sinh";
   const resultPath = (id: string) =>
@@ -127,7 +128,7 @@ export function ExamTakingPage() {
         // Tạo lượt làm (hoặc làm tiếp lượt đang dở) TRƯỚC, rồi mới lấy đề:
         // từ migration_022 đề chỉ lấy được qua get_exam_paper (không có đáp
         // án) và chỉ khi đã có lượt làm.
-        const { attempt, answers: restored, resumed } = await api.startOrResumeAttempt(exam, profile.id, entrySource);
+        const { attempt, answers: restored, resumed } = await api.startOrResumeAttempt(exam, profile.id, entrySource, refShare);
         const exQuestions = await api.getExamPaper(examId);
         if (cancelled) return;
         setItems(exQuestions);
@@ -149,11 +150,14 @@ export function ExamTakingPage() {
         }
       } catch (err) {
         if (cancelled) return;
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = (err as { message?: string } | null)?.message ?? String(err);
         if (msg.includes("exam_not_unlocked_yet")) setPhase("not_unlocked");
         else if (msg.includes("exam_locked")) setPhase("locked");
         else if (msg.includes("exam_not_public")) {
           alert("Đề này chỉ dành cho học sinh có tài khoản. Em chọn đề khác ở trang đề miễn phí nhé.");
+          navigate("/thi");
+        } else if (msg.includes("guest_attempt_limit")) {
+          alert("Em đã làm đề này 3 lần ở chế độ khách. Tạo tài khoản ở trang kết quả để làm tiếp và lưu hồ sơ nhé.");
           navigate("/thi");
         } else {
           console.error(err);
