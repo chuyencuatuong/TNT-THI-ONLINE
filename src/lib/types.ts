@@ -28,6 +28,17 @@ export interface Profile {
   school_name: string | null;
   gender: Gender | null;
   province: string | null;
+  /** migration_023 — tài khoản ẩn danh tạo từ link đề công khai (chưa đăng
+   * ký). Chuyển false khi khách tạo tài khoản bằng email. Hồ sơ cũ: false. */
+  is_guest?: boolean;
+  /** Lớp khách tự điền (vd "12A1") — khác class_id là lớp do giáo viên xếp. */
+  class_label?: string | null;
+  /** Email khách tự điền sau khi nộp bài (không bắt buộc). */
+  contact_email?: string | null;
+  consent_at?: string | null;
+  /** Thời điểm khách điền xong thông tin cơ bản — null thì chưa xem được kết quả. */
+  info_completed_at?: string | null;
+  signup_source?: string | null;
   created_at: string;
 }
 
@@ -258,6 +269,11 @@ export interface ExamRow {
   custom_scoring_method: "tu_dong" | "thu_cong" | null;
   created_by: string;
   created_at: string;
+  /** migration_023 — true = ai có link /thi/?de=<public_slug> cũng làm được,
+   * không cần tài khoản. */
+  is_public?: boolean;
+  public_slug?: string | null;
+  public_intro?: string | null;
 }
 
 /** Đề có thể thuộc nhiều chương (topics) — giáo viên tự chọn lúc nhập đề, dùng

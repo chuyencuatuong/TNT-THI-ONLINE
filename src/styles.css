@@ -4261,3 +4261,115 @@ a {
 .li-tree-edge { font-size: 12px; color: var(--color-text-muted); }
 .li-candidate { border: 1px dashed var(--color-clay); background: var(--color-clay-light); color: var(--color-clay-text); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
 .li-disclaimer { font-size: 12px; color: var(--color-text-muted); font-style: italic; margin: 0; }
+
+/* ==========================================================================
+   LUỒNG KHÁCH TỪ LINK CÔNG KHAI (02/10/2026, migration_023)
+   ========================================================================== */
+.app-guest-block {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-guest-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-subtle-bg);
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.guest-info-page {
+  max-width: 480px;
+  text-align: left;
+}
+.guest-info-page h2 {
+  margin: 10px 0 6px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+.guest-info-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-pine-light);
+  color: var(--color-pine-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.guest-info-lede {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+.guest-info-row {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+}
+.guest-info-optional {
+  font-weight: 500;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
+.guest-info-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.guest-info-consent input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.guest-info-form .btn-primary {
+  margin-top: 4px;
+  min-height: 46px;
+}
+@media (max-width: 480px) {
+  .guest-info-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.exam-resume-notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-pine-light);
+  color: var(--color-pine-text);
+  font-size: 13.5px;
+}
+.public-link-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.public-link-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.public-link-src {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.public-link-url {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-subtle-bg);
+  font-size: 12.5px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .public-link-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .public-link-src {
+    grid-column: 1 / -1;
+  }
+}

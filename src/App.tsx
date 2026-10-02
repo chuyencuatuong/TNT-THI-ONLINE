@@ -4,6 +4,8 @@ import { useAuth } from "./lib/auth";
 import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { PublicReportPage } from "./pages/PublicReportPage";
+import { PublicExamLanding } from "./pages/PublicExamLanding";
+import { GuestInfoPage } from "./pages/GuestInfoPage";
 import { StudentDashboard } from "./pages/StudentDashboard";
 import { StudentExamLibrary } from "./pages/StudentExamLibrary";
 import { StudentReviewPage } from "./pages/StudentReviewPage";
@@ -37,14 +39,19 @@ const TeacherQuestionTypeImport = lazy(() =>
 
 function RequireRole({
   role,
+  allowGuest = false,
   children,
 }: {
   role: "teacher" | "student";
+  /** Khách làm đề công khai (đăng nhập ẩn danh, migration_023) chỉ được vào
+   * vài trang: làm bài, nhập thông tin, kết quả. Mặc định không cho. */
+  allowGuest?: boolean;
   children: JSX.Element;
 }) {
   const { session, profile, loading } = useAuth();
   if (loading) return <div className="page-loading">Đang tải...</div>;
   if (!session || !profile) return <Navigate to="/dang-nhap" replace />;
+  if (profile.is_guest && !allowGuest) return <Navigate to="/thi" replace />;
   if (profile.role !== role) {
     return <Navigate to={profile.role === "teacher" ? "/giao-vien" : "/hoc-sinh"} replace />;
   }
@@ -57,6 +64,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/bao-cao/:token" element={<PublicReportPage />} />
+      {/* Landing đề công khai: link Facebook trỏ vào /thi/?de=<slug>&src=fb
+          (thi/index.html là entry riêng để link có ảnh xem trước, xem vite.config.ts). */}
+      <Route path="/thi" element={<PublicExamLanding />} />
 
       <Route element={<Layout />}>
         <Route path="/dang-nhap" element={<LoginPage />} />
@@ -70,6 +80,8 @@ export default function App() {
               <Navigate to="/dang-nhap" replace />
             ) : !profile ? (
               <Navigate to="/dang-nhap" replace />
+            ) : profile.is_guest ? (
+              <Navigate to="/thi" replace />
             ) : (
               <Navigate to={profile.role === "teacher" ? "/giao-vien" : "/hoc-sinh"} replace />
             )
@@ -119,7 +131,7 @@ export default function App() {
         <Route
           path="/lam-bai/:examId"
           element={
-            <RequireRole role="student">
+            <RequireRole role="student" allowGuest>
               <ExamTakingPage />
             </RequireRole>
           }
@@ -127,8 +139,16 @@ export default function App() {
         <Route
           path="/ket-qua/:attemptId"
           element={
-            <RequireRole role="student">
+            <RequireRole role="student" allowGuest>
               <ResultPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/thi/thong-tin/:attemptId"
+          element={
+            <RequireRole role="student" allowGuest>
+              <GuestInfoPage />
             </RequireRole>
           }
         />

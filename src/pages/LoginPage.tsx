@@ -31,7 +31,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<"teacher" | "student">("student");
+  const role = "student" as "teacher" | "student";
   const [saving, setSaving] = useState(false);
   // Hồ sơ mở rộng (24/08/2026, migration_011) — CHỈ áp dụng cho học sinh, hiện
   // dần ngay sau khi chọn vai trò "Học sinh" trong form "Hoàn tất hồ sơ" bên
@@ -99,7 +99,7 @@ export function LoginPage() {
       <div className="auth-page">
         <img src={logoFull} alt="Toán học TNT" className="auth-logo" />
         <h2>Hoàn tất hồ sơ</h2>
-        <p>Đây là lần đăng nhập đầu tiên, vui lòng cho biết bạn là ai.</p>
+        <p>Đây là lần đăng nhập đầu tiên, em cho thầy biết vài thông tin nhé.</p>
         <form onSubmit={handleCreateProfile} className="auth-form">
           <input
             type="text"
@@ -108,24 +108,11 @@ export function LoginPage() {
             onChange={(e) => setFullName(e.target.value)}
             required
           />
-          <div className="role-choice">
-            <label>
-              <input
-                type="radio"
-                checked={role === "student"}
-                onChange={() => setRole("student")}
-              />
-              Học sinh
-            </label>
-            <label>
-              <input
-                type="radio"
-                checked={role === "teacher"}
-                onChange={() => setRole("teacher")}
-              />
-              Giáo viên
-            </label>
-          </div>
+          {/* Từ 02/10/2026 (migration_022) tự đăng ký chỉ tạo được tài khoản
+              HỌC SINH — tài khoản giáo viên do quản trị cấp bằng SQL. */}
+          <p className="auth-tagline" style={{ margin: 0 }}>
+            Tài khoản học sinh. Giáo viên cần tài khoản giáo viên thì liên hệ quản trị Toán học TNT.
+          </p>
 
           {/* Chỉ hiện khi chọn "Học sinh" — GV không cần điền các trường này
               (24/08/2026, migration_011). Không có trường nào bắt buộc, để

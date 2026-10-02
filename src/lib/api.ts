@@ -11,7 +11,6 @@ import {
 } from "./scoring";
 import {
   classifyBlankQuestions,
-  computeActiveSeconds,
   diagnoseAllDifficulties,
   diagnoseAllTopics,
   diagnoseTopic,
@@ -436,6 +435,9 @@ export async function updateExam(
       | "assigned_lock_at"
       | "scoring_mode"
       | "custom_scoring_method"
+      | "is_public"
+      | "public_slug"
+      | "public_intro"
     >
   >,
 ): Promise<void> {
@@ -569,6 +571,79 @@ export async function startAttempt(
     .single();
   if (error) throw error;
   return data as ExamAttemptRow;
+}
+
+/**
+ * Đề để LÀM BÀI — không có đáp án, lời giải (migration_022, RPC
+ * get_exam_paper). Chỉ gọi được SAU khi đã tạo lượt làm đề này. Trả đúng hình
+ * dạng của getExamQuestions() nhưng question.correct_answer /
+ * question.solution_latex luôn là null.
+ */
+export async function getExamPaper(
+  examId: string,
+): Promise<(ExamQuestionRow & { question: QuestionRow })[]> {
+  const { data, error } = await supabase.rpc("get_exam_paper", { p_exam_id: examId });
+  if (error) throw error;
+  return (data ?? []) as (ExamQuestionRow & { question: QuestionRow })[];
+}
+
+/**
+ * Bắt đầu làm bài — hoặc LÀM TIẾP lượt đang dở nếu còn trong thời gian làm
+ * bài (02/10/2026). Trước đây mỗi lần vào trang làm bài là tạo lượt MỚI, nên
+ * học sinh lỡ tải lại trang (rất hay gặp khi mở link trong trình duyệt của
+ * Facebook) là mất hết câu đã chọn. Giờ: lượt chưa nộp, chưa hết giờ -> dùng
+ * lại, khôi phục đáp án mới nhất của từng câu từ answer_events.
+ */
+export async function startOrResumeAttempt(
+  exam: Pick<ExamRow, "id" | "duration_minutes">,
+  studentId: string,
+  entrySource?: string | null,
+): Promise<{ attempt: ExamAttemptRow; answers: Record<string, unknown>; resumed: boolean }> {
+  const { data: open } = await supabase
+    .from("exam_attempts")
+    .select("*")
+    .eq("exam_id", exam.id)
+    .eq("student_id", studentId)
+    .is("submitted_at", null)
+    .order("started_at", { ascending: false })
+    .limit(1);
+  const candidate = (open?.[0] ?? null) as ExamAttemptRow | null;
+  const stillOpen =
+    candidate &&
+    (exam.duration_minutes === null ||
+      new Date(candidate.started_at).getTime() + exam.duration_minutes * 60_000 > Date.now() + 5_000);
+
+  if (candidate && stillOpen) {
+    const { data: events } = await supabase
+      .from("answer_events")
+      .select("question_id, answer_value, created_at, id")
+      .eq("attempt_id", candidate.id)
+      .order("created_at")
+      .order("id");
+    const answers: Record<string, unknown> = {};
+    for (const e of (events ?? []) as { question_id: string; answer_value: unknown }[]) {
+      answers[e.question_id] = e.answer_value;
+    }
+    return { attempt: candidate, answers, resumed: true };
+  }
+
+  const { count } = await supabase
+    .from("exam_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("exam_id", exam.id)
+    .eq("student_id", studentId);
+  const { data, error } = await supabase
+    .from("exam_attempts")
+    .insert({
+      exam_id: exam.id,
+      student_id: studentId,
+      attempt_number: (count ?? 0) + 1,
+      ...(entrySource ? { entry_source: entrySource.slice(0, 60) } : {}),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return { attempt: data as ExamAttemptRow, answers: {}, resumed: false };
 }
 
 export async function logAnswerEvent(input: {
@@ -765,154 +840,22 @@ async function recordWrongAnswersFromExam(
  */
 export async function submitAttempt(
   attemptId: string,
-  examId: string,
-  studentId?: string,
+  _examId?: string,
+  _studentId?: string,
   invalidatedReason?: string,
 ): Promise<AttemptScoreRow> {
-  const [examQuestions, exam] = await Promise.all([getExamQuestions(examId), getExam(examId)]);
-  // Điểm tối đa thật của TỪNG câu trong đề này — tôn trọng chế độ tính điểm
-  // của đề (Đợt 3: chuẩn THPT mặc định, hoặc tuỳ chỉnh tự động/thủ công).
-  // Ở chế độ chuẩn (mọi đề tạo trước Đợt 3), kết quả giống hệt barem cũ.
-  const scoring = resolveExamScoring(
-    exam?.scoring_mode ?? "chuan_thpt",
-    exam?.custom_scoring_method ?? null,
-    examQuestions.map((eq) => ({
-      question_id: eq.question.id,
-      part: eq.part,
-      default_points: eq.question.default_points,
-      custom_points: eq.custom_points,
-      custom_part2_points: eq.custom_part2_points,
-    })),
-  );
-  const [{ data: events, error: evErr }, { data: viewEvents, error: veErr }] =
-    await Promise.all([
-      supabase
-        .from("answer_events")
-        .select("*")
-        .eq("attempt_id", attemptId)
-        .order("created_at"),
-      supabase
-        .from("question_view_events")
-        .select("*")
-        .eq("attempt_id", attemptId)
-        .order("created_at"),
-    ]);
-  if (evErr) throw evErr;
-  if (veErr) throw veErr;
-
-  let part1Score = 0;
-  let part2Score = 0;
-  let part3Score = 0;
-  const responsesToInsert: Record<string, unknown>[] = [];
-  const wrongQuestionIds: string[] = [];
-
-  for (const eq of examQuestions) {
-    const q = eq.question;
-    const qEvents = (events ?? []).filter(
-      (e) => e.question_id === q.id,
-    );
-    const finalAnswer = qEvents.length
-      ? qEvents[qEvents.length - 1].answer_value
-      : null;
-    const changeCount = Math.max(0, qEvents.length - 1);
-    const firstAt = qEvents.length ? qEvents[0].created_at : null;
-    const lastAt = qEvents.length
-      ? qEvents[qEvents.length - 1].created_at
-      : null;
-
-    // Ưu tiên tính thời gian "tập trung" thực tế từ question_view_events (cộng dồn
-    // mọi lượt quay lại xem câu này). Nếu vì lý do nào đó không có view events
-    // (ví dụ lượt làm bài cũ trước khi có tính năng này) thì mới dùng cách cũ:
-    // khoảng cách từ lần chọn đáp án đầu tới lần cuối.
-    const qViewEvents = (viewEvents ?? []).filter(
-      (e) => e.question_id === q.id,
-    );
-    const timeSpentSeconds =
-      qViewEvents.length > 0
-        ? computeActiveSeconds(qViewEvents)
-        : firstAt && lastAt
-          ? Math.max(
-              0,
-              Math.round(
-                (new Date(lastAt).getTime() - new Date(firstAt).getTime()) /
-                  1000,
-              ),
-            )
-          : 0;
-
-    // Chấm bằng hàm thuần dùng CHUNG với luồng chấm lại khi GV sửa điểm
-    // (api.regradeAttempt) — xem scoreQuestionWithAnswer trong scoring.ts.
-    const resolved = scoring.get(q.id);
-    const { score, subCorrectCount } = scoreQuestionWithAnswer(
-      q,
-      finalAnswer,
-      resolved,
-      exam?.scoring_mode === "tuy_chinh",
-    );
-
-    if (q.part === 1) part1Score += score;
-    else if (q.part === 2) part2Score += score;
-    else part3Score += score;
-
-    // Dùng điểm tối đa THẬT của câu này (resolved.maxScore) thay vì
-    // questionMaxScore(q) đơn thuần — ở chế độ tính điểm tuỳ chỉnh (Đợt 3),
-    // 2 giá trị này có thể khác nhau; ở chế độ chuẩn THPT thì luôn bằng nhau
-    // (resolveExamScoring trả về đúng barem cũ), nên hành vi cũ không đổi.
-    if (score < (resolved?.maxScore ?? questionMaxScore(q))) wrongQuestionIds.push(q.id);
-
-    responsesToInsert.push({
-      attempt_id: attemptId,
-      question_id: q.id,
-      final_answer: finalAnswer,
-      score,
-      sub_correct_count: subCorrectCount,
-      time_spent_seconds: timeSpentSeconds,
-      change_count: changeCount,
-      first_response_at: firstAt,
-      last_response_at: lastAt,
-    });
-  }
-
-  // Ghi đè question_responses cho lượt làm bài này (idempotent nếu bấm nộp lại)
-  await supabase.from("question_responses").delete().eq(
-    "attempt_id",
-    attemptId,
-  );
-  if (responsesToInsert.length > 0) {
-    const { error: respErr } = await supabase
-      .from("question_responses")
-      .insert(responsesToInsert);
-    if (respErr) throw respErr;
-  }
-
-  const totals = combineScores(part1Score, part2Score, part3Score);
-
-  const { data: scoreRow, error: scoreErr } = await supabase
-    .from("attempt_scores")
-    .upsert({
-      attempt_id: attemptId,
-      part1_score: totals.part1Score,
-      part2_score: totals.part2Score,
-      part3_score: totals.part3Score,
-      total_score: totals.totalScore,
-    })
-    .select()
-    .single();
-  if (scoreErr) throw scoreErr;
-
-  await supabase
-    .from("exam_attempts")
-    .update({
-      submitted_at: new Date().toISOString(),
-      ...(invalidatedReason ? { invalidated: true, invalidated_reason: invalidatedReason } : {}),
-    })
-    .eq("id", attemptId);
-
-  if (studentId) {
-    await recordWrongAnswersFromExam(studentId, wrongQuestionIds, attemptId);
-  }
-
-  return scoreRow as AttemptScoreRow;
+  // Từ 02/10/2026 (migration_022): chấm điểm ở MÁY CHỦ bằng RPC submit_attempt
+  // — trình duyệt không còn đọc được đáp án lúc làm bài, cũng không còn quyền
+  // ghi điểm. Luật chấm SQL là bản sao của scoring.ts (đã kiểm thử đối chiếu,
+  // xem supabase/kiem-thu/). RPC tự ghi question_responses, attempt_scores,
+  // đánh dấu đã nộp và ghi câu sai vào nhật ký ôn tập. Gọi lại nhiều lần an
+  // toàn: lượt đã nộp thì trả điểm cũ.
+  const { data, error } = await supabase.rpc("submit_attempt", {
+    p_attempt_id: attemptId,
+    p_invalidated_reason: invalidatedReason ?? null,
+  });
+  if (error) throw error;
+  return data as AttemptScoreRow;
 }
 
 // ---------------------------------------------------------------------------
@@ -1393,7 +1336,10 @@ export async function listStudents(): Promise<Profile[]> {
     .eq("role", "student")
     .order("full_name");
   if (error) throw error;
-  return data as Profile[];
+  // Khách làm đề qua link công khai (migration_023) không phải học sinh của
+  // lớp — ẩn khỏi mọi danh sách học sinh/lớp. Xem họ ở tab "Link công khai"
+  // của trang thống kê đề (listPublicAttemptsForExam).
+  return (data as Profile[]).filter((p) => !p.is_guest);
 }
 
 // ---------------------------------------------------------------------------
@@ -2333,7 +2279,11 @@ export async function listActiveJournalEntries(
     .eq("student_id", studentId)
     .is("retired_at", null);
   if (error) throw error;
-  return data as unknown as (WrongAnswerJournalRow & { question: QuestionRow })[];
+  // Từ migration_022 câu hỏi chỉ đọc được khi còn 1 lượt đã nộp chứa câu đó —
+  // lượt bị giáo viên xoá thì câu biến mất (question = null), bỏ qua dòng đó.
+  return (data as unknown as (WrongAnswerJournalRow & { question: QuestionRow | null })[]).filter(
+    (e): e is WrongAnswerJournalRow & { question: QuestionRow } => !!e.question,
+  );
 }
 
 /**
@@ -2724,4 +2674,105 @@ export async function upsertSkillPrerequisite(input: {
 export async function deleteSkillPrerequisite(id: string): Promise<void> {
   const { error } = await supabase.from("skill_prerequisites").delete().eq("id", id);
   if (error) throw error;
+}
+
+
+// ---------------------------------------------------------------------------
+// ĐỀ CÔNG KHAI & LƯỢT LÀM CỦA KHÁCH (migration_023, 02/10/2026)
+// ---------------------------------------------------------------------------
+
+/** Thông tin 1 đề công khai cho trang landing — đọc được khi chưa đăng nhập. */
+export interface PublicExamInfo {
+  id: string;
+  slug: string;
+  title: string;
+  intro: string | null;
+  duration_minutes: number | null;
+  grade: 10 | 11 | 12 | null;
+  mode: "thoai_mai" | "nghiem_tuc";
+  assigned_unlock_at: string | null;
+  assigned_lock_at: string | null;
+  /** Số câu theo phần, khoá là "1" | "2" | "3". */
+  part_counts: Record<string, number>;
+  submitted_count: number;
+}
+
+export async function getPublicExam(slug: string): Promise<PublicExamInfo | null> {
+  const { data, error } = await supabase.rpc("get_public_exam", { p_slug: slug });
+  if (error) throw error;
+  return (data ?? null) as PublicExamInfo | null;
+}
+
+export async function listPublicExams(): Promise<PublicExamInfo[]> {
+  const { data, error } = await supabase.rpc("list_public_exams");
+  if (error) throw error;
+  return (data ?? []) as PublicExamInfo[];
+}
+
+/** Lỗi do hàm RPC chưa có (chưa chạy migration) — để UI báo đúng việc cần làm. */
+export function isMissingRpcError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return (
+    !!e &&
+    (e.code === "PGRST202" || e.code === "42883" || /could not find the function/i.test(e.message ?? ""))
+  );
+}
+
+export interface GuestInfoInput {
+  fullName: string;
+  schoolName: string;
+  province: string;
+  classLabel: string;
+  contactEmail: string | null;
+}
+
+/** Khách điền thông tin cơ bản sau khi nộp bài (bắt buộc trước khi xem kết quả). */
+export async function updateGuestInfo(profileId: string, info: GuestInfoInput): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      full_name: info.fullName.trim(),
+      school_name: info.schoolName.trim(),
+      province: info.province.trim(),
+      class_label: info.classLabel.trim(),
+      contact_email: info.contactEmail?.trim() || null,
+      consent_at: now,
+      info_completed_at: now,
+    })
+    .eq("id", profileId);
+  if (error) throw error;
+}
+
+/** 1 lượt làm từ link công khai, kèm thông tin người làm — cho giáo viên. */
+export interface PublicAttemptRow {
+  attempt: ExamAttemptRow & { entry_source: string | null };
+  student: Profile;
+  score: AttemptScoreRow | null;
+}
+
+/**
+ * Các lượt làm 1 đề của người KHÔNG thuộc lớp nào: khách (is_guest) hoặc
+ * người vào từ link công khai (có entry_source — kể cả khách đã tạo tài khoản
+ * sau đó). Mới nhất trước.
+ */
+export async function listPublicAttemptsForExam(examId: string): Promise<PublicAttemptRow[]> {
+  const { data, error } = await supabase
+    .from("exam_attempts")
+    .select("*, score:attempt_scores(*), student:profiles!exam_attempts_student_id_fkey(*)")
+    .eq("exam_id", examId)
+    .order("started_at", { ascending: false });
+  if (error) throw error;
+  const rows: PublicAttemptRow[] = [];
+  for (const raw of (data ?? []) as unknown[]) {
+    const r = raw as ExamAttemptRow & {
+      entry_source: string | null;
+      score: AttemptScoreRow[] | AttemptScoreRow | null;
+      student: Profile | null;
+    };
+    if (!r.student || (!r.student.is_guest && !r.entry_source)) continue;
+    const { score, student, ...attempt } = r;
+    rows.push({ attempt, student, score: Array.isArray(score) ? score[0] ?? null : score });
+  }
+  return rows;
 }

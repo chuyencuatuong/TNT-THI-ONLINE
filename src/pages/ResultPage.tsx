@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import * as api from "../lib/api";
 import type { AttemptDiagnostics, AttemptReviewItem, ExamScoreDistribution, StudentLearningBundle } from "../lib/api";
 import { diagnoseTopic } from "../lib/diagnosis";
@@ -41,6 +41,7 @@ import { PositionChapter, type TierChip } from "../components/student-result/Pos
 import { DiagnosisChapter } from "../components/student-result/DiagnosisChapter";
 import { ChapterTransition } from "../components/student-result/ChapterTransition";
 import { ActionChapter } from "../components/student-result/ActionChapter";
+import { GuestSaveCard } from "../components/student-result/GuestSaveCard";
 import { AppendixChapter, type AppendixItem } from "../components/student-result/AppendixChapter";
 import { MobileActionBar } from "../components/student-result/MobileActionBar";
 import { topRootCauseChain } from "../components/student-result/rootCauseChain";
@@ -125,6 +126,13 @@ export function ResultPage() {
   const [appendixMounted, setAppendixMounted] = useState<Set<string>>(() => new Set());
   // Tên lớp cho phiếu kết quả (ResultSlip) — tra qua bảng classes (migration_013).
   const [className, setClassName] = useState<string | null>(null);
+
+  // Khách vừa tạo tài khoản ngay trên trang này: giữ thẻ "Lưu hồ sơ" để hiện
+  // lời xác nhận (lúc đó profile.is_guest đã thành false).
+  const [shownAsGuest, setShownAsGuest] = useState(false);
+  useEffect(() => {
+    if (profile?.is_guest) setShownAsGuest(true);
+  }, [profile?.is_guest]);
 
   const hostRef = useRef<HTMLDivElement>(null);
   const scorePlaceholderRef = useRef<HTMLSpanElement>(null);
@@ -378,6 +386,11 @@ export function ResultPage() {
     [openAppendix, pin],
   );
 
+  // Khách (đề công khai) phải điền thông tin cơ bản trước khi xem kết quả.
+  const isGuest = !!profile?.is_guest;
+  if (isGuest && !profile?.info_completed_at && attemptId) {
+    return <Navigate to={`/thi/thong-tin/${attemptId}`} replace />;
+  }
   if (loading) return <div className="page-loading">Đang tải kết quả...</div>;
   if (!score) return <div className="page-loading">Không tìm thấy kết quả.</div>;
 
@@ -473,8 +486,11 @@ export function ResultPage() {
         ? `Bắt đầu với ${first.questionIds.length} câu này`
         : "Xem lại bài làm"
       : first.ctaLabel;
+  const scrollToSaveCard = () =>
+    document.getElementById("luu-ho-so")?.scrollIntoView({ behavior: "smooth", block: "center" });
   const runFirstAction = () => {
     if (first.kind === "questions") openQuestions(first.questionIds ?? []);
+    else if (isGuest) scrollToSaveCard(); // trang học sinh cần tài khoản
     else navigate(first.to ?? "/hoc-sinh");
   };
 
@@ -662,7 +678,12 @@ export function ResultPage() {
           />
 
           <section className="student-intelligence-sheet student-intelligence-sheet--lift" id="hanh-dong" aria-label="Hành động" tabIndex={-1}>
-            <ActionChapter actions={actions} onOpenQuestions={openQuestions} />
+            <ActionChapter
+              actions={actions}
+              onOpenQuestions={openQuestions}
+              lockedLink={isGuest ? { label: "Lưu hồ sơ để mở", onClick: scrollToSaveCard } : undefined}
+            />
+            {(isGuest || shownAsGuest) && <GuestSaveCard id="luu-ho-so" />}
           </section>
 
           <section className="student-intelligence-sheet" id="phu-luc" ref={appendixRef} aria-label="Phụ lục" tabIndex={-1}>
@@ -670,8 +691,8 @@ export function ResultPage() {
           </section>
 
           <div className="student-intelligence-report-foot">
-            <Link className="student-intelligence-button" to="/hoc-sinh">
-              Về trang chủ
+            <Link className="student-intelligence-button" to={isGuest ? "/thi" : "/hoc-sinh"}>
+              {isGuest ? "Xem các đề miễn phí khác" : "Về trang chủ"}
             </Link>
           </div>
         </article>

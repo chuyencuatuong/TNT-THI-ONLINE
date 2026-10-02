@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../lib/api";
-import type { ExamProgressRow, ExamQuestionWrongStat } from "../lib/api";
+import type { ExamProgressRow, ExamQuestionWrongStat, PublicAttemptRow } from "../lib/api";
+import { buildPublicExamLink } from "../lib/publicExamLink";
 import type { ExamRow } from "../lib/types";
 
 const PART_LABELS: Record<1 | 2 | 3, string> = {
@@ -10,12 +11,42 @@ const PART_LABELS: Record<1 | 2 | 3, string> = {
   3: "Phần 3",
 };
 
-type StatsTab = "tien-do" | "cau-sai";
+type StatsTab = "tien-do" | "cau-sai" | "cong-khai";
 
 const TAB_LABELS: Record<StatsTab, string> = {
   "tien-do": "Theo dõi tiến độ",
   "cau-sai": "Thống kê câu sai",
+  "cong-khai": "Link công khai",
 };
+
+/** Xuất danh sách lượt làm từ link công khai ra CSV (mở được bằng Excel). */
+function downloadPublicAttemptsCsv(examTitle: string, rows: PublicAttemptRow[]) {
+  const header = ["Họ tên", "Trường", "Tỉnh/Thành", "Lớp", "Email", "Nguồn", "Bắt đầu", "Nộp lúc", "Điểm", "Đã tạo tài khoản"];
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = rows.map((r) =>
+    [
+      r.student.full_name,
+      r.student.school_name,
+      r.student.province,
+      r.student.class_label,
+      r.student.contact_email,
+      r.attempt.entry_source,
+      new Date(r.attempt.started_at).toLocaleString("vi-VN"),
+      r.attempt.submitted_at ? new Date(r.attempt.submitted_at).toLocaleString("vi-VN") : "",
+      r.score ? r.score.total_score.toFixed(2) : "",
+      r.student.is_guest ? "Chưa" : "Rồi",
+    ]
+      .map(esc)
+      .join(","),
+  );
+  // BOM để Excel đọc đúng tiếng Việt.
+  const blob = new Blob(["\ufeff" + [header.map(esc).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `luot-lam-cong-khai-${examTitle.replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 60)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 // Chu kỳ làm mới "Theo dõi tiến độ" — quy mô lớp chỉ ~5 học sinh nên polling
 // đơn giản mỗi 15s là đủ "gần thời gian thực", không cần Supabase Realtime
@@ -40,6 +71,7 @@ export function TeacherExamStats() {
   const [tab, setTab] = useState<StatsTab>("tien-do");
   const [progress, setProgress] = useState<ExamProgressRow[]>([]);
   const [wrongStats, setWrongStats] = useState<ExamQuestionWrongStat[]>([]);
+  const [publicRows, setPublicRows] = useState<PublicAttemptRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -80,6 +112,27 @@ export function TeacherExamStats() {
     });
     return () => {
       cancelled = true;
+    };
+  }, [examId, tab]);
+
+  // Tab "Link công khai" (migration_023) — lượt làm của khách/người vào từ link.
+  useEffect(() => {
+    if (!examId || tab !== "cong-khai") return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const rows = await api.listPublicAttemptsForExam(examId!);
+        if (!cancelled) setPublicRows(rows);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    setLoading(true);
+    load();
+    const id = window.setInterval(load, PROGRESS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
     };
   }, [examId, tab]);
 
@@ -150,6 +203,77 @@ export function TeacherExamStats() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === "cong-khai" && (
+        <div className="result-tab-panel">
+          {exam?.is_public && exam.public_slug ? (
+            <p className="empty-hint">
+              Đề đang công khai:{" "}
+              <code>{buildPublicExamLink(window.location.origin, import.meta.env.BASE_URL, exam.public_slug, "fb")}</code>
+            </p>
+          ) : (
+            <p className="empty-hint">
+              Đề chưa bật công khai — bật ở trang sửa đề (mục "Link công khai") để đăng lên Facebook.
+            </p>
+          )}
+          {loading ? (
+            <div className="page-loading">Đang tải...</div>
+          ) : publicRows.length === 0 ? (
+            <p className="empty-hint">Chưa có lượt làm nào từ link công khai.</p>
+          ) : (
+            <>
+              <div className="page-header-row" style={{ marginBottom: 8 }}>
+                <p className="empty-hint" style={{ padding: 0 }}>
+                  {publicRows.length} lượt · đã nộp {publicRows.filter((r) => r.attempt.submitted_at).length} · đã tạo
+                  tài khoản {new Set(publicRows.filter((r) => !r.student.is_guest).map((r) => r.student.id)).size}
+                </p>
+                <button type="button" className="btn-secondary" onClick={() => downloadPublicAttemptsCsv(exam?.title ?? "de", publicRows)}>
+                  Tải CSV
+                </button>
+              </div>
+              <div className="table-scroll">
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Họ tên</th>
+                      <th>Trường</th>
+                      <th>Tỉnh/Thành</th>
+                      <th>Lớp</th>
+                      <th>Email</th>
+                      <th>Nguồn</th>
+                      <th>Nộp lúc</th>
+                      <th>Điểm</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {publicRows.map((r) => (
+                      <tr key={r.attempt.id}>
+                        <td>
+                          {r.student.info_completed_at || !r.student.is_guest ? r.student.full_name : <span className="empty-hint">Chưa điền</span>}
+                          {!r.student.is_guest && <span className="badge badge-ok" style={{ marginLeft: 6 }}>Có tài khoản</span>}
+                        </td>
+                        <td>{r.student.school_name ?? "—"}</td>
+                        <td>{r.student.province ?? "—"}</td>
+                        <td>{r.student.class_label ?? "—"}</td>
+                        <td>{r.student.contact_email ?? "—"}</td>
+                        <td>{r.attempt.entry_source ?? "—"}</td>
+                        <td>
+                          {r.attempt.submitted_at ? (
+                            new Date(r.attempt.submitted_at).toLocaleString("vi-VN")
+                          ) : (
+                            <span className="badge badge-warn">Đang làm</span>
+                          )}
+                        </td>
+                        <td>{r.score ? r.score.total_score.toFixed(2) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}

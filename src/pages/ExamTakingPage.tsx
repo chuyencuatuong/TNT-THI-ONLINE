@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import * as api from "../lib/api";
 import { getAssignmentStatus } from "../lib/examAssignment";
@@ -59,6 +59,16 @@ export function ExamTakingPage() {
   const { examId } = useParams<{ examId: string }>();
   const { profile } = useAuth();
   const navigate = useNavigate();
+  // Khách vào từ link công khai (migration_023): ?src= là nguồn (fb, zalo...),
+  // ?de= là slug để quay lại đúng trang giới thiệu đề.
+  const [searchParams] = useSearchParams();
+  const entrySource = searchParams.get("src");
+  const publicSlug = searchParams.get("de");
+  const isGuest = !!profile?.is_guest;
+  const homePath = isGuest ? (publicSlug ? `/thi?de=${encodeURIComponent(publicSlug)}` : "/thi") : "/hoc-sinh";
+  const resultPath = (id: string) =>
+    isGuest && !profile?.info_completed_at ? `/thi/thong-tin/${id}` : `/ket-qua/${id}`;
+  const [resumedCount, setResumedCount] = useState<number | null>(null);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [exam, setExam] = useState<ExamRow | null>(null);
@@ -110,16 +120,21 @@ export function ExamTakingPage() {
   // server (trigger check_exam_assignment_window, migration_010) — nếu học
   // sinh lách qua bước 1 bằng cách chỉnh giờ máy, insert dưới đây vẫn bị chặn.
   useEffect(() => {
-    if (phase !== "taking" || !examId || !profile || attemptId) return;
+    if (phase !== "taking" || !examId || !profile || !exam || attemptId) return;
     let cancelled = false;
     (async () => {
       try {
-        const [exQuestions, attempt] = await Promise.all([
-          api.getExamQuestions(examId),
-          api.startAttempt(examId, profile.id),
-        ]);
+        // Tạo lượt làm (hoặc làm tiếp lượt đang dở) TRƯỚC, rồi mới lấy đề:
+        // từ migration_022 đề chỉ lấy được qua get_exam_paper (không có đáp
+        // án) và chỉ khi đã có lượt làm.
+        const { attempt, answers: restored, resumed } = await api.startOrResumeAttempt(exam, profile.id, entrySource);
+        const exQuestions = await api.getExamPaper(examId);
         if (cancelled) return;
         setItems(exQuestions);
+        if (resumed) {
+          setAnswers(restored as Record<string, AnyAnswer>);
+          setResumedCount(Object.keys(restored).length);
+        }
         setAttemptId(attempt.id);
         attemptIdRef.current = attempt.id;
         if (exam?.duration_minutes) {
@@ -137,9 +152,16 @@ export function ExamTakingPage() {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes("exam_not_unlocked_yet")) setPhase("not_unlocked");
         else if (msg.includes("exam_locked")) setPhase("locked");
-        else {
+        else if (msg.includes("exam_not_public")) {
+          alert("Đề này chỉ dành cho học sinh có tài khoản. Em chọn đề khác ở trang đề miễn phí nhé.");
+          navigate("/thi");
+        } else {
           console.error(err);
-          alert("Có lỗi khi bắt đầu làm bài, vui lòng thử lại.");
+          alert(
+            api.isMissingRpcError(err)
+              ? "Hệ thống đang cập nhật (thiếu migration_022). Báo giáo viên giúp em nhé."
+              : "Có lỗi khi bắt đầu làm bài, vui lòng thử lại.",
+          );
         }
       }
     })();
@@ -147,7 +169,7 @@ export function ExamTakingPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, examId, profile?.id, attemptId]);
+  }, [phase, examId, profile?.id, exam?.id, attemptId]);
 
   // Đếm ngược thời gian, tự động nộp bài khi hết giờ.
   useEffect(() => {
@@ -258,7 +280,7 @@ export function ExamTakingPage() {
     setSubmitting(true);
     try {
       await api.submitAttempt(attemptIdRef.current, examId, profile?.id);
-      navigate(`/ket-qua/${attemptIdRef.current}`);
+      navigate(resultPath(attemptIdRef.current));
     } catch (err) {
       console.error(err);
       alert("Có lỗi khi nộp bài, vui lòng thử lại.");
@@ -283,13 +305,13 @@ export function ExamTakingPage() {
     } catch (err) {
       console.error("Không nộp được bài bị huỷ:", err);
     } finally {
-      navigate(`/ket-qua/${attemptIdRef.current}`);
+      navigate(resultPath(attemptIdRef.current));
     }
   }
 
   function handleBack() {
     const ok = confirm("Thoát khỏi bài làm? Các câu đã trả lời vẫn được lưu, bạn có thể vào làm tiếp sau.");
-    if (ok) navigate("/hoc-sinh");
+    if (ok) navigate(homePath);
   }
 
   function toggleFullscreen() {
@@ -426,7 +448,7 @@ export function ExamTakingPage() {
           <strong>{exam?.assigned_unlock_at ? formatDateTime(exam.assigned_unlock_at) : ""}</strong>.
           Quay lại đúng giờ để bắt đầu làm bài nhé.
         </p>
-        <Link className="btn-secondary" to="/hoc-sinh">
+        <Link className="btn-secondary" to={homePath}>
           ← Về trang chủ
         </Link>
       </div>
@@ -443,7 +465,7 @@ export function ExamTakingPage() {
           {exam?.assigned_lock_at ? ` lúc ${formatDateTime(exam.assigned_lock_at)}` : ""}. Liên hệ
           giáo viên nếu bạn cần làm bù.
         </p>
-        <Link className="btn-secondary" to="/hoc-sinh">
+        <Link className="btn-secondary" to={homePath}>
           ← Về trang chủ
         </Link>
       </div>
@@ -534,6 +556,13 @@ export function ExamTakingPage() {
           {submitting ? "Đang nộp..." : "Nộp bài"}
         </button>
       </div>
+
+      {resumedCount !== null && (
+        <p className="exam-resume-notice" role="status">
+          Đã khôi phục bài đang làm dở{resumedCount > 0 ? ` (${resumedCount} câu đã trả lời)` : ""}. Đồng hồ vẫn tính
+          từ lúc em bắt đầu lần đầu.
+        </p>
+      )}
 
       <p className="exam-proctor-notice">
         {isStrict

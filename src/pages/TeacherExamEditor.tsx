@@ -5,6 +5,7 @@ import * as api from "../lib/api";
 import { MathText } from "../components/MathText";
 import { TagPicker } from "../components/TagPicker";
 import { AUTO_CANCEL_THRESHOLD } from "../lib/proctoring";
+import { buildPublicExamLink, isValidPublicSlug, slugifyVi } from "../lib/publicExamLink";
 import type { ExamQuestionRow, ExamTag, QuestionRow, Topic } from "../lib/types";
 
 /**
@@ -47,6 +48,12 @@ export function TeacherExamEditor() {
   const [assignEnabled, setAssignEnabled] = useState(false);
   const [unlockAt, setUnlockAt] = useState("");
   const [lockAt, setLockAt] = useState("");
+  // Đề công khai (migration_023): ai có link cũng làm được, không cần tài khoản.
+  const [isPublic, setIsPublic] = useState(false);
+  const [publicSlug, setPublicSlug] = useState("");
+  const [publicIntro, setPublicIntro] = useState("");
+  const [savedPublic, setSavedPublic] = useState<{ isPublic: boolean; slug: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
   // Tính điểm linh hoạt (Đợt 3, mục 2) — mặc định "chuan_thpt" giữ nguyên
   // hành vi cũ. "tuy_chinh" mở thêm 2 lựa chọn: tự động chia đều 10đ (không
   // cần nhập gì) hoặc thủ công (nhập điểm từng câu/từng ý bên dưới).
@@ -129,6 +136,10 @@ export function TeacherExamEditor() {
           setLockAt(examRow.assigned_lock_at ? toDatetimeLocalValue(examRow.assigned_lock_at) : "");
           setScoringMode(examRow.scoring_mode);
           setCustomScoringMethod(examRow.custom_scoring_method);
+          setIsPublic(!!examRow.is_public);
+          setPublicSlug(examRow.public_slug ?? "");
+          setPublicIntro(examRow.public_intro ?? "");
+          setSavedPublic({ isPublic: !!examRow.is_public, slug: examRow.public_slug ?? "" });
         }
       }
       setLoading(false);
@@ -166,6 +177,16 @@ export function TeacherExamEditor() {
       alert("Cần nhập tên đề và có ít nhất 1 câu hỏi.");
       return;
     }
+    const slug = publicSlug.trim();
+    if (isPublic && !isValidPublicSlug(slug)) {
+      alert("Đường dẫn công khai chỉ gồm chữ thường không dấu, số và gạch ngang (3–80 ký tự), vd: giua-ky-1-toan-12.");
+      return;
+    }
+    const publicFields = {
+      is_public: isPublic,
+      public_slug: slug || null,
+      public_intro: publicIntro.trim() || null,
+    };
     setSaving(true);
     try {
       const duration = durationMinutes.trim() ? Number(durationMinutes) : null;
@@ -189,6 +210,7 @@ export function TeacherExamEditor() {
           custom_scoring_method: scoringMode === "tuy_chinh" ? customScoringMethod : null,
           created_by: profile.id,
         });
+        if (isPublic || slug) await api.updateExam(created.id, publicFields);
         examIdToUse = created.id;
         setCurrentExamId(created.id);
       } else {
@@ -205,6 +227,7 @@ export function TeacherExamEditor() {
           assigned_lock_at: assignedLockAt,
           scoring_mode: scoringMode,
           custom_scoring_method: scoringMode === "tuy_chinh" ? customScoringMethod : null,
+          ...publicFields,
         });
       }
 
@@ -260,8 +283,28 @@ export function TeacherExamEditor() {
       await api.setExamQuestions(examIdToUse, examQuestions);
       await api.setExamTopics(examIdToUse, Array.from(selectedTopicIds));
       navigate("/giao-vien/de-thi");
+    } catch (err) {
+      console.error(err);
+      const msg = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+      alert(
+        /exams_public_slug_key|duplicate key/i.test(msg)
+          ? "Đường dẫn công khai này đã có đề khác dùng. Đổi đường dẫn khác rồi lưu lại nhé."
+          : /is_public|public_slug/i.test(msg)
+            ? "CSDL chưa có cột đề công khai — cần chạy migration_023 trước."
+            : "Lưu đề không thành công: " + msg,
+      );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copyLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(link);
+      window.setTimeout(() => setCopied(null), 2000);
+    } catch {
+      window.prompt("Chép link này:", link);
     }
   }
 
@@ -322,6 +365,85 @@ export function TeacherExamEditor() {
               <option value="12">Lớp 12</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      <div className="hover-card section-card">
+        <div className="section-card-head">
+          <h3>Link công khai (đăng Facebook)</h3>
+        </div>
+        <div className="field-grid">
+          <div className="field field-span2">
+            <label>
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => {
+                  setIsPublic(e.target.checked);
+                  if (e.target.checked && !publicSlug.trim() && title.trim()) setPublicSlug(slugifyVi(title));
+                }}
+                style={{ marginRight: 8 }}
+              />
+              Cho làm đề không cần tài khoản — ai có link cũng làm được, nộp xong điền họ tên/trường/lớp rồi xem kết quả
+            </label>
+          </div>
+          {isPublic && (
+            <>
+              <div className="field">
+                <label>Đường dẫn (chữ thường không dấu, số, gạch ngang)</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="text"
+                    value={publicSlug}
+                    onChange={(e) => setPublicSlug(e.target.value.toLowerCase())}
+                    placeholder="vd: giua-ky-1-toan-12"
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <button type="button" className="btn-secondary" onClick={() => setPublicSlug(slugifyVi(title))} disabled={!title.trim()}>
+                    Tạo từ tên đề
+                  </button>
+                </div>
+                {publicSlug.trim() && !isValidPublicSlug(publicSlug.trim()) && (
+                  <p className="form-error" style={{ marginTop: 6 }}>Đường dẫn chưa hợp lệ.</p>
+                )}
+              </div>
+              <div className="field">
+                <label>Giới thiệu ngắn trên trang đề (không bắt buộc)</label>
+                <input
+                  type="text"
+                  value={publicIntro}
+                  onChange={(e) => setPublicIntro(e.target.value)}
+                  placeholder="vd: Đề giữa kỳ 1 trường THPT ..., bám sát cấu trúc 2025"
+                  maxLength={240}
+                />
+              </div>
+              <div className="field field-span2">
+                {savedPublic?.isPublic && savedPublic.slug && savedPublic.slug === publicSlug.trim() ? (
+                  <div className="public-link-box">
+                    {(["fb", "zalo", "link"] as const).map((src) => {
+                      const link = buildPublicExamLink(window.location.origin, import.meta.env.BASE_URL, savedPublic.slug, src);
+                      return (
+                        <div key={src} className="public-link-row">
+                          <span className="public-link-src">{src === "fb" ? "Facebook" : src === "zalo" ? "Zalo" : "Khác"}</span>
+                          <code className="public-link-url">{link}</code>
+                          <button type="button" className="btn-secondary" onClick={() => copyLink(link)}>
+                            {copied === link ? "Đã chép" : "Chép link"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <p className="empty-hint" style={{ padding: "6px 0 0" }}>
+                      Mỗi kênh một link để biết học sinh đến từ đâu (cột "Nguồn" ở trang thống kê đề, tab Link công khai).
+                    </p>
+                  </div>
+                ) : (
+                  <p className="empty-hint" style={{ padding: 0 }}>
+                    Lưu đề xong, link chia sẻ sẽ hiện ở đây. Học sinh chưa có tài khoản chỉ làm được đề đang bật công khai.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
